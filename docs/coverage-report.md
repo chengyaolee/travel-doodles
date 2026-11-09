@@ -1,6 +1,6 @@
 # Travel Doodles · Geography Coverage Report
 
-Generated: 2026-11-09T08:33:29.980Z
+Generated: 2026-11-09T09:41:33.457Z
 Total Entries Audited: **250** (195 Core UN, 54 Additional ISO Areas, 1 Extra Feature).
 
 Pass Rate: **100% (250 / 250)**

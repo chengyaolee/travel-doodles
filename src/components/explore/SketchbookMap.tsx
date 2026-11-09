@@ -210,6 +210,12 @@ export function SketchbookMap({
         zoom: 1.6,
         minZoom: 1,
         maxZoom: 16,
+        pitch: 0,
+        maxPitch: 0,
+        minPitch: 0,
+        pitchWithRotate: false,
+        dragRotate: false,
+        touchPitch: false,
         attributionControl: false,
         renderWorldCopies: true, // Infinite horizontal wrap
       });
@@ -220,6 +226,15 @@ export function SketchbookMap({
       );
       return;
     }
+
+    // Disable all pitch / tilt gestures to lock map in pure 2D top-down perspective
+    if (map.touchPitch) map.touchPitch.disable();
+    if (map.dragRotate) map.dragRotate.disable();
+    map.on("pitch", () => {
+      if (map.getPitch() !== 0) {
+        map.setPitch(0);
+      }
+    });
 
     map.addControl(
       new AttributionControl({

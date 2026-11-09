@@ -54,3 +54,34 @@ func TestRedactedDatabaseURL(t *testing.T) {
 		t.Errorf("expected password to be masked, got: %s", redacted)
 	}
 }
+
+func TestLoadDotEnv_File(t *testing.T) {
+	tempFile, err := os.CreateTemp("", ".env.test.*")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(tempFile.Name())
+
+	content := `
+# Test comment
+TEST_DOTENV_KEY="test_value_from_file"
+TEST_DOTENV_PORT=9999
+`
+	if _, err := tempFile.Write([]byte(content)); err != nil {
+		t.Fatalf("failed to write to temp file: %v", err)
+	}
+	_ = tempFile.Close()
+
+	os.Clearenv()
+	os.Setenv("ENV_FILE", tempFile.Name())
+	defer os.Clearenv()
+
+	loadDotEnv()
+
+	if os.Getenv("TEST_DOTENV_KEY") != "test_value_from_file" {
+		t.Errorf("expected test_value_from_file, got %s", os.Getenv("TEST_DOTENV_KEY"))
+	}
+	if os.Getenv("TEST_DOTENV_PORT") != "9999" {
+		t.Errorf("expected 9999, got %s", os.Getenv("TEST_DOTENV_PORT"))
+	}
+}

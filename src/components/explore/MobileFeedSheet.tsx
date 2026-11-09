@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { RegionalFeed } from "./RegionalFeed";
+import { RegionalFeed, RegionItem } from "./RegionalFeed";
 import { ExplorePost } from "@/lib/explore/mockPosts";
 
 interface MobileFeedSheetProps {
@@ -10,6 +10,8 @@ interface MobileFeedSheetProps {
   regionId: string | null;
   regionName: string;
   regionLocalName?: string;
+  regionsList?: RegionItem[];
+  onSelectRegion?: (regionId: string) => void;
   cities: Array<{ id: string; name: string }>;
   selectedCity: string | null;
   onSelectCity: (cityId: string | null) => void;

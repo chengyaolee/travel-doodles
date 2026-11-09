@@ -50,7 +50,10 @@ services:
     restart: unless-stopped
     entrypoint: ["/app/travel-api"]
     env_file:
-      - ../.env.example
+      - path: ../.env
+        required: false
+      - path: ../.env.example
+        required: false
     environment:
       - DATABASE_URL=postgres://travel_user:travel_password@travel-db:5432/travel_doodles?sslmode=disable
       - REDIS_URL=redis://travel-redis:6379/0
@@ -88,7 +91,10 @@ services:
     restart: unless-stopped
     entrypoint: ["/app/travel-worker"]
     env_file:
-      - ../.env.example
+      - path: ../.env
+        required: false
+      - path: ../.env.example
+        required: false
     environment:
       - DATABASE_URL=postgres://travel_user:travel_password@travel-db:5432/travel_doodles?sslmode=disable
       - REDIS_URL=redis://travel-redis:6379/0

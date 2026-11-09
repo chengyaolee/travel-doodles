@@ -3,12 +3,26 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ExplorePost } from "@/lib/explore/mockPosts";
 
+export interface RegionItem {
+  id: string;
+  country: string;
+  name: string;
+  localName: string;
+  type: string;
+  region: string;
+  center: [number, number];
+  bounds: [[number, number], [number, number]];
+  postCount: number;
+}
+
 interface RegionalFeedProps {
   countryCode: string | null;
   countryName: string;
   regionId: string | null;
   regionName: string;
   regionLocalName?: string;
+  regionsList?: RegionItem[];
+  onSelectRegion?: (regionId: string) => void;
   cities: Array<{ id: string; name: string }>;
   selectedCity: string | null;
   onSelectCity: (cityId: string | null) => void;
@@ -30,6 +44,8 @@ export function RegionalFeed({
   regionId,
   regionName,
   regionLocalName,
+  regionsList = [],
+  onSelectRegion,
   cities,
   selectedCity,
   onSelectCity,
@@ -46,6 +62,8 @@ export function RegionalFeed({
 }: RegionalFeedProps) {
   const [sortBy, setSortBy] = useState<"recent" | "popular">("recent");
   const [filterPhotosOnly, setFilterPhotosOnly] = useState(false);
+  const [stateSearch, setStateSearch] = useState("");
+  const [showAllStates, setShowAllStates] = useState(false);
   const [visibleCount, setVisibleCount] = useState(6);
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
@@ -90,6 +108,18 @@ export function RegionalFeed({
     return list;
   }, [posts, selectedCity, filterPhotosOnly, sortBy]);
 
+  // Filtered states list for search
+  const filteredStates = React.useMemo(() => {
+    if (!stateSearch.trim()) return regionsList;
+    const q = stateSearch.toLowerCase();
+    return regionsList.filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        r.localName.toLowerCase().includes(q) ||
+        r.type.toLowerCase().includes(q)
+    );
+  }, [regionsList, stateSearch]);
+
   const displayedPosts = filteredPosts.slice(0, visibleCount);
   const hasMore = visibleCount < filteredPosts.length;
 
@@ -117,6 +147,18 @@ export function RegionalFeed({
     setActiveCommentPostId(null);
   };
 
+  // Label for administrative division type
+  const stateTypeLabel = React.useMemo(() => {
+    if (regionsList.length === 0) return "States & Regions";
+    const firstType = regionsList[0]?.type || "State";
+    if (firstType === "Canton") return "Cantons";
+    if (firstType === "Prefecture" || firstType === "Ken") return "Prefectures";
+    if (firstType === "Province") return "Provinces";
+    if (firstType === "Bundesland" || firstType === "Land") return "Federal States";
+    if (firstType === "Autonomous Region") return "Regions";
+    return "States & Regions";
+  }, [regionsList]);
+
   return (
     <aside
       className="w-full h-full flex flex-col bg-[var(--bg-primary)] border-l border-[var(--border-color)] shadow-2xl relative z-40 overflow-hidden font-sans select-none"
@@ -137,7 +179,10 @@ export function RegionalFeed({
       {/* Sticky Header */}
       <div className="p-4 border-b border-[var(--border-color)] bg-[var(--bg-primary)]/95 backdrop-blur-md sticky top-0 z-20">
         {/* Breadcrumb Navigation */}
-        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-[var(--ink-secondary)] mb-2 font-mono">
+        <nav
+          aria-label="Breadcrumb"
+          className="flex items-center gap-1.5 text-xs text-[var(--ink-secondary)] mb-2 font-mono"
+        >
           <button
             onClick={onBackToWorld}
             className="hover:text-[var(--ink-primary)] underline-offset-2 hover:underline cursor-pointer"
@@ -189,10 +234,33 @@ export function RegionalFeed({
           </button>
         </div>
 
+        {/* Active Region Switcher / Back to all states button */}
+        {regionId && (
+          <div className="mt-2.5 flex items-center justify-between p-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="w-2 h-2 rounded-full bg-[#d94e34]"></span>
+              <span className="font-semibold text-[var(--ink-primary)] truncate max-w-[150px]">
+                {regionName}
+              </span>
+            </div>
+            {onBackToCountry && (
+              <button
+                onClick={onBackToCountry}
+                className="text-[11px] font-mono text-[#d94e34] hover:underline cursor-pointer flex items-center gap-1"
+              >
+                <span>‹ All {stateTypeLabel}</span>
+              </button>
+            )}
+          </div>
+        )}
+
         {/* City Filter Dropdown if available */}
         {cities && cities.length > 0 && (
           <div className="mt-3 flex items-center gap-2">
-            <label htmlFor="city-filter" className="text-xs text-[var(--ink-secondary)] font-medium">
+            <label
+              htmlFor="city-filter"
+              className="text-xs text-[var(--ink-secondary)] font-medium"
+            >
               City:
             </label>
             <select
@@ -254,218 +322,272 @@ export function RegionalFeed({
 
       {/* Feed Scroll Content */}
       <div ref={feedContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Requirement 3 & 11: Master States & Regions Chunk Directory */}
+        {!regionId && regionsList && regionsList.length > 0 && (
+          <div className="p-3 rounded-xl bg-[var(--bg-secondary)]/80 border border-[var(--border-color)] space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm">🗺️</span>
+                <h3 className="text-xs font-bold text-[var(--ink-primary)] uppercase tracking-wider">
+                  {stateTypeLabel} ({regionsList.length})
+                </h3>
+              </div>
+              {regionsList.length > 6 && (
+                <button
+                  onClick={() => setShowAllStates(!showAllStates)}
+                  className="text-[11px] font-mono text-[#d94e34] hover:underline cursor-pointer"
+                >
+                  {showAllStates ? "Show less" : `View all (${regionsList.length})`}
+                </button>
+              )}
+            </div>
+
+            {/* Quick State Search */}
+            {regionsList.length > 6 && (
+              <input
+                type="text"
+                placeholder={`Search ${stateTypeLabel.toLowerCase()}...`}
+                value={stateSearch}
+                onChange={(e) => setStateSearch(e.target.value)}
+                className="w-full text-xs px-2.5 py-1.5 rounded-md bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--ink-primary)] placeholder-[var(--ink-secondary)]/60 focus:outline-none focus:ring-1 focus:ring-[var(--ink-primary)]"
+              />
+            )}
+
+            {/* State Grid List */}
+            <div
+              className={`grid grid-cols-2 gap-1.5 ${
+                showAllStates || stateSearch.trim()
+                  ? "max-h-60 overflow-y-auto pr-1"
+                  : "max-h-40 overflow-hidden"
+              }`}
+            >
+              {filteredStates.map((state) => (
+                <button
+                  key={state.id}
+                  onClick={() => onSelectRegion?.(state.id)}
+                  className="p-2 rounded-lg bg-[var(--bg-primary)] hover:bg-[var(--bg-elevated)] border border-[var(--border-color)] text-left transition-all hover:scale-[1.02] cursor-pointer flex flex-col justify-between group shadow-2xs"
+                >
+                  <div className="flex items-start justify-between gap-1">
+                    <span className="text-xs font-semibold text-[var(--ink-primary)] truncate group-hover:text-[#d94e34]">
+                      {state.name}
+                    </span>
+                    <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-[var(--bg-secondary)] text-[var(--ink-secondary)] flex-shrink-0">
+                      {state.postCount}
+                    </span>
+                  </div>
+                  {state.localName && state.localName !== state.name && (
+                    <span className="text-[10px] font-hand text-[var(--ink-secondary)] truncate mt-0.5">
+                      {state.localName}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Loading Skeletons */}
         {isLoading && (
           <div className="space-y-4" aria-busy="true" aria-label="Loading stories">
             {[1, 2].map((i) => (
               <div
                 key={i}
-                className="p-3.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)]/50 animate-pulse space-y-3"
+                className="p-4 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] animate-pulse space-y-3"
               >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-[var(--bg-elevated)]" />
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[var(--border-color)]" />
                   <div className="space-y-1.5 flex-1">
-                    <div className="w-24 h-3 bg-[var(--bg-elevated)] rounded" />
-                    <div className="w-16 h-2 bg-[var(--bg-elevated)] rounded" />
+                    <div className="h-3 w-24 bg-[var(--border-color)] rounded" />
+                    <div className="h-2 w-16 bg-[var(--border-color)] rounded" />
                   </div>
                 </div>
-                <div className="w-full h-44 bg-[var(--bg-elevated)] rounded-lg" />
-                <div className="w-full h-3 bg-[var(--bg-elevated)] rounded" />
+                <div className="h-44 w-full bg-[var(--border-color)] rounded-lg" />
+                <div className="h-3 w-3/4 bg-[var(--border-color)] rounded" />
               </div>
             ))}
           </div>
         )}
 
-        {/* Retryable Error State */}
-        {!isLoading && hasError && (
-          <div className="p-6 text-center space-y-3 rounded-xl border border-dashed border-red-300 dark:border-red-900 bg-red-50/50 dark:bg-red-950/20">
+        {/* Network / Render Error State */}
+        {hasError && (
+          <div className="p-6 rounded-xl border border-red-200 dark:border-red-900 bg-red-50/50 dark:bg-red-950/20 text-center space-y-3">
             <span className="text-2xl">⚠️</span>
-            <h3 className="text-sm font-semibold text-[var(--ink-primary)]">
-              Failed to load stories
-            </h3>
-            <p className="text-xs text-[var(--ink-secondary)]">
-              Could not retrieve regional journal entries. Please check your network connection.
+            <p className="text-xs text-red-600 dark:text-red-400">
+              Could not load stories for this geographic sector.
             </p>
             {onRetry && (
               <button
                 onClick={onRetry}
-                className="px-3.5 py-1.5 rounded-lg bg-[var(--ink-primary)] text-[var(--bg-primary)] text-xs font-medium hover:opacity-90 transition-opacity cursor-pointer"
+                className="px-3 py-1.5 rounded-lg bg-[var(--ink-primary)] text-[var(--bg-primary)] text-xs font-medium cursor-pointer"
               >
-                Retry loading
+                Retry
               </button>
             )}
           </div>
         )}
 
-        {/* Empty State: No Posts */}
-        {!isLoading && !hasError && filteredPosts.length === 0 && (
-          <div className="p-8 text-center space-y-3 rounded-xl border border-dashed border-[var(--border-color)] bg-[var(--bg-secondary)]/30">
-            <span className="text-3xl">📖</span>
-            <h3 className="text-sm font-semibold text-[var(--ink-primary)]">
-              {visibilityFilter === "friends" ? "No friends stories here yet" : "No stories pinned yet"}
-            </h3>
-            <p className="text-xs text-[var(--ink-secondary)] max-w-xs mx-auto leading-relaxed">
-              {visibilityFilter === "friends"
-                ? "None of your friends have shared journal entries in this region yet. Switch to Explore to view public travel doodles."
-                : `Be the very first traveler to pin a sketch, Polaroid photo, or travel story to ${regionName || countryName}!`}
+        {/* Empty State when no stories pinned in area */}
+        {!isLoading && !hasError && displayedPosts.length === 0 && (
+          <div className="p-8 rounded-2xl border border-dashed border-[var(--border-color)] text-center space-y-3 bg-[var(--bg-secondary)]/50">
+            <span className="text-3xl block">📌</span>
+            <h4 className="font-hand text-lg font-bold text-[var(--ink-primary)]">
+              No pins yet in {regionName || countryName}
+            </h4>
+            <p className="text-xs text-[var(--ink-secondary)] leading-relaxed max-w-xs mx-auto">
+              Be the first wanderer to sketch a story here! Drop a wobbly pin or invite friends to
+              share memories from this corner of the world.
             </p>
-            {countryCode && (
-              <button
-                onClick={onBackToWorld}
-                className="inline-block mt-2 px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--border-color)] text-[var(--ink-primary)] hover:bg-[var(--bg-secondary)] cursor-pointer"
-              >
-                ← Back to World Map
-              </button>
-            )}
           </div>
         )}
 
-        {/* Post Cards List */}
-        {!isLoading && !hasError && displayedPosts.map((post) => {
-          const isSelected = post.id === selectedPostId;
-          const isLiked = likedPosts[post.id];
-          const likeCount = post.likes + (isLiked ? 1 : 0);
+        {/* Feed Stories List */}
+        {!isLoading &&
+          !hasError &&
+          displayedPosts.map((post) => {
+            const isSelected = post.id === selectedPostId;
+            const isLiked = Boolean(likedPosts[post.id]);
 
-          return (
-            <article
-              key={post.id}
-              ref={isSelected ? selectedPostRef : null}
-              tabIndex={0}
-              onClick={() => onSelectPost(post.id)}
-              className={`p-3.5 rounded-xl border transition-all duration-200 cursor-pointer ${
-                isSelected
-                  ? "border-[var(--ink-primary)] bg-[var(--bg-primary)] shadow-xl ring-1 ring-[var(--ink-primary)]"
-                  : "border-[var(--border-color)] bg-[var(--bg-secondary)]/40 hover:bg-[var(--bg-secondary)]/80 hover:shadow-md"
-              }`}
-            >
-              {/* Card Header: Author, Avatar, Date & Demo Tag */}
-              <div className="flex items-center justify-between gap-2 mb-2.5">
-                <div className="flex items-center gap-2.5">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={post.avatar}
-                    alt={post.author}
-                    className="w-8 h-8 rounded-full object-cover border border-[var(--border-color)]"
-                    loading="lazy"
-                  />
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-[var(--ink-primary)] leading-tight">
-                      {post.author}
-                    </span>
-                    <span className="text-[10px] text-[var(--ink-secondary)]">
-                      Visited: {post.date} · {post.city}
-                    </span>
+            return (
+              <article
+                key={post.id}
+                ref={isSelected ? selectedPostRef : null}
+                onClick={() => onSelectPost(post.id)}
+                className={`p-3.5 rounded-xl border transition-all duration-200 cursor-pointer bg-[var(--bg-primary)] space-y-3 ${
+                  isSelected
+                    ? "border-[var(--ink-primary)] ring-2 ring-[var(--ink-primary)]/20 shadow-lg bg-[var(--bg-elevated)]"
+                    : "border-[var(--border-color)] hover:border-[var(--ink-secondary)] hover:shadow-md"
+                }`}
+                aria-label={`Story by ${post.author} in ${post.location}`}
+              >
+                {/* Author Card Header */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={post.avatar}
+                      alt={post.author}
+                      className="w-7 h-7 rounded-full object-cover border border-[var(--border-color)]"
+                      loading="lazy"
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-[var(--ink-primary)] leading-tight">
+                        {post.author}
+                      </span>
+                      <span className="text-[10px] text-[var(--ink-secondary)] font-mono">
+                        {post.city} · {post.date}
+                      </span>
+                    </div>
                   </div>
+
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[var(--bg-secondary)] text-[var(--ink-secondary)] border border-[var(--border-color)]">
+                    {post.visibility === "friends" ? "🔒 Friends" : "🌍 Public"}
+                  </span>
                 </div>
 
-                {/* Explicit Demo Badge as required by prompt brief */}
-                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--ink-secondary)]">
-                  Demo
-                </span>
-              </div>
+                {/* Photo Story with Polaroid Frame & Doodle Sticker */}
+                {post.image && !post.isTextOnly && (
+                  <div className="relative w-full rounded-lg overflow-hidden bg-stone-100 dark:bg-stone-800 border border-[var(--border-color)]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={post.image}
+                      alt={post.caption}
+                      className="w-full h-48 object-cover transition-transform duration-300 hover:scale-102"
+                      loading="lazy"
+                    />
+                    {post.doodleSticker && (
+                      <span className="absolute bottom-2 right-2 text-xl drop-shadow-md select-none">
+                        {post.doodleSticker}
+                      </span>
+                    )}
+                  </div>
+                )}
 
-              {/* Photo Area */}
-              {post.image && !post.isTextOnly && (
-                <div className="relative w-full h-48 rounded-lg overflow-hidden mb-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] group">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={post.image}
-                    alt={post.caption}
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-102"
-                    loading="lazy"
-                  />
-                  {post.doodleSticker && (
-                    <span className="absolute bottom-2 right-2 text-xl drop-shadow-md select-none">
-                      {post.doodleSticker}
-                    </span>
-                  )}
-                </div>
-              )}
+                {/* Caption Snippet */}
+                <p className="text-xs text-[var(--ink-primary)] leading-relaxed font-sans">
+                  {post.caption}
+                </p>
 
-              {/* Caption */}
-              <p className="text-xs text-[var(--ink-primary)] leading-relaxed mb-3">
-                {post.caption}
-              </p>
+                {/* Interactive Action Bar (Like, Comment, Share) */}
+                <div className="pt-2 border-t border-[var(--border-color)] flex items-center justify-between text-xs text-[var(--ink-secondary)] font-mono">
+                  <div className="flex items-center gap-4">
+                    {/* Like button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleLike(post.id);
+                      }}
+                      className={`flex items-center gap-1 hover:text-red-500 transition-colors cursor-pointer ${
+                        isLiked ? "text-red-500 font-bold" : ""
+                      }`}
+                      aria-label={`${isLiked ? "Unlike" : "Like"} post by ${post.author}`}
+                    >
+                      <span>{isLiked ? "❤️" : "🤍"}</span>
+                      <span>{post.likes + (isLiked ? 1 : 0)}</span>
+                    </button>
 
-              {/* Social Action Controls: Like, Comment, Share */}
-              <div className="pt-2 border-t border-[var(--border-color)] flex items-center justify-between text-xs text-[var(--ink-secondary)]">
-                <div className="flex items-center gap-4">
-                  {/* Like Button */}
+                    {/* Comment button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveCommentPostId(
+                          activeCommentPostId === post.id ? null : post.id
+                        );
+                      }}
+                      className="flex items-center gap-1 hover:text-[var(--ink-primary)] transition-colors cursor-pointer"
+                      aria-label="Comment on post"
+                    >
+                      <span>💬</span>
+                      <span>{post.comments}</span>
+                    </button>
+                  </div>
+
+                  {/* Share button */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleToggleLike(post.id);
+                      handleShare(post);
                     }}
-                    className={`flex items-center gap-1.5 hover:text-red-500 transition-colors cursor-pointer ${
-                      isLiked ? "text-red-500 font-semibold" : ""
-                    }`}
-                    aria-label={`Like story by ${post.author}`}
+                    className="flex items-center gap-1 hover:text-[var(--ink-primary)] transition-colors cursor-pointer text-[11px]"
+                    aria-label="Share story deep link"
                   >
-                    <span>{isLiked ? "❤️" : "🤍"}</span>
-                    <span>{likeCount}</span>
-                  </button>
-
-                  {/* Comment Button */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveCommentPostId(activeCommentPostId === post.id ? null : post.id);
-                    }}
-                    className="flex items-center gap-1.5 hover:text-[var(--ink-primary)] transition-colors cursor-pointer"
-                    aria-label={`Comment on story by ${post.author}`}
-                  >
-                    <span>💬</span>
-                    <span>{post.comments}</span>
+                    <span>↗ Share</span>
                   </button>
                 </div>
 
-                {/* Share Button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleShare(post);
-                  }}
-                  className="flex items-center gap-1 text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] transition-colors cursor-pointer"
-                  title="Copy permanent link"
-                  aria-label="Share story"
-                >
-                  <span>🔗</span>
-                  <span>Share</span>
-                </button>
-              </div>
-
-              {/* Inline Demo Comment Box */}
-              {activeCommentPostId === post.id && (
-                <div
-                  className="mt-3 pt-2.5 border-t border-[var(--border-color)] flex items-center gap-2"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <input
-                    type="text"
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleAddComment(post.id)}
-                    placeholder="Write a comment..."
-                    className="flex-1 text-xs px-2.5 py-1 rounded-md bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--ink-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--ink-primary)]"
-                  />
-                  <button
-                    onClick={() => handleAddComment(post.id)}
-                    className="px-2.5 py-1 text-xs font-medium rounded-md bg-[var(--ink-primary)] text-[var(--bg-primary)] hover:opacity-90 cursor-pointer"
+                {/* Inline Comment Composer Box */}
+                {activeCommentPostId === post.id && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="pt-2 border-t border-[var(--border-color)] flex items-center gap-1.5 animate-in fade-in"
                   >
-                    Post
-                  </button>
-                </div>
-              )}
-            </article>
-          );
-        })}
+                    <input
+                      type="text"
+                      placeholder="Add a sketchbook note..."
+                      value={commentText}
+                      onChange={(e) => setCommentText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleAddComment(post.id);
+                      }}
+                      className="flex-1 text-xs px-2.5 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--ink-primary)] placeholder-[var(--ink-secondary)]/50 focus:outline-none focus:ring-1 focus:ring-[var(--ink-primary)]"
+                    />
+                    <button
+                      onClick={() => handleAddComment(post.id)}
+                      className="px-2.5 py-1.5 rounded-lg bg-[var(--ink-primary)] text-[var(--bg-primary)] text-xs font-medium cursor-pointer"
+                    >
+                      Post
+                    </button>
+                  </div>
+                )}
+              </article>
+            );
+          })}
 
         {/* Load More Button */}
-        {!isLoading && hasMore && (
+        {hasMore && !isLoading && (
           <div className="pt-2 text-center">
             <button
-              onClick={() => setVisibleCount((prev) => prev + 4)}
-              className="w-full py-2 px-4 rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] text-xs font-semibold text-[var(--ink-primary)] hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer shadow-xs"
+              onClick={() => setVisibleCount((prev) => prev + 6)}
+              className="w-full py-2 px-4 rounded-xl border border-[var(--border-color)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-secondary)] text-xs font-semibold text-[var(--ink-primary)] transition-colors cursor-pointer shadow-2xs"
             >
               Load more stories ({filteredPosts.length - visibleCount} remaining)
             </button>

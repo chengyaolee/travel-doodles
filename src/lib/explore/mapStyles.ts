@@ -93,7 +93,7 @@ export function getSketchbookMapStyle(isDark: boolean): StyleSpecification {
         id: "regions-fill",
         type: "fill",
         source: "regions",
-        minzoom: 3.5,
+        minzoom: 2.8,
         paint: {
           "fill-color": [
             "case",
@@ -112,7 +112,7 @@ export function getSketchbookMapStyle(isDark: boolean): StyleSpecification {
         id: "regions-border",
         type: "line",
         source: "regions",
-        minzoom: 3.5,
+        minzoom: 2.8,
         paint: {
           "line-color": tokens.regionBorder,
           "line-width": 1.1,

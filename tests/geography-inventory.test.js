@@ -130,4 +130,54 @@ describe('Geography Inventory Acceptance Tests', () => {
       assert.ok(row.firstOrderReason.length > 5, 'Every N/A row must have an explicit reason');
     });
   });
+
+  test('Subnational state boundaries and regional inventory coverage for target countries', () => {
+    const regionsInventory = JSON.parse(
+      fs.readFileSync(path.join(__dirname, '../public/data/regions-inventory.json'), 'utf8')
+    );
+
+    const targetCountries = [
+      'US', 'CA', 'CN', 'JP', 'KR', 'MY', 'SG', 'TH', 'VN',
+      'FR', 'CH', 'IT', 'DE', 'NL', 'DK', 'NO', 'IS'
+    ];
+
+    assert.ok(regionsGeo.features.length >= 900, `Expected >= 900 subnational region features, found ${regionsGeo.features.length}`);
+
+    // Verify all 17 target countries are present with actual subnational units
+    for (const country of targetCountries) {
+      const unitsInGeo = regionsGeo.features.filter(f => f.properties.country === country);
+      assert.ok(unitsInGeo.length > 0, `Country ${country} must have boundary features in regions.geojson`);
+      const unitsInInventory = regionsInventory[country];
+      assert.ok(unitsInInventory && unitsInInventory.length > 0, `Country ${country} must have inventory entries`);
+      assert.strictEqual(unitsInGeo.length, unitsInInventory.length, `Country ${country} counts must match between geojson and inventory`);
+
+      // Verify each unit has required fields and valid bounds
+      unitsInInventory.forEach(unit => {
+        assert.ok(unit.id, `Unit in ${country} must have ID`);
+        assert.ok(unit.name, `Unit in ${country} must have name`);
+        assert.ok(unit.localName, `Unit in ${country} must have localName`);
+        assert.ok(unit.type, `Unit in ${country} must have division type`);
+        assert.ok(Array.isArray(unit.center) && unit.center.length === 2, `Unit ${unit.id} must have center`);
+        assert.ok(Array.isArray(unit.bounds) && unit.bounds.length === 2, `Unit ${unit.id} must have bounds`);
+        assert.ok(unit.bounds[0][0] <= unit.bounds[1][0], `Unit ${unit.id} bounds lng must be valid`);
+        assert.ok(unit.bounds[0][1] <= unit.bounds[1][1], `Unit ${unit.id} bounds lat must be valid`);
+      });
+    }
+
+    // Verify 0 horizontal line jumps across the antimeridian in regions.geojson
+    let regionalJumps = 0;
+    regionsGeo.features.forEach(f => {
+      const checkRings = (rings) => {
+        rings.forEach(ring => {
+          for (let i = 0; i < ring.length - 1; i++) {
+            const dLng = Math.abs(ring[i][0] - ring[i+1][0]);
+            if (dLng > 180) regionalJumps++;
+          }
+        });
+      };
+      if (f.geometry.type === "Polygon") checkRings(f.geometry.coordinates);
+      if (f.geometry.type === "MultiPolygon") f.geometry.coordinates.forEach(poly => checkRings(poly));
+    });
+    assert.strictEqual(regionalJumps, 0, 'Zero antimeridian line jumps in regions layer');
+  });
 });

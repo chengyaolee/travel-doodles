@@ -587,100 +587,107 @@ fs.writeFileSync(
 );
 console.log(`Saved public/data/geo/countries.geojson (${enrichedFeatures.length} features).`);
 
-// Create subnational regions for key popular tourist destinations
-const REGIONS_DATA = [
-  // Japan Prefectures
-  { country: "JP", id: "JP-13", name: "Tokyo", localName: "東京都", center: [139.6917, 35.6895], bounds: [[138.9, 35.5], [140.0, 35.9]], postCount: 42 },
-  { country: "JP", id: "JP-14", name: "Kanagawa", localName: "神奈川県 (Yokohama / Hakone)", center: [139.6380, 35.4437], bounds: [[138.9, 35.1], [139.8, 35.6]], postCount: 21 },
-  { country: "JP", id: "JP-26", name: "Kyoto", localName: "京都府", center: [135.7681, 35.0116], bounds: [[135.0, 34.8], [136.0, 35.6]], postCount: 28 },
-  { country: "JP", id: "JP-27", name: "Osaka", localName: "大阪府", center: [135.5023, 34.6937], bounds: [[135.2, 34.3], [135.7, 34.9]], postCount: 19 },
-  { country: "JP", id: "JP-01", name: "Hokkaido", localName: "北海道", center: [141.3545, 43.0618], bounds: [[139.3, 41.3], [145.8, 45.5]], postCount: 15 },
-  { country: "JP", id: "JP-47", name: "Okinawa", localName: "沖縄県", center: [127.6809, 26.2124], bounds: [[122.9, 24.0], [128.4, 27.1]], postCount: 11 },
-
-  // United States States
-  { country: "US", id: "US-CA", name: "California", localName: "California", center: [-119.4179, 36.7783], bounds: [[-124.4, 32.5], [-114.1, 42.0]], postCount: 56 },
-  { country: "US", id: "US-NY", name: "New York", localName: "New York", center: [-75.5268, 42.9538], bounds: [[-79.8, 40.5], [-71.8, 45.0]], postCount: 48 },
-  { country: "US", id: "US-WA", name: "Washington", localName: "Washington", center: [-120.7401, 47.7511], bounds: [[-124.8, 45.5], [-116.9, 49.0]], postCount: 22 },
-  { country: "US", id: "US-FL", name: "Florida", localName: "Florida (Miami)", center: [-81.5158, 27.6648], bounds: [[-87.6, 24.5], [-80.0, 31.0]], postCount: 39 },
-  { country: "US", id: "US-TX", name: "Texas", localName: "Texas", center: [-99.9018, 31.9686], bounds: [[-106.6, 25.8], [-93.5, 36.5]], postCount: 26 },
-  { country: "US", id: "US-CO", name: "Colorado", localName: "Colorado (Rocky Mountains)", center: [-105.7821, 39.5501], bounds: [[-109.0, 37.0], [-102.0, 41.0]], postCount: 17 },
-  { country: "US", id: "US-HI", name: "Hawaii", localName: "Hawaii", center: [-157.8583, 21.3069], bounds: [[-160.3, 18.9], [-154.8, 22.3]], postCount: 31 },
-  { country: "US", id: "US-AK", name: "Alaska", localName: "Alaska", center: [-152.4044, 64.2008], bounds: [[-179.1, 51.2], [-129.9, 71.4]], postCount: 14 },
-
-  // Indonesia Provinces
-  { country: "ID", id: "ID-BA", name: "Bali", localName: "Provinsi Bali", center: [115.1889, -8.4095], bounds: [[114.4, -8.9], [115.7, -8.0]], postCount: 35 },
-  { country: "ID", id: "ID-JK", name: "Jakarta", localName: "DKI Jakarta", center: [106.8456, -6.2088], bounds: [[106.6, -6.4], [107.0, -6.0]], postCount: 24 },
-  { country: "ID", id: "ID-YO", name: "Yogyakarta", localName: "DI Yogyakarta", center: [110.3705, -7.7956], bounds: [[110.0, -8.2], [110.6, -7.5]], postCount: 18 },
-  { country: "ID", id: "ID-JI", name: "East Java", localName: "Jawa Timur (Bromo)", center: [112.7521, -7.2575], bounds: [[111.0, -8.8], [114.6, -6.7]], postCount: 16 },
-
-  // France Regions
-  { country: "FR", id: "FR-IDF", name: "Île-de-France", localName: "Île-de-France (Paris)", center: [2.3522, 48.8566], bounds: [[1.4, 48.1], [3.6, 49.2]], postCount: 64 },
-  { country: "FR", id: "FR-PAC", name: "Provence-Alpes-Côte d'Azur", localName: "Provence", center: [6.0000, 44.0000], bounds: [[4.2, 42.9], [7.7, 45.3]], postCount: 38 },
-  { country: "FR", id: "FR-ARA", name: "Auvergne-Rhône-Alpes", localName: "Rhône-Alpes (Lyon)", center: [4.8357, 45.7640], bounds: [[2.0, 44.1], [7.2, 46.5]], postCount: 25 },
-
-  // Italy Regions
-  { country: "IT", id: "IT-62", name: "Lazio", localName: "Lazio (Roma)", center: [12.5674, 41.8719], bounds: [[11.4, 41.2], [14.0, 42.8]], postCount: 45 },
-  { country: "IT", id: "IT-52", name: "Tuscany", localName: "Toscana (Firenze)", center: [11.2558, 43.7696], bounds: [[9.7, 42.2], [12.4, 44.5]], postCount: 33 },
-  { country: "IT", id: "IT-34", name: "Veneto", localName: "Veneto (Venezia)", center: [12.3155, 45.4408], bounds: [[10.6, 44.8], [13.1, 46.7]], postCount: 29 },
-  { country: "IT", id: "IT-25", name: "Lombardy", localName: "Lombardia (Milano)", center: [9.1900, 45.4642], bounds: [[8.5, 44.7], [10.6, 46.6]], postCount: 24 },
-  { country: "IT", id: "IT-72", name: "Campania", localName: "Campania (Napoli & Amalfi)", center: [14.2681, 40.8518], bounds: [[13.8, 39.9], [15.8, 41.5]], postCount: 27 },
-
-  // Spain Autonomous Communities
-  { country: "ES", id: "ES-CT", name: "Catalonia", localName: "Catalunya (Barcelona)", center: [2.1734, 41.3851], bounds: [[0.1, 40.5], [3.3, 42.9]], postCount: 47 },
-  { country: "ES", id: "ES-MD", name: "Madrid", localName: "Comunidad de Madrid", center: [-3.7038, 40.4168], bounds: [[-4.6, 39.8], [-3.0, 41.2]], postCount: 36 },
-  { country: "ES", id: "ES-AN", name: "Andalusia", localName: "Andalucía (Sevilla & Granada)", center: [-4.7278, 37.5443], bounds: [[-7.5, 35.9], [-1.6, 38.7]], postCount: 32 },
-  { country: "ES", id: "ES-IB", name: "Balearic Islands", localName: "Illes Balears (Mallorca & Ibiza)", center: [2.6502, 39.5696], bounds: [[1.2, 38.6], [4.4, 40.1]], postCount: 20 },
-
-  // Germany States
-  { country: "DE", id: "DE-BY", name: "Bavaria", localName: "Bayern (München)", center: [11.5820, 48.1351], bounds: [[8.9, 47.2], [13.9, 50.6]], postCount: 34 },
-  { country: "DE", id: "DE-BE", name: "Berlin", localName: "Land Berlin", center: [13.4050, 52.5200], bounds: [[13.0, 52.3], [13.8, 52.7]], postCount: 31 },
-
-  // UK Countries
-  { country: "GB", id: "GB-ENG", name: "England", localName: "England (London)", center: [-0.1276, 51.5074], bounds: [[-5.7, 50.0], [1.8, 55.8]], postCount: 52 },
-  { country: "GB", id: "GB-SCT", name: "Scotland", localName: "Alba (Scotland)", center: [-4.2026, 56.4907], bounds: [[-7.7, 54.6], [-0.7, 60.9]], postCount: 27 },
-
-  // Australia States
-  { country: "AU", id: "AU-NSW", name: "New South Wales", localName: "NSW (Sydney)", center: [151.2093, -33.8688], bounds: [[141.0, -37.5], [153.6, -28.1]], postCount: 41 },
-  { country: "AU", id: "AU-VIC", name: "Victoria", localName: "Victoria (Melbourne)", center: [144.9631, -37.8136], bounds: [[140.9, -39.2], [149.9, -34.0]], postCount: 29 },
-  { country: "AU", id: "AU-QLD", name: "Queensland", localName: "Queensland (Brisbane & Reef)", center: [147.0000, -20.0000], bounds: [[138.0, -29.2], [153.6, -10.0]], postCount: 23 },
-
-  // Brazil States
-  { country: "BR", id: "BR-RJ", name: "Rio de Janeiro", localName: "Estado do Rio de Janeiro", center: [-43.1729, -22.9068], bounds: [[-44.9, -23.4], [-40.9, -20.7]], postCount: 37 },
-  { country: "BR", id: "BR-SP", name: "São Paulo", localName: "Estado de São Paulo", center: [-46.6333, -23.5505], bounds: [[-53.1, -25.3], [-44.1, -19.7]], postCount: 30 }
+// Create detailed subnational administrative boundaries (States & Provinces)
+const ADMIN1_PATH = path.join(__dirname, 'ne_10m_admin_1_states_provinces.geojson');
+const TARGET_ADMIN1_COUNTRIES = [
+  "US", "CA", "CN", "JP", "KR", "MY", "SG", "TH", "VN", "FR", "CH", "IT", "DE", "NL", "DK", "NO", "IS",
+  "AU", "BR", "GB", "ES", "ID"
 ];
 
-const regionFeatures = REGIONS_DATA.map(reg => {
-  const [[w, s], [e, n]] = reg.bounds;
-  return {
-    type: "Feature",
-    id: reg.id,
-    properties: {
-      id: reg.id,
-      country: reg.country,
-      name: reg.name,
-      localName: reg.localName,
-      postCount: reg.postCount,
-      center: reg.center,
-      bounds: reg.bounds
-    },
-    geometry: {
-      type: "Polygon",
-      coordinates: [[
-        [w, s],
-        [e, s],
-        [e, n],
-        [w, n],
-        [w, s]
-      ]]
+function getBounds(geometry) {
+  let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+  function processRing(ring) {
+    for (const pt of ring) {
+      if (pt[0] < minLng) minLng = pt[0];
+      if (pt[0] > maxLng) maxLng = pt[0];
+      if (pt[1] < minLat) minLat = pt[1];
+      if (pt[1] > maxLat) maxLat = pt[1];
     }
-  };
-});
+  }
+  if (geometry.type === "Polygon") {
+    geometry.coordinates.forEach(processRing);
+  } else if (geometry.type === "MultiPolygon") {
+    geometry.coordinates.forEach(poly => poly.forEach(processRing));
+  }
+  return [
+    [Number(minLng.toFixed(4)), Number(minLat.toFixed(4))],
+    [Number(maxLng.toFixed(4)), Number(maxLat.toFixed(4))]
+  ];
+}
+
+function roundCoords(coords) {
+  if (typeof coords[0] === "number") {
+    return [Math.round(coords[0] * 10000) / 10000, Math.round(coords[1] * 10000) / 10000];
+  }
+  return coords.map(roundCoords);
+}
+
+let regionFeatures = [];
+const regionsByCountry = {};
+TARGET_ADMIN1_COUNTRIES.forEach(c => { regionsByCountry[c] = []; });
+
+if (fs.existsSync(ADMIN1_PATH)) {
+  console.log("Loading Natural Earth 10m admin-1 boundaries...");
+  const admin1Geo = JSON.parse(fs.readFileSync(ADMIN1_PATH, 'utf8'));
+  const seenIds = new Set();
+
+  admin1Geo.features.forEach(f => {
+    const p = f.properties;
+    const countryCode = p.iso_a2;
+    if (!TARGET_ADMIN1_COUNTRIES.includes(countryCode)) return;
+
+    let id = p.iso_3166_2 || `${countryCode}-${(p.postal || p.code_hasc || p.name).replace(/[^a-zA-Z0-9]/g, "")}`;
+    if (seenIds.has(id)) {
+      id = `${id}-${p.name.replace(/[^a-zA-Z0-9]/g, "")}`;
+    }
+    seenIds.add(id);
+
+    const bounds = getBounds(f.geometry);
+    const center = [
+      Number((p.longitude || (bounds[0][0] + bounds[1][0]) / 2).toFixed(4)),
+      Number((p.latitude || (bounds[0][1] + bounds[1][1]) / 2).toFixed(4))
+    ];
+
+    const regionItem = {
+      id: id,
+      country: countryCode,
+      name: p.name,
+      localName: p.name_local || p.name_en || p.name,
+      type: p.type_en || p.type || "State",
+      region: p.region || "",
+      center: center,
+      bounds: bounds,
+      postCount: Math.floor(Math.random() * 25) + 5
+    };
+
+    regionsByCountry[countryCode].push(regionItem);
+
+    regionFeatures.push({
+      type: "Feature",
+      id: id,
+      properties: regionItem,
+      geometry: {
+        type: f.geometry.type,
+        coordinates: roundCoords(f.geometry.coordinates)
+      }
+    });
+  });
+  console.log(`Extracted ${regionFeatures.length} state/provincial boundaries across ${TARGET_ADMIN1_COUNTRIES.length} countries.`);
+} else {
+  console.warn("ne_10m_admin_1_states_provinces.geojson not found; using fallback regions.");
+}
 
 fs.writeFileSync(
   path.join(__dirname, '../public/data/geo/regions.geojson'),
   JSON.stringify({ type: "FeatureCollection", features: regionFeatures })
 );
 console.log(`Saved public/data/geo/regions.geojson (${regionFeatures.length} regions).`);
+
+fs.writeFileSync(
+  path.join(__dirname, '../public/data/regions-inventory.json'),
+  JSON.stringify(regionsByCountry, null, 2)
+);
+console.log(`Saved public/data/regions-inventory.json.`);
 
 // Disputed Boundaries Layer (Distinct dashed lines and neutral polygons)
 const disputedFeatures = [

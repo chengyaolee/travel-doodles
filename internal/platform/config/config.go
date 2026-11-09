@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bufio"
 	"fmt"
 	"net/url"
 	"os"
@@ -55,8 +56,12 @@ type Config struct {
 	WorkerPollInterval     time.Duration
 }
 
-// LoadConfig reads configuration from environment variables with sensible defaults
+// LoadConfig reads configuration from environment variables with sensible defaults.
+// It also checks for and parses a local .env file if present.
 func LoadConfig() (*Config, error) {
+	// Attempt to load .env from current directory or parent directory
+	loadDotEnv()
+
 	cfg := &Config{
 		Port:                 getEnvInt("PORT", 8080),
 		Env:                  getEnv("ENV", "development"),
@@ -139,4 +144,49 @@ func getEnvBool(key string, defaultVal bool) bool {
 		}
 	}
 	return defaultVal
+}
+
+// loadDotEnv searches for and loads key=value pairs from a .env file
+func loadDotEnv() {
+	candidates := []string{".env", "../.env", "../../.env"}
+	if custom := os.Getenv("ENV_FILE"); custom != "" {
+		candidates = append([]string{custom}, candidates...)
+	}
+
+	for _, path := range candidates {
+		f, err := os.Open(path)
+		if err != nil {
+			continue
+		}
+		defer f.Close()
+
+		scanner := bufio.NewScanner(f)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) != 2 {
+				continue
+			}
+
+			key := strings.TrimSpace(parts[0])
+			val := strings.TrimSpace(parts[1])
+
+			// Strip matching quotes if wrapped
+			if len(val) >= 2 {
+				if (val[0] == '"' && val[len(val)-1] == '"') || (val[0] == '\'' && val[len(val)-1] == '\'') {
+					val = val[1 : len(val)-1]
+				}
+			}
+
+			// Don't overwrite existing environment variables
+			if _, exists := os.LookupEnv(key); !exists {
+				_ = os.Setenv(key, val)
+			}
+		}
+		return // Loaded the first found .env
+	}
 }

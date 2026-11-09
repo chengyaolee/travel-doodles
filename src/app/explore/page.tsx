@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { ExploreToolbar, InventoryItem } from "@/components/explore/ExploreToolbar";
 import { SketchbookMap } from "@/components/explore/SketchbookMap";
-import { RegionalFeed } from "@/components/explore/RegionalFeed";
+import { RegionalFeed, RegionItem } from "@/components/explore/RegionalFeed";
 import { MobileFeedSheet } from "@/components/explore/MobileFeedSheet";
 import { PaperGrainOverlay } from "@/components/explore/PaperGrainOverlay";
 import { MOCK_POSTS, getPostsByLocation, ExplorePost } from "@/lib/explore/mockPosts";
@@ -25,6 +25,7 @@ function ExploreContent() {
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
 
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [regionsInventory, setRegionsInventory] = useState<Record<string, RegionItem[]>>({});
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -38,7 +39,7 @@ function ExploreContent() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Fetch machine-readable geography inventory
+  // Fetch machine-readable geography inventory & regional directory
   useEffect(() => {
     fetch("/data/geography-inventory.json")
       .then((res) => res.json())
@@ -47,6 +48,15 @@ function ExploreContent() {
       })
       .catch((err) => {
         console.error("Failed to load geography inventory:", err);
+      });
+
+    fetch("/data/regions-inventory.json")
+      .then((res) => res.json())
+      .then((data: Record<string, RegionItem[]>) => {
+        setRegionsInventory(data);
+      })
+      .catch((err) => {
+        console.error("Failed to load regions inventory:", err);
       });
   }, []);
 
@@ -96,6 +106,19 @@ function ExploreContent() {
     setSelectedCity(null);
     setIsSidebarOpen(true);
     updateUrl(selectedCountry, regionId, null);
+
+    // Smoothly center and fit the selected state/region chunk
+    const allRegions = selectedCountry ? (regionsInventory[selectedCountry] || []) : Object.values(regionsInventory).flat();
+    const found = allRegions.find((r) => r.id === regionId);
+    if (found && mapInstanceRef.current && found.bounds) {
+      mapInstanceRef.current.fitBounds(found.bounds, {
+        padding: isMobile
+          ? { top: 60, bottom: 200, left: 30, right: 30 }
+          : { top: 70, bottom: 70, left: 50, right: 420 },
+        maxZoom: 9,
+        duration: 850,
+      });
+    }
   };
 
   // Post selection handler
@@ -149,7 +172,27 @@ function ExploreContent() {
   const currentCountry = inventory.find((i) => i.code === selectedCountry);
   const countryDisplayName = currentCountry ? currentCountry.displayName : selectedCountry || "";
 
-  const regionNames: Record<string, { name: string; local: string }> = {
+  // Structured regions/states catalog for the selected country
+  const countryRegions = React.useMemo(() => {
+    if (!selectedCountry) return [];
+    return regionsInventory[selectedCountry] || [];
+  }, [selectedCountry, regionsInventory]);
+
+  // Lookup active region details dynamically from inventory
+  const activeRegionItem = React.useMemo(() => {
+    if (!selectedRegion) return null;
+    if (selectedCountry && regionsInventory[selectedCountry]) {
+      const found = regionsInventory[selectedCountry].find((r) => r.id === selectedRegion);
+      if (found) return found;
+    }
+    for (const list of Object.values(regionsInventory)) {
+      const found = list.find((r) => r.id === selectedRegion);
+      if (found) return found;
+    }
+    return null;
+  }, [selectedRegion, selectedCountry, regionsInventory]);
+
+  const fallbackRegionNames: Record<string, { name: string; local: string }> = {
     "JP-13": { name: "Tokyo", local: "東京都" },
     "JP-26": { name: "Kyoto", local: "京都府" },
     "JP-27": { name: "Osaka", local: "大阪府" },
@@ -164,9 +207,9 @@ function ExploreContent() {
     "BR-RJ": { name: "Rio de Janeiro", local: "Estado do Rio de Janeiro" },
   };
 
-  const regionMeta = selectedRegion ? regionNames[selectedRegion] : null;
-  const regionDisplayName = regionMeta ? regionMeta.name : selectedRegion || "";
-  const regionLocalName = regionMeta ? regionMeta.local : "";
+  const fallbackMeta = selectedRegion ? fallbackRegionNames[selectedRegion] : null;
+  const regionDisplayName = activeRegionItem ? activeRegionItem.name : fallbackMeta ? fallbackMeta.name : selectedRegion || "";
+  const regionLocalName = activeRegionItem ? activeRegionItem.localName : fallbackMeta ? fallbackMeta.local : "";
 
   // Available cities for the selected region
   const availableCities = React.useMemo(() => {
@@ -228,6 +271,8 @@ function ExploreContent() {
               regionId={selectedRegion}
               regionName={regionDisplayName}
               regionLocalName={regionLocalName}
+              regionsList={countryRegions}
+              onSelectRegion={handleSelectRegion}
               cities={availableCities}
               selectedCity={selectedCity}
               onSelectCity={setSelectedCity}
@@ -263,6 +308,8 @@ function ExploreContent() {
             regionId={selectedRegion}
             regionName={regionDisplayName}
             regionLocalName={regionLocalName}
+            regionsList={countryRegions}
+            onSelectRegion={handleSelectRegion}
             cities={availableCities}
             selectedCity={selectedCity}
             onSelectCity={setSelectedCity}

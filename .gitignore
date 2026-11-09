@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# raw intermediate geo datasets
+scripts/ne_*.geojson
+
