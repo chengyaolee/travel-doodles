@@ -1,0 +1,1006 @@
+openapi: 3.0.3
+info:
+  title: Travel Doodles API
+  version: 1.0.0
+  description: >
+    Production backend REST API for Travel Doodles — a map-first social travel application.
+    Engineered for ultra-low memory overhead, PostGIS geospatial clustering, and seamless 4GB VPS operation.
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+  - url: https://api.traveldoodles.app
+    description: Production server
+
+paths:
+  /healthz:
+    get:
+      summary: Liveness check
+      responses:
+        '200':
+          description: Service is alive
+  /readyz:
+    get:
+      summary: Readiness check
+      responses:
+        '200':
+          description: Service dependencies are healthy
+        '503':
+          description: Degraded dependencies
+  /metrics:
+    get:
+      summary: Prometheus operational metrics
+      responses:
+        '200':
+          description: Prometheus formatted metric text
+
+  /api/v1/auth/register:
+    post:
+      summary: Register a new traveler account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created successfully and session cookie set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/Error'
+        '409':
+          description: Username or email already registered
+
+  /api/v1/auth/login:
+    post:
+      summary: Authenticate with username/email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Logged in successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+
+  /api/v1/auth/logout:
+    post:
+      summary: Revoke session and clear session cookie
+      responses:
+        '200':
+          description: Logged out successfully
+
+  /api/v1/auth/me:
+    get:
+      summary: Retrieve currently authenticated user profile
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/posts:
+    get:
+      summary: List public travel posts with keyset pagination
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPosts'
+    post:
+      summary: Publish a new travel post with geographic coordinates
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePostRequest'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/posts/{id}:
+    get:
+      summary: Get post detail by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      summary: Edit post caption, visibility, or location name
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePostRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostResponse'
+    delete:
+      summary: Soft-delete post
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Post deleted successfully
+
+  /api/v1/posts/map:
+    get:
+      summary: Zoom-dependent geographic post discovery and spatial clustering
+      parameters:
+        - name: bbox
+          in: query
+          required: true
+          description: Bounding box as minLon,minLat,maxLon,maxLat
+          schema:
+            type: string
+            example: "-122.5,37.7,-122.3,37.8"
+        - name: zoom
+          in: query
+          description: Map zoom level (0-20)
+          schema:
+            type: integer
+            default: 5
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MapResponse'
+        '400':
+          $ref: '#/components/responses/Error'
+
+  /api/v1/posts/nearby:
+    get:
+      summary: Discover posts within radial distance using PostGIS ST_DWithin
+      parameters:
+        - name: lon
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: radius_km
+          in: query
+          schema:
+            type: number
+            default: 25.0
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  posts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PostMarker'
+
+  /api/v1/feed:
+    get:
+      summary: Personalized friends feed using fan-out-on-read
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPosts'
+
+  /api/v1/users/{username}:
+    get:
+      summary: Retrieve traveler profile with follow stats and public posts count
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+    patch:
+      summary: Update own traveler profile
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                display_name:
+                  type: string
+                bio:
+                  type: string
+                avatar_key:
+                  type: string
+      responses:
+        '200':
+          description: Profile updated
+
+  /api/v1/users/{id}/follow:
+    post:
+      summary: Follow a traveler
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Followed
+    delete:
+      summary: Unfollow a traveler
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Unfollowed
+
+  /api/v1/users/{id}/block:
+    post:
+      summary: Block a traveler
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User blocked
+    delete:
+      summary: Unblock a traveler
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User unblocked
+
+  /api/v1/posts/{id}/likes:
+    post:
+      summary: Like a post idempotently
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Post liked
+    delete:
+      summary: Remove like from a post
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Post unliked
+
+  /api/v1/posts/{id}/comments:
+    get:
+      summary: List comments for a post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedComments'
+    post:
+      summary: Add a comment to a post
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+                parent_id:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Comment created
+
+  /api/v1/comments/{id}:
+    delete:
+      summary: Delete a comment
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Comment deleted
+
+  /api/v1/media/uploads:
+    post:
+      summary: Request presigned S3 upload URL for direct photo upload
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content_type, file_size]
+              properties:
+                content_type:
+                  type: string
+                  example: image/jpeg
+                file_size:
+                  type: integer
+                  example: 3145728
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadAuthResponse'
+
+  /api/v1/media/uploads/{id}/complete:
+    post:
+      summary: Confirm direct S3 upload completion and trigger async variant pipeline
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Upload confirmed
+
+  /api/v1/notifications:
+    get:
+      summary: List notifications for authenticated user
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+
+  /api/v1/notifications/{id}/read:
+    patch:
+      summary: Mark a notification as read
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Marked as read
+
+  /api/v1/notifications/read-all:
+    post:
+      summary: Mark all notifications as read
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: All marked as read
+
+  /api/v1/reports:
+    post:
+      summary: Report abusive content or violation
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_type, target_id, reason]
+              properties:
+                target_type:
+                  type: string
+                  enum: [post, user, comment]
+                target_id:
+                  type: string
+                  format: uuid
+                reason:
+                  type: string
+      responses:
+        '201':
+          description: Report recorded
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: travel_session
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Error:
+      description: Bad request or validation failure
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [username, email, password, display_name]
+      properties:
+        username:
+          type: string
+          example: traveler_alice
+        email:
+          type: string
+          format: email
+          example: alice@traveldoodles.app
+        password:
+          type: string
+          format: password
+          minLength: 8
+        display_name:
+          type: string
+          example: Alice Walker
+        bio:
+          type: string
+
+    LoginRequest:
+      type: object
+      required: [login, password]
+      properties:
+        login:
+          type: string
+          example: traveler_alice
+        password:
+          type: string
+          format: password
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        email:
+          type: string
+        display_name:
+          type: string
+        bio:
+          type: string
+        avatar_url:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    UserProfileResponse:
+      type: object
+      properties:
+        profile:
+          type: object
+          properties:
+            id:
+              type: string
+            username:
+              type: string
+            display_name:
+              type: string
+            bio:
+              type: string
+            avatar_url:
+              type: string
+            post_count:
+              type: integer
+            follower_count:
+              type: integer
+            following_count:
+              type: integer
+            is_following:
+              type: boolean
+            is_self:
+              type: boolean
+
+    CreatePostRequest:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        caption:
+          type: string
+        latitude:
+          type: number
+          example: 48.8584
+        longitude:
+          type: number
+          example: 2.2945
+        location_name:
+          type: string
+          example: Eiffel Tower, Paris
+        country_code:
+          type: string
+          example: FR
+        visibility:
+          type: string
+          enum: [public, friends, private]
+          default: public
+        visited_at:
+          type: string
+          format: date-time
+        media:
+          type: array
+          items:
+            type: object
+            required: [object_key]
+            properties:
+              object_key:
+                type: string
+              width:
+                type: integer
+              height:
+                type: integer
+              sort_order:
+                type: integer
+
+    UpdatePostRequest:
+      type: object
+      properties:
+        caption:
+          type: string
+        visibility:
+          type: string
+          enum: [public, friends, private]
+        location_name:
+          type: string
+
+    PostResponse:
+      type: object
+      properties:
+        post:
+          $ref: '#/components/schemas/Post'
+
+    Post:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        author:
+          type: object
+          properties:
+            id:
+              type: string
+            username:
+              type: string
+            display_name:
+              type: string
+            avatar_url:
+              type: string
+        caption:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        location_name:
+          type: string
+        country_code:
+          type: string
+        visibility:
+          type: string
+        like_count:
+          type: integer
+        comment_count:
+          type: integer
+        has_liked:
+          type: boolean
+        media:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaItem'
+        visited_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    MediaItem:
+      type: object
+      properties:
+        id:
+          type: string
+        object_key:
+          type: string
+        thumbnail_key:
+          type: string
+        url:
+          type: string
+        thumbnail_url:
+          type: string
+        width:
+          type: integer
+        height:
+          type: integer
+        sort_order:
+          type: integer
+
+    PaginatedPosts:
+      type: object
+      properties:
+        posts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Post'
+        next_cursor:
+          type: string
+        has_more:
+          type: boolean
+
+    MapResponse:
+      type: object
+      properties:
+        zoom:
+          type: integer
+        clusters:
+          type: array
+          items:
+            $ref: '#/components/schemas/Cluster'
+        markers:
+          type: array
+          items:
+            $ref: '#/components/schemas/PostMarker'
+
+    Cluster:
+      type: object
+      properties:
+        id:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        count:
+          type: integer
+        representative_post_id:
+          type: string
+        representative_thumbnail:
+          type: string
+        bounds:
+          type: object
+          properties:
+            min_lat:
+              type: number
+            max_lat:
+              type: number
+            min_lon:
+              type: number
+            max_lon:
+              type: number
+
+    PostMarker:
+      type: object
+      properties:
+        id:
+          type: string
+        author_id:
+          type: string
+        author_username:
+          type: string
+        author_display_name:
+          type: string
+        author_avatar_url:
+          type: string
+        caption:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        location_name:
+          type: string
+        country_code:
+          type: string
+        thumbnail_url:
+          type: string
+        visited_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    PaginatedComments:
+      type: object
+      properties:
+        comments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Comment'
+        next_cursor:
+          type: string
+        has_more:
+          type: boolean
+
+    Comment:
+      type: object
+      properties:
+        id:
+          type: string
+        post_id:
+          type: string
+        parent_id:
+          type: string
+        author:
+          type: object
+          properties:
+            id:
+              type: string
+            username:
+              type: string
+            display_name:
+              type: string
+            avatar_url:
+              type: string
+        content:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    UploadAuthResponse:
+      type: object
+      properties:
+        upload_id:
+          type: string
+        upload_url:
+          type: string
+        object_key:
+          type: string
+        public_url:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+        event_type:
+          type: string
+        resource_id:
+          type: string
+        read_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        actor:
+          type: object
+          properties:
+            id:
+              type: string
+            username:
+              type: string
+            display_name:
+              type: string
+            avatar_url:
+              type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string

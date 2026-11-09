@@ -1,0 +1,31 @@
+{
+  "name": "Travel Doodles Geographic Boundary Engine",
+  "version": "2026.11.0",
+  "generatedAt": "2026-11-09T08:33:29.692Z",
+  "licenses": {
+    "naturalEarth": "Public Domain",
+    "geoBoundaries": "Open Data Commons Open Database License (ODbL) / CC-BY 4.0 (gbOpen)",
+    "openStreetMap": "Open Data Commons Open Database License (ODbL) © OpenStreetMap contributors",
+    "openMapTiles": "CC-BY 4.0"
+  },
+  "boundaryPolicy": {
+    "worldview": "UN Cartographic Standard Worldview",
+    "disputesStyle": "graphite-dash-2-2",
+    "disputesDocumented": [
+      "Western Sahara (EH)",
+      "Jammu & Kashmir / Siachen Glacier / Line of Control",
+      "Golan Heights",
+      "Cyprus UN Buffer Zone / Northern Cyprus",
+      "Abyei Area",
+      "Falkland Islands / Islas Malvinas",
+      "Spratly Islands / Scarborough Reef"
+    ],
+    "exceptions": "Kosovo is cataloged with product code XK under UN Security Council Resolution 1244/99 guidelines."
+  },
+  "layers": {
+    "countries": "/data/geo/countries.geojson",
+    "regions": "/data/geo/regions.geojson",
+    "disputed": "/data/geo/disputed.geojson",
+    "cities": "/data/geo/cities.geojson"
+  }
+}

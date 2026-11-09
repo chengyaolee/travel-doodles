@@ -1,0 +1,135 @@
+services:
+  travel-db:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: travel-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: travel_doodles
+      POSTGRES_USER: travel_user
+      POSTGRES_PASSWORD: travel_password
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./postgres.conf:/etc/postgresql/postgresql.conf:ro
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    ports:
+      - "127.0.0.1:5432:5432"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1200M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U travel_user -d travel_doodles"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  travel-redis:
+    image: redis:7-alpine
+    container_name: travel-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 200mb --maxmemory-policy volatile-lru --save "" --appendonly no
+    ports:
+      - "127.0.0.1:6379:6379"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 250M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  travel-api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: travel-api
+    restart: unless-stopped
+    entrypoint: ["/app/travel-api"]
+    env_file:
+      - ../.env.example
+    environment:
+      - DATABASE_URL=postgres://travel_user:travel_password@travel-db:5432/travel_doodles?sslmode=disable
+      - REDIS_URL=redis://travel-redis:6379/0
+      - REDIS_ENABLED=true
+      - PORT=8080
+      - ENV=production
+      - STORAGE_TYPE=local
+      - STORAGE_LOCAL_DIR=/app/data/storage
+      - STORAGE_PUBLIC_URL=http://localhost:8080/media/files
+    volumes:
+      - media_storage:/app/data/storage
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      travel-db:
+        condition: service_healthy
+      travel-redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 350M
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  travel-worker:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: travel-worker
+    restart: unless-stopped
+    entrypoint: ["/app/travel-worker"]
+    env_file:
+      - ../.env.example
+    environment:
+      - DATABASE_URL=postgres://travel_user:travel_password@travel-db:5432/travel_doodles?sslmode=disable
+      - REDIS_URL=redis://travel-redis:6379/0
+      - REDIS_ENABLED=true
+      - ENV=production
+      - STORAGE_TYPE=local
+      - STORAGE_LOCAL_DIR=/app/data/storage
+      - STORAGE_PUBLIC_URL=http://localhost:8080/media/files
+      - WORKER_CONCURRENCY=4
+    volumes:
+      - media_storage:/app/data/storage
+    depends_on:
+      travel-db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 250M
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: travel-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - travel-api
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 100M
+
+volumes:
+  db_data:
+  media_storage:
+  caddy_data:
+  caddy_config:

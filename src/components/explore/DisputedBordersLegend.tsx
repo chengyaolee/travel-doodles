@@ -1,0 +1,62 @@
+"use client";
+
+import React, { useState } from "react";
+
+export function DisputedBordersLegend() {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono font-medium rounded-md bg-[var(--bg-elevated)]/90 backdrop-blur-md text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] border border-[var(--border-color)] transition-colors cursor-pointer shadow-xs"
+        title="View boundary policy and dispute legend"
+        aria-label="Boundary policy and dispute legend"
+      >
+        <span className="w-2.5 h-0.5 border-b-2 border-dashed border-[#8c3b2d] dark:border-[#e06c58] inline-block" />
+        <span>Disputed Lines</span>
+      </button>
+
+      {isOpen && (
+        <div className="absolute bottom-8 left-0 w-80 p-3.5 rounded-lg bg-[var(--bg-primary)]/95 backdrop-blur-md border border-[var(--border-color)] shadow-lg z-50 text-xs">
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-[var(--border-color)]">
+            <h4 className="font-semibold text-[var(--ink-primary)] flex items-center gap-2">
+              <span className="w-3 h-0.5 border-b-2 border-dashed border-[#8c3b2d] dark:border-[#e06c58]" />
+              Boundary Worldview Policy
+            </h4>
+            <button
+              onClick={() => setIsOpen(false)}
+              className="text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] cursor-pointer"
+              aria-label="Close legend"
+            >
+              ✕
+            </button>
+          </div>
+          <p className="text-[var(--ink-secondary)] leading-relaxed mb-2">
+            Boundaries follow the <strong>United Nations Cartographic Standard Worldview</strong>.
+            Disputed frontiers, armistice lines, and non-self-governing territories are rendered
+            with distinct dashed lines to maintain neutral, objective cartographic representation.
+          </p>
+          <ul className="space-y-1 text-[11px] text-[var(--ink-secondary)] list-disc pl-4 mb-2">
+            <li><strong>Western Sahara:</strong> Dashed line of partition; status subject to UN advisory.</li>
+            <li><strong>Jammu & Kashmir:</strong> Dashed Line of Control (1972 Simla Agreement).</li>
+            <li><strong>Cyprus:</strong> Green Line UN Buffer Zone patrolled by UNFICYP.</li>
+            <li><strong>Golan Heights:</strong> UNDOF Armistice Demarcation Line.</li>
+            <li><strong>Kosovo:</strong> Product code XK under UN Security Council Res 1244/99.</li>
+          </ul>
+          <div className="pt-2 border-t border-[var(--border-color)] flex items-center justify-between text-[10px] text-[var(--ink-secondary)]">
+            <span>Sources: geoBoundaries gbOpen & OSM</span>
+            <a
+              href="https://www.openstreetmap.org/copyright"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-[var(--ink-primary)]"
+            >
+              OSM License
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
