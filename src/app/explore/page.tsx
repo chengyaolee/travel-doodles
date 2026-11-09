@@ -99,7 +99,7 @@ function ExploreContent() {
     updateUrl(countryCode, null, null);
   };
 
-  // Region selection handler
+  // Region selection handler: centers region on the map taking up ~70% of available window
   const handleSelectRegion = (regionId: string) => {
     setSelectedRegion(regionId);
     setSelectedPostId(null);
@@ -107,15 +107,26 @@ function ExploreContent() {
     setIsSidebarOpen(true);
     updateUrl(selectedCountry, regionId, null);
 
-    // Smoothly center and fit the selected state/region chunk
+    // Smoothly center and fit the selected state/region chunk filling 70% of the visible window
     const allRegions = selectedCountry ? (regionsInventory[selectedCountry] || []) : Object.values(regionsInventory).flat();
     const found = allRegions.find((r) => r.id === regionId);
     if (found && mapInstanceRef.current && found.bounds) {
-      mapInstanceRef.current.fitBounds(found.bounds, {
-        padding: isMobile
-          ? { top: 60, bottom: 200, left: 30, right: 30 }
-          : { top: 70, bottom: 70, left: 50, right: 420 },
-        maxZoom: 9,
+      const map = mapInstanceRef.current;
+      map.resize();
+      const container = map.getContainer();
+      const mapW = container?.clientWidth || (window.innerWidth - (!isMobile ? 380 : 0));
+      const mapH = container?.clientHeight || window.innerHeight;
+      const mobileSheetH = isMobile ? Math.round(mapH * 0.45) : 0;
+      const availH = Math.max(200, mapH - mobileSheetH);
+
+      // 70% window coverage -> 15% margin on each side
+      const padX = Math.round(mapW * 0.15);
+      const padTop = Math.round(availH * 0.15);
+      const padBottom = padTop + mobileSheetH;
+
+      map.fitBounds(found.bounds, {
+        padding: { top: padTop, bottom: padBottom, left: padX, right: padX },
+        maxZoom: 15,
         duration: 850,
       });
     }
@@ -208,7 +219,13 @@ function ExploreContent() {
   };
 
   const fallbackMeta = selectedRegion ? fallbackRegionNames[selectedRegion] : null;
-  const regionDisplayName = activeRegionItem ? activeRegionItem.name : fallbackMeta ? fallbackMeta.name : selectedRegion || "";
+  const regionDisplayName = activeRegionItem
+    ? activeRegionItem.shortName && activeRegionItem.shortName !== activeRegionItem.name
+      ? `${activeRegionItem.name} (${activeRegionItem.shortName})`
+      : activeRegionItem.name
+    : fallbackMeta
+    ? fallbackMeta.name
+    : selectedRegion || "";
   const regionLocalName = activeRegionItem ? activeRegionItem.localName : fallbackMeta ? fallbackMeta.local : "";
 
   // Available cities for the selected region

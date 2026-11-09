@@ -23,6 +23,7 @@ interface RegionGeoFeature {
   id: string;
   country: string;
   name: string;
+  shortName?: string;
   localName: string;
   postCount: number;
   center: [number, number];
@@ -72,6 +73,7 @@ export function SketchbookMap({
   // Markers
   const markersRef = useRef<Marker[]>([]);
   const countryLabelsRef = useRef<Marker[]>([]);
+  const stateLabelsRef = useRef<Marker[]>([]);
   const cityLabelsRef = useRef<Marker[]>([]);
 
   const hoveredCountryIdRef = useRef<string | number | null>(null);
@@ -130,26 +132,50 @@ export function SketchbookMap({
     return 650;
   }, []);
 
-  // Requirement 1 & 11: 80% screen coverage viewport padding
-  // Available width/height has 10% margin on top, bottom, left, right so the bounding box fills 80% of screen.
-  const getViewportPadding = useCallback(() => {
-    const drawerWidth = isSidebarOpen && !isMobile ? 380 : 0;
-    const sheetHeight = isSidebarOpen && isMobile ? 280 : 0;
-    const screenW = typeof window !== "undefined" ? window.innerWidth : 1200;
-    const screenH = typeof window !== "undefined" ? window.innerHeight : 800;
+  // 80% screen coverage viewport padding for countries
+  const getCountryViewportPadding = useCallback(() => {
+    const map = mapRef.current;
+    const container = map?.getContainer();
+    const mapW = container?.clientWidth || (typeof window !== "undefined" ? window.innerWidth - (isSidebarOpen && !isMobile ? 380 : 0) : 800);
+    const mapH = container?.clientHeight || (typeof window !== "undefined" ? window.innerHeight : 600);
 
-    const availW = Math.max(300, screenW - drawerWidth);
-    const availH = Math.max(300, screenH - sheetHeight);
+    const mobileSheetH = isSidebarOpen && isMobile ? Math.round(mapH * 0.45) : 0;
+    const availH = Math.max(200, mapH - mobileSheetH);
 
-    // 10% margin on each side of the available area gives exactly 80% screen coverage
-    const hMargin = Math.round(availW * 0.1);
-    const vMargin = Math.round(availH * 0.1);
+    // 10% margin on each side gives 80% screen coverage, centered
+    const padX = Math.round(mapW * 0.10);
+    const padTop = Math.round(availH * 0.10);
+    const padBottom = padTop + mobileSheetH;
 
     return {
-      top: vMargin,
-      bottom: vMargin + sheetHeight,
-      left: hMargin,
-      right: hMargin + drawerWidth,
+      top: padTop,
+      bottom: padBottom,
+      left: padX,
+      right: padX,
+    };
+  }, [isSidebarOpen, isMobile]);
+
+  // 70% screen coverage viewport padding for focused regions
+  // After the side bar is open, the visible map canvas is centered and the region fills ~70% of both width and height.
+  const getRegionViewportPadding = useCallback(() => {
+    const map = mapRef.current;
+    const container = map?.getContainer();
+    const mapW = container?.clientWidth || (typeof window !== "undefined" ? window.innerWidth - (isSidebarOpen && !isMobile ? 380 : 0) : 800);
+    const mapH = container?.clientHeight || (typeof window !== "undefined" ? window.innerHeight : 600);
+
+    const mobileSheetH = isSidebarOpen && isMobile ? Math.round(mapH * 0.45) : 0;
+    const availH = Math.max(200, mapH - mobileSheetH);
+
+    // 15% margin on each side gives exactly 70% window coverage, perfectly centered
+    const padX = Math.round(mapW * 0.15);
+    const padTop = Math.round(availH * 0.15);
+    const padBottom = padTop + mobileSheetH;
+
+    return {
+      top: padTop,
+      bottom: padBottom,
+      left: padX,
+      right: padX,
     };
   }, [isSidebarOpen, isMobile]);
 
@@ -161,7 +187,8 @@ export function SketchbookMap({
       const inv = inventory.find((i) => i.code === code);
       if (!inv) return;
 
-      const padding = getViewportPadding();
+      map.resize();
+      const padding = getCountryViewportPadding();
       const duration = getCameraDuration();
 
       map.fitBounds(inv.cameraBounds, {
@@ -170,10 +197,10 @@ export function SketchbookMap({
         maxZoom: 14, // Allows both large and microstate countries to fill 80% of screen
       });
     },
-    [inventory, getViewportPadding, getCameraDuration]
+    [inventory, getCountryViewportPadding, getCameraDuration]
   );
 
-  // Center and zoom to region filling 80% of screen
+  // Center and zoom to region filling 70% of screen after sidebar is open
   const zoomToRegion = useCallback(
     (regionId: string) => {
       const map = mapRef.current;
@@ -181,7 +208,8 @@ export function SketchbookMap({
       const reg = regionsData.find((r) => r.id === regionId);
       if (!reg) return;
 
-      const padding = getViewportPadding();
+      map.resize();
+      const padding = getRegionViewportPadding();
       const duration = getCameraDuration();
 
       map.fitBounds(reg.bounds, {
@@ -190,7 +218,7 @@ export function SketchbookMap({
         maxZoom: 15,
       });
     },
-    [regionsData, getViewportPadding, getCameraDuration]
+    [regionsData, getRegionViewportPadding, getCameraDuration]
   );
 
   // Initialize MapLibre
@@ -348,6 +376,10 @@ export function SketchbookMap({
 
     return () => {
       container.removeEventListener("wheel", handleWheel);
+      countryLabelsRef.current.forEach((m) => m.remove());
+      stateLabelsRef.current.forEach((m) => m.remove());
+      cityLabelsRef.current.forEach((m) => m.remove());
+      markersRef.current.forEach((m) => m.remove());
       map.remove();
       mapRef.current = null;
       if (mapInstanceRef) {
@@ -356,6 +388,17 @@ export function SketchbookMap({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Keep map canvas dimensions in sync with sidebar open/close flex changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    map.resize();
+    const timer = setTimeout(() => {
+      map.resize();
+    }, 320);
+    return () => clearTimeout(timer);
+  }, [isSidebarOpen, isMobile]);
 
   // Update theme colors
   useEffect(() => {
@@ -468,6 +511,52 @@ export function SketchbookMap({
       }
     });
   }, [inventory, mapZoom, onSelectCountry, zoomToCountry]);
+
+  // State / Regional Labels on the map with short form names ("CA, TX, ID...")
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    stateLabelsRef.current.forEach((m) => m.remove());
+    stateLabelsRef.current = [];
+
+    // State labels appear when zoomed in to countries or states (zoom >= 3.0 up to 7.2)
+    if (mapZoom < 3.0 || mapZoom > 7.2) return;
+
+    const visibleRegions = selectedCountry
+      ? regionsData.filter((r) => r.country === selectedCountry)
+      : regionsData.filter((r) => mapZoom >= 4.0);
+
+    visibleRegions.forEach((reg) => {
+      // Short form name like "CA, TX, ID..." or full name if no commonly known short form
+      const displayLabel = reg.shortName || reg.name;
+
+      const el = document.createElement("button");
+      el.className =
+        "state-label group pointer-events-auto cursor-pointer select-none px-1.5 py-0.5 text-center transition-all hover:scale-110";
+      el.setAttribute("aria-label", `${reg.name} (${displayLabel})`);
+
+      const isShortCode = displayLabel.length <= 4 && displayLabel === displayLabel.toUpperCase();
+      el.innerHTML = `
+        <span class="block ${
+          isShortCode
+            ? "text-[12px] font-mono font-bold tracking-widest text-stone-700 dark:text-stone-300 drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)] dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
+            : "text-[10px] font-sans font-semibold tracking-wide text-stone-700 dark:text-stone-300 drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)] dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
+        } group-hover:text-[#d94e34]">
+          ${displayLabel}
+        </span>
+      `;
+
+      el.onclick = (e) => {
+        e.stopPropagation();
+        onSelectRegion(reg.id);
+        zoomToRegion(reg.id);
+      };
+
+      const marker = new Marker({ element: el }).setLngLat(reg.center).addTo(map);
+      stateLabelsRef.current.push(marker);
+    });
+  }, [regionsData, mapZoom, selectedCountry, onSelectRegion, zoomToRegion]);
 
   // Requirement 10: Names of big and popular cities / hotspots when zoomed in
   useEffect(() => {

@@ -43,23 +43,23 @@ export function MobileFeedSheet(props: MobileFeedSheetProps) {
       aria-label="Mobile regional journal sheet"
     >
       {/* Drag & State Handle Bar */}
-      <div className="h-10 px-4 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] flex items-center justify-between select-none">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-1 bg-[var(--border-color)] rounded-full mx-auto" />
-          <span className="text-xs font-semibold text-[var(--ink-primary)] truncate max-w-[140px]">
+      <div className="h-11 px-4 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] flex items-center justify-between select-none shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-8 h-1 bg-[var(--border-color)] rounded-full mr-1 shrink-0" />
+          <span className="text-xs font-semibold text-[var(--ink-primary)] truncate max-w-[130px]">
             {props.regionName || props.countryName}
           </span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[var(--bg-elevated)] text-[var(--ink-secondary)] font-mono">
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-elevated)] text-[var(--ink-secondary)] font-mono shrink-0">
             {props.posts.length}
           </span>
         </div>
 
-        {/* Labeled State Controls */}
-        <div className="flex items-center gap-1.5 text-xs">
+        {/* Labeled State Controls (Uniform h-7 height) */}
+        <div className="flex items-center gap-1.5 text-xs shrink-0">
           {sheetState === "collapsed" && (
             <button
               onClick={() => setSheetState("half")}
-              className="px-2 py-0.5 rounded bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]"
+              className="h-7 px-2.5 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] flex items-center justify-center cursor-pointer text-xs font-medium"
               aria-label="Expand feed to half screen"
             >
               Open ↗
@@ -70,14 +70,14 @@ export function MobileFeedSheet(props: MobileFeedSheetProps) {
             <>
               <button
                 onClick={() => setSheetState("expanded")}
-                className="px-2 py-0.5 rounded bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]"
+                className="h-7 px-2.5 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] flex items-center justify-center cursor-pointer text-xs font-medium"
                 aria-label="Expand feed to full screen"
               >
                 Full ⤢
               </button>
               <button
                 onClick={() => setSheetState("collapsed")}
-                className="px-2 py-0.5 rounded bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]"
+                className="h-7 px-2.5 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] flex items-center justify-center cursor-pointer text-xs font-medium"
                 aria-label="Collapse feed to bottom bar"
               >
                 Hide ↘
@@ -88,7 +88,7 @@ export function MobileFeedSheet(props: MobileFeedSheetProps) {
           {sheetState === "expanded" && (
             <button
               onClick={() => setSheetState("half")}
-              className="px-2 py-0.5 rounded bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]"
+              className="h-7 px-2.5 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] flex items-center justify-center cursor-pointer text-xs font-medium"
               aria-label="Collapse feed to half screen"
             >
               Half ⤡
@@ -97,7 +97,7 @@ export function MobileFeedSheet(props: MobileFeedSheetProps) {
 
           <button
             onClick={props.onClose}
-            className="w-6 h-6 flex items-center justify-center rounded-full text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] cursor-pointer"
+            className="w-7 h-7 flex items-center justify-center rounded-full text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
             aria-label="Close sheet"
           >
             ✕

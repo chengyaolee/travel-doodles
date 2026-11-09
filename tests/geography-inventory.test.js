@@ -155,6 +155,7 @@ describe('Geography Inventory Acceptance Tests', () => {
       unitsInInventory.forEach(unit => {
         assert.ok(unit.id, `Unit in ${country} must have ID`);
         assert.ok(unit.name, `Unit in ${country} must have name`);
+        assert.ok(unit.shortName, `Unit in ${country} must have shortName`);
         assert.ok(unit.localName, `Unit in ${country} must have localName`);
         assert.ok(unit.type, `Unit in ${country} must have division type`);
         assert.ok(Array.isArray(unit.center) && unit.center.length === 2, `Unit ${unit.id} must have center`);
@@ -163,6 +164,20 @@ describe('Geography Inventory Acceptance Tests', () => {
         assert.ok(unit.bounds[0][1] <= unit.bounds[1][1], `Unit ${unit.id} bounds lat must be valid`);
       });
     }
+
+    // Verify US short names (CA, TX, ID...)
+    const usUnits = regionsInventory['US'];
+    const caState = usUnits.find(u => u.id === 'US-CA');
+    const txState = usUnits.find(u => u.id === 'US-TX');
+    const idState = usUnits.find(u => u.id === 'US-ID');
+    assert.strictEqual(caState.shortName, 'CA');
+    assert.strictEqual(txState.shortName, 'TX');
+    assert.strictEqual(idState.shortName, 'ID');
+
+    // Verify region with no commonly known short form falls back to name
+    const jpUnits = regionsInventory['JP'];
+    const tokyo = jpUnits.find(u => u.id === 'JP-13');
+    assert.strictEqual(tokyo.shortName, 'Tokyo');
 
     // Verify 0 horizontal line jumps across the antimeridian in regions.geojson
     let regionalJumps = 0;

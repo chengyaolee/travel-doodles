@@ -91,9 +91,9 @@ export function ExploreToolbar({
   };
 
   return (
-    <header className="h-14 md:h-16 border-b border-[var(--border-color)] bg-[var(--bg-primary)]/90 backdrop-blur-md px-3 sm:px-5 flex items-center justify-between gap-2 sm:gap-4 relative z-30 select-none shadow-xs">
+    <header className="h-14 md:h-16 border-b border-[var(--border-color)] bg-[var(--bg-primary)]/90 backdrop-blur-md px-3 sm:px-5 flex items-center justify-between gap-3 relative z-30 select-none shadow-xs">
       {/* Left: Brand Wordmark */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 shrink-0">
         <Link href="/" className="flex items-center gap-2 group cursor-pointer" title="Return to Home">
           <DoodleGlobe size={26} className="text-[var(--ink-primary)] transition-transform duration-300 group-hover:rotate-12" />
           <div className="flex flex-col">
@@ -111,8 +111,8 @@ export function ExploreToolbar({
       <div className="flex items-center gap-2 sm:gap-3 flex-1 max-w-lg mx-auto">
         {/* Place Search Bar */}
         <div ref={searchRef} className="relative flex-1">
-          <div className="relative flex items-center">
-            <span className="absolute left-2.5 text-[var(--ink-secondary)] pointer-events-none text-xs">
+          <div className="relative flex items-center h-9">
+            <span className="absolute left-3 text-[var(--ink-secondary)] pointer-events-none text-xs">
               🔍
             </span>
             <input
@@ -127,12 +127,12 @@ export function ExploreToolbar({
               onKeyDown={handleKeyDown}
               placeholder="Search 250 countries & islands..."
               aria-label="Search countries and territories"
-              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--ink-primary)] placeholder-[var(--ink-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--ink-primary)] transition-all font-sans"
+              className="w-full h-9 pl-9 pr-8 text-xs rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--ink-primary)] placeholder-[var(--ink-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--ink-primary)] transition-all font-sans"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] cursor-pointer"
+                className="absolute right-2.5 w-5 h-5 flex items-center justify-center text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] cursor-pointer"
                 aria-label="Clear search"
               >
                 ✕
@@ -173,10 +173,10 @@ export function ExploreToolbar({
         </div>
 
         {/* Explore / Friends Switch */}
-        <div className="hidden sm:flex items-center p-0.5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium">
+        <div className="hidden sm:flex items-center h-9 p-1 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium shrink-0">
           <button
             onClick={() => onVisibilityChange("everyone")}
-            className={`px-3 py-1 rounded-full transition-all cursor-pointer ${
+            className={`h-7 px-3.5 flex items-center justify-center rounded-full transition-all cursor-pointer whitespace-nowrap ${
               visibilityFilter === "everyone"
                 ? "bg-[var(--bg-primary)] text-[var(--ink-primary)] shadow-xs font-semibold"
                 : "text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]"
@@ -187,7 +187,7 @@ export function ExploreToolbar({
           </button>
           <button
             onClick={() => onVisibilityChange("friends")}
-            className={`px-3 py-1 rounded-full transition-all cursor-pointer ${
+            className={`h-7 px-3.5 flex items-center justify-center rounded-full transition-all cursor-pointer whitespace-nowrap ${
               visibilityFilter === "friends"
                 ? "bg-[var(--bg-primary)] text-[var(--ink-primary)] shadow-xs font-semibold"
                 : "text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]"
@@ -199,13 +199,13 @@ export function ExploreToolbar({
         </div>
       </div>
 
-      {/* Right Controls: Zoom, Reset World, Legend & Theme */}
-      <div className="flex items-center gap-1.5 sm:gap-2">
+      {/* Right Controls: Zoom, Reset World, Legend & Theme (Exact uniform h-9 height) */}
+      <div className="flex items-center gap-2 shrink-0">
         {/* Back to world button */}
         {selectedCountry && (
           <button
             onClick={onResetWorld}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--ink-primary)] hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer"
+            className="h-9 flex items-center gap-1.5 px-3.5 text-xs font-medium rounded-full bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--ink-primary)] hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer shrink-0 whitespace-nowrap shadow-xs"
             title="Reset to world overview"
             aria-label="Back to world"
           >
@@ -215,10 +215,10 @@ export function ExploreToolbar({
         )}
 
         {/* Zoom controls */}
-        <div className="flex items-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] overflow-hidden">
+        <div className="h-9 flex items-center rounded-full border border-[var(--border-color)] bg-[var(--bg-elevated)] overflow-hidden shrink-0 shadow-xs">
           <button
             onClick={onZoomIn}
-            className="w-8 h-8 flex items-center justify-center text-xs font-bold text-[var(--ink-primary)] hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer"
+            className="w-9 h-9 flex items-center justify-center text-sm font-bold text-[var(--ink-primary)] hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer"
             title="Zoom in"
             aria-label="Zoom in"
           >
@@ -227,7 +227,7 @@ export function ExploreToolbar({
           <div className="w-[1px] h-4 bg-[var(--border-color)]" />
           <button
             onClick={onZoomOut}
-            className="w-8 h-8 flex items-center justify-center text-xs font-bold text-[var(--ink-primary)] hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer"
+            className="w-9 h-9 flex items-center justify-center text-sm font-bold text-[var(--ink-primary)] hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer"
             title="Zoom out"
             aria-label="Zoom out"
           >
@@ -236,12 +236,14 @@ export function ExploreToolbar({
         </div>
 
         {/* Disputed borders legend trigger */}
-        <div className="hidden lg:block">
+        <div className="hidden lg:block shrink-0">
           <DisputedBordersLegend />
         </div>
 
         {/* Light/Dark Toggle */}
-        <ThemeToggle />
+        <div className="shrink-0">
+          <ThemeToggle />
+        </div>
       </div>
     </header>
   );

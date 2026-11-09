@@ -7,6 +7,7 @@ export interface RegionItem {
   id: string;
   country: string;
   name: string;
+  shortName?: string;
   localName: string;
   type: string;
   region: string;
@@ -226,7 +227,7 @@ export function RegionalFeed({
 
           <button
             onClick={onClose}
-            className="px-2.5 py-1 text-xs font-medium rounded-lg border border-[var(--border-color)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer flex items-center gap-1"
+            className="h-8 px-3 text-xs font-medium rounded-lg border border-[var(--border-color)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer flex items-center gap-1.5 shrink-0"
             aria-label="Close feed drawer"
           >
             <span>Close</span>
@@ -236,17 +237,17 @@ export function RegionalFeed({
 
         {/* Active Region Switcher / Back to all states button */}
         {regionId && (
-          <div className="mt-2.5 flex items-center justify-between p-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
-            <div className="flex items-center gap-1.5 text-xs">
-              <span className="w-2 h-2 rounded-full bg-[#d94e34]"></span>
-              <span className="font-semibold text-[var(--ink-primary)] truncate max-w-[150px]">
+          <div className="mt-2.5 flex items-center justify-between p-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+            <div className="flex items-center gap-1.5 text-xs min-w-0">
+              <span className="w-2 h-2 rounded-full bg-[#d94e34] shrink-0"></span>
+              <span className="font-semibold text-[var(--ink-primary)] truncate">
                 {regionName}
               </span>
             </div>
             {onBackToCountry && (
               <button
                 onClick={onBackToCountry}
-                className="text-[11px] font-mono text-[#d94e34] hover:underline cursor-pointer flex items-center gap-1"
+                className="text-[11px] font-mono text-[#d94e34] hover:underline cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap ml-2"
               >
                 <span>‹ All {stateTypeLabel}</span>
               </button>
@@ -259,7 +260,7 @@ export function RegionalFeed({
           <div className="mt-3 flex items-center gap-2">
             <label
               htmlFor="city-filter"
-              className="text-xs text-[var(--ink-secondary)] font-medium"
+              className="text-xs text-[var(--ink-secondary)] font-medium shrink-0"
             >
               City:
             </label>
@@ -279,13 +280,13 @@ export function RegionalFeed({
           </div>
         )}
 
-        {/* Sort & Filter Controls */}
+        {/* Sort & Filter Controls (Uniform h-8 height) */}
         <div className="mt-3 pt-2.5 border-t border-[var(--border-color)] flex items-center justify-between text-xs">
           {/* Sort Tabs */}
-          <div className="flex items-center gap-1 bg-[var(--bg-secondary)] p-0.5 rounded-lg border border-[var(--border-color)]">
+          <div className="h-8 flex items-center gap-1 bg-[var(--bg-secondary)] p-0.5 rounded-lg border border-[var(--border-color)]">
             <button
               onClick={() => setSortBy("recent")}
-              className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+              className={`h-7 px-3 rounded-md transition-all cursor-pointer flex items-center justify-center ${
                 sortBy === "recent"
                   ? "bg-[var(--bg-primary)] font-semibold text-[var(--ink-primary)] shadow-xs"
                   : "text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]"
@@ -295,7 +296,7 @@ export function RegionalFeed({
             </button>
             <button
               onClick={() => setSortBy("popular")}
-              className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+              className={`h-7 px-3 rounded-md transition-all cursor-pointer flex items-center justify-center ${
                 sortBy === "popular"
                   ? "bg-[var(--bg-primary)] font-semibold text-[var(--ink-primary)] shadow-xs"
                   : "text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]"
@@ -308,7 +309,7 @@ export function RegionalFeed({
           {/* Photos only toggle */}
           <button
             onClick={() => setFilterPhotosOnly(!filterPhotosOnly)}
-            className={`px-2.5 py-1 rounded-lg border text-xs transition-colors cursor-pointer flex items-center gap-1.5 ${
+            className={`h-8 px-3 rounded-lg border text-xs transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
               filterPhotosOnly
                 ? "bg-[var(--ink-primary)] text-[var(--bg-primary)] border-[var(--ink-primary)]"
                 : "border-[var(--border-color)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] bg-[var(--bg-elevated)]"
@@ -353,35 +354,45 @@ export function RegionalFeed({
               />
             )}
 
-            {/* State Grid List */}
+            {/* State Grid List with Short Form Name support */}
             <div
-              className={`grid grid-cols-2 gap-1.5 ${
+              className={`grid grid-cols-2 gap-2 ${
                 showAllStates || stateSearch.trim()
-                  ? "max-h-60 overflow-y-auto pr-1"
-                  : "max-h-40 overflow-hidden"
+                  ? "max-h-64 overflow-y-auto pr-1"
+                  : "max-h-44 overflow-hidden"
               }`}
             >
-              {filteredStates.map((state) => (
-                <button
-                  key={state.id}
-                  onClick={() => onSelectRegion?.(state.id)}
-                  className="p-2 rounded-lg bg-[var(--bg-primary)] hover:bg-[var(--bg-elevated)] border border-[var(--border-color)] text-left transition-all hover:scale-[1.02] cursor-pointer flex flex-col justify-between group shadow-2xs"
-                >
-                  <div className="flex items-start justify-between gap-1">
-                    <span className="text-xs font-semibold text-[var(--ink-primary)] truncate group-hover:text-[#d94e34]">
-                      {state.name}
-                    </span>
-                    <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-[var(--bg-secondary)] text-[var(--ink-secondary)] flex-shrink-0">
-                      {state.postCount}
-                    </span>
-                  </div>
-                  {state.localName && state.localName !== state.name && (
-                    <span className="text-[10px] font-hand text-[var(--ink-secondary)] truncate mt-0.5">
-                      {state.localName}
-                    </span>
-                  )}
-                </button>
-              ))}
+              {filteredStates.map((state) => {
+                const hasShortForm = Boolean(state.shortName && state.shortName !== state.name);
+                return (
+                  <button
+                    key={state.id}
+                    onClick={() => onSelectRegion?.(state.id)}
+                    className="p-2.5 min-h-[58px] rounded-lg bg-[var(--bg-primary)] hover:bg-[var(--bg-elevated)] border border-[var(--border-color)] text-left transition-all hover:scale-[1.01] cursor-pointer flex flex-col justify-between group shadow-2xs"
+                  >
+                    <div className="flex items-start justify-between gap-1.5 w-full">
+                      <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                        {hasShortForm && (
+                          <span className="font-mono text-[10px] font-bold px-1.5 py-0.2 rounded bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[#d94e34] shrink-0 leading-tight">
+                            {state.shortName}
+                          </span>
+                        )}
+                        <span className="text-xs font-semibold text-[var(--ink-primary)] truncate group-hover:text-[#d94e34]">
+                          {state.name}
+                        </span>
+                      </div>
+                      <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-[var(--bg-secondary)] text-[var(--ink-secondary)] shrink-0 leading-tight">
+                        {state.postCount}
+                      </span>
+                    </div>
+                    {state.localName && state.localName !== state.name && (
+                      <span className="text-[10px] font-hand text-[var(--ink-secondary)] truncate mt-1 block">
+                        {state.localName}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}

@@ -648,10 +648,18 @@ if (fs.existsSync(ADMIN1_PATH)) {
       Number((p.latitude || (bounds[0][1] + bounds[1][1]) / 2).toFixed(4))
     ];
 
+    // For states with a commonly known short form (US, CA, AU, CH), use postal/canton code (e.g. CA, TX, ID, BC, NSW, ZH)
+    // For regions with no commonly known short form, just display the name
+    let shortName = p.name;
+    if (['US', 'CA', 'AU', 'CH'].includes(countryCode) && p.postal && p.postal.trim()) {
+      shortName = p.postal.trim().toUpperCase();
+    }
+
     const regionItem = {
       id: id,
       country: countryCode,
       name: p.name,
+      shortName: shortName,
       localName: p.name_local || p.name_en || p.name,
       type: p.type_en || p.type || "State",
       region: p.region || "",
