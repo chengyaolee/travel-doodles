@@ -38,7 +38,7 @@ export function SectionF({ onCreateClick }: { onCreateClick?: () => void }) {
 
       <div className="max-w-3xl mx-auto text-center relative z-10 w-full flex flex-col items-center">
         <h2
-          className="font-hand text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-[var(--ink-primary)] leading-[1.08] tracking-tight"
+          className="text-4xl sm:text-6xl md:text-7xl font-medium text-[var(--ink-primary)] leading-[1.08] tracking-tight"
           style={{
             opacity: isVisible ? 1 : 0,
             transform: isVisible ? "translateY(0)" : "translateY(24px)",
@@ -47,7 +47,7 @@ export function SectionF({ onCreateClick }: { onCreateClick?: () => void }) {
         >
           Got a story?
           <br />
-          <span className="relative inline-block mt-3 whitespace-nowrap">
+          <span className="font-hand relative inline-block mt-3">
             Put it on the map
             <span className="absolute -bottom-2 left-0 w-full flex justify-center">
               <DoodleUnderline width={360} animate={isVisible} delay={600} />
@@ -89,9 +89,9 @@ export function SectionF({ onCreateClick }: { onCreateClick?: () => void }) {
 
           <button
             onClick={onCreateClick}
-            className="group relative inline-flex items-center gap-3 px-10 py-5 text-lg font-bold rounded-3xl bg-[var(--ink-primary)] text-[var(--bg-primary)] shadow-xl hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer"
+            className="button-ink group"
           >
-            <span className="font-hand text-2xl sm:text-3xl font-bold leading-none">
+            <span className="text-sm font-medium">
               Create Your First Doodle
             </span>
             <span className="text-2xl transition-transform duration-200 group-hover:translate-x-1.5">
@@ -99,7 +99,7 @@ export function SectionF({ onCreateClick }: { onCreateClick?: () => void }) {
             </span>
           </button>
 
-          <span className="text-xs text-[var(--ink-secondary)] font-hand mt-3">
+          <span className="text-xs text-[var(--ink-secondary)] mt-3">
             Free digital canvas · Instant preview · No login needed
           </span>
         </div>

@@ -9,6 +9,7 @@ import { RegionalFeed, RegionItem } from "@/components/explore/RegionalFeed";
 import { MobileFeedSheet } from "@/components/explore/MobileFeedSheet";
 import { PaperGrainOverlay } from "@/components/explore/PaperGrainOverlay";
 import { MOCK_POSTS, getPostsByLocation, ExplorePost } from "@/lib/explore/mockPosts";
+import { api } from "@/lib/api";
 
 function ExploreContent() {
   const searchParams = useSearchParams();
@@ -17,12 +18,13 @@ function ExploreContent() {
   const urlCountry = searchParams.get("country");
   const urlRegion = searchParams.get("region");
   const urlPost = searchParams.get("post");
+  const urlCity = searchParams.get("city");
 
   const [selectedCountry, setSelectedCountry] = useState<string | null>(urlCountry);
   const [selectedRegion, setSelectedRegion] = useState<string | null>(urlRegion);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(urlPost);
   const [visibilityFilter, setVisibilityFilter] = useState<"everyone" | "friends">("everyone");
-  const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [selectedCity, setSelectedCity] = useState<string | null>(urlCity);
 
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [regionsInventory, setRegionsInventory] = useState<Record<string, RegionItem[]>>({});
@@ -73,7 +75,11 @@ function ExploreContent() {
     if (urlPost) {
       setSelectedPostId(urlPost);
     }
-  }, [urlCountry, urlRegion, urlPost]);
+    if (urlCity) {
+      setSelectedCity(urlCity);
+      setIsSidebarOpen(true);
+    }
+  }, [urlCountry, urlRegion, urlPost, urlCity]);
 
   // Push URL changes cleanly for deliberate user actions
   const updateUrl = useCallback(
@@ -170,14 +176,49 @@ function ExploreContent() {
     if (mapInstanceRef.current) mapInstanceRef.current.zoomOut({ duration: 300 });
   };
 
-  // Derive relevant posts
+  // Real posts state from backend
+  const [realPosts, setRealPosts] = useState<ExplorePost[]>([]);
+  const [hasLoadedApi, setHasLoadedApi] = useState(false);
+
+  // Fetch real data from backend API
+  useEffect(() => {
+    let isMounted = true;
+
+    api.getPosts({
+      country: selectedCountry || undefined,
+      region: selectedRegion || undefined,
+      city: selectedCity || undefined,
+      visibility: visibilityFilter,
+    })
+      .then((posts) => {
+        if (isMounted) {
+          setRealPosts(posts);
+          setHasLoadedApi(true);
+        }
+      })
+      .catch((err) => {
+        console.warn("Backend API fetch notice, using local atlas cache:", err);
+        if (isMounted) {
+          setHasLoadedApi(true);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedCountry, selectedRegion, selectedCity, visibilityFilter]);
+
+  // Derive relevant posts: use real backend data once loaded, with instant fallback
   const activePosts = React.useMemo(() => {
+    if (hasLoadedApi && realPosts.length > 0) {
+      return realPosts;
+    }
     return getPostsByLocation(
       selectedCountry || undefined,
       selectedRegion || undefined,
       visibilityFilter
     );
-  }, [selectedCountry, selectedRegion, visibilityFilter]);
+  }, [hasLoadedApi, realPosts, selectedCountry, selectedRegion, visibilityFilter]);
 
   // Current country & region metadata
   const currentCountry = inventory.find((i) => i.code === selectedCountry);
@@ -244,7 +285,7 @@ function ExploreContent() {
   }, [selectedRegion]);
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[var(--bg-primary)] text-[var(--ink-primary)]">
+    <div className="explore-shell">
       {/* Top Slim Sketchbook Toolbar */}
       <ExploreToolbar
         inventory={inventory}
@@ -258,7 +299,7 @@ function ExploreContent() {
       />
 
       {/* Main Map Viewport & Sliding Sidebar Container */}
-      <main className="flex-1 relative overflow-hidden flex">
+      <main id="main-content" tabIndex={-1} className="flex-1 min-h-0 relative overflow-hidden flex">
         {/* Watercolor Paper Grain Overlay */}
         <PaperGrainOverlay />
 

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { RegionalFeed, RegionItem } from "./RegionalFeed";
 import { ExplorePost } from "@/lib/explore/mockPosts";
+import { InkIcon } from "@/components/ui/InkIcon";
 
 interface MobileFeedSheetProps {
   countryCode: string | null;
@@ -31,86 +32,25 @@ export function MobileFeedSheet(props: MobileFeedSheetProps) {
   const [sheetState, setSheetState] = useState<"collapsed" | "half" | "expanded">("half");
 
   const heightClass = {
-    collapsed: "h-14",
-    half: "h-[45vh]",
-    expanded: "h-[85vh]",
+    collapsed: "h-16",
+    half: "h-[52dvh]",
+    expanded: "h-[calc(100dvh-9rem)]",
   }[sheetState];
 
   return (
-    <div
-      className={`fixed bottom-0 left-0 right-0 z-40 bg-[var(--bg-primary)] border-t border-[var(--border-color)] shadow-2xl transition-all duration-300 ease-out flex flex-col md:hidden select-none pb-safe ${heightClass}`}
-      role="region"
-      aria-label="Mobile regional journal sheet"
-    >
-      {/* Drag & State Handle Bar */}
-      <div className="h-11 px-4 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] flex items-center justify-between select-none shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-8 h-1 bg-[var(--border-color)] rounded-full mr-1 shrink-0" />
-          <span className="text-xs font-semibold text-[var(--ink-primary)] truncate max-w-[130px]">
-            {props.regionName || props.countryName}
-          </span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-elevated)] text-[var(--ink-secondary)] font-mono shrink-0">
-            {props.posts.length}
-          </span>
-        </div>
-
-        {/* Labeled State Controls (Uniform h-7 height) */}
-        <div className="flex items-center gap-1.5 text-xs shrink-0">
-          {sheetState === "collapsed" && (
-            <button
-              onClick={() => setSheetState("half")}
-              className="h-7 px-2.5 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] flex items-center justify-center cursor-pointer text-xs font-medium"
-              aria-label="Expand feed to half screen"
-            >
-              Open ↗
-            </button>
-          )}
-
-          {sheetState === "half" && (
-            <>
-              <button
-                onClick={() => setSheetState("expanded")}
-                className="h-7 px-2.5 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] flex items-center justify-center cursor-pointer text-xs font-medium"
-                aria-label="Expand feed to full screen"
-              >
-                Full ⤢
-              </button>
-              <button
-                onClick={() => setSheetState("collapsed")}
-                className="h-7 px-2.5 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] flex items-center justify-center cursor-pointer text-xs font-medium"
-                aria-label="Collapse feed to bottom bar"
-              >
-                Hide ↘
-              </button>
-            </>
-          )}
-
-          {sheetState === "expanded" && (
-            <button
-              onClick={() => setSheetState("half")}
-              className="h-7 px-2.5 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] flex items-center justify-center cursor-pointer text-xs font-medium"
-              aria-label="Collapse feed to half screen"
-            >
-              Half ⤡
-            </button>
-          )}
-
-          <button
-            onClick={props.onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-full text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
-            aria-label="Close sheet"
-          >
-            ✕
-          </button>
+    <div className={`mobile-feed-sheet ${heightClass}`} role="region" aria-label="Mobile regional stories">
+      <div className="mobile-sheet-bar">
+        <span className="sheet-handle" aria-hidden="true" />
+        <span className="mobile-sheet-title">{props.regionName || props.countryName}<span>{props.posts.length} stories</span></span>
+        <div className="mobile-sheet-actions">
+          {sheetState === "collapsed" ? <button onClick={() => setSheetState("half")} aria-label="Expand feed to half screen">Open ↑</button> : <>
+            <button onClick={() => setSheetState(sheetState === "half" ? "expanded" : "half")} aria-label={sheetState === "half" ? "Expand feed to full screen" : "Collapse feed to half screen"}>{sheetState === "half" ? "Expand ↑" : "Less ↓"}</button>
+            <button onClick={() => setSheetState("collapsed")} aria-label="Collapse feed to bottom bar">Hide</button>
+          </>}
+          <button onClick={props.onClose} aria-label="Close sheet"><InkIcon name="close" size={17} /></button>
         </div>
       </div>
-
-      {/* Main Feed Content inside sheet */}
-      {sheetState !== "collapsed" && (
-        <div className="flex-1 overflow-hidden">
-          <RegionalFeed {...props} />
-        </div>
-      )}
+      {sheetState !== "collapsed" && <div className="flex-1 min-h-0 overflow-hidden"><RegionalFeed {...props} /></div>}
     </div>
   );
 }

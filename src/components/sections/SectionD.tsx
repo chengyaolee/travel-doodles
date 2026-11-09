@@ -112,11 +112,11 @@ export function SectionD() {
       <div className="max-w-7xl mx-auto w-full flex flex-col items-center">
         {/* Header */}
         <div className="text-center mb-16 flex flex-col items-center">
-          <div className="inline-block px-3 py-1 rounded-full text-xs font-hand tracking-wider uppercase bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--ink-secondary)] mb-4">
-            Community Canvas
+          <div className="section-kicker mb-5">
+            Notes from everywhere
           </div>
           <h2
-            className="font-hand text-4xl sm:text-5xl md:text-6xl font-bold text-[var(--ink-primary)]"
+            className="text-4xl sm:text-5xl md:text-6xl font-medium tracking-[-0.05em] leading-[1.1] text-[var(--ink-primary)]"
             style={{
               opacity: isVisible ? 1 : 0,
               transform: isVisible ? "translateY(0)" : "translateY(20px)",
@@ -124,7 +124,7 @@ export function SectionD() {
             }}
           >
             A world full of{" "}
-            <span className="relative inline-block whitespace-nowrap">
+            <span className="font-hand relative inline-block whitespace-nowrap font-semibold">
               doodles
               <span className="absolute -bottom-1 left-0 w-full flex justify-center">
                 <DoodleUnderline width={175} animate={isVisible} delay={500} />
@@ -144,7 +144,7 @@ export function SectionD() {
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-3.5 py-1 rounded-full text-xs font-hand capitalize transition-colors cursor-pointer border ${
+                className={`px-3.5 py-1 rounded-full text-xs font-medium capitalize transition-colors cursor-pointer border ${
                   filter.toLowerCase() === f.toLowerCase()
                     ? "bg-[var(--ink-primary)] text-[var(--bg-primary)] border-[var(--ink-primary)] font-bold"
                     : "bg-[var(--bg-primary)] text-[var(--ink-secondary)] border-[var(--border-color)] hover:border-[var(--ink-primary)]"
@@ -161,7 +161,7 @@ export function SectionD() {
           {filteredItems.map((post, i) => (
             <div
               key={post.id}
-              className="break-inside-avoid mb-6 group cursor-pointer"
+              className="break-inside-avoid mb-6 group cursor-pointer p-2 -m-2 select-none"
               style={{
                 opacity: isVisible ? 1 : 0,
                 transform: isVisible
@@ -171,7 +171,7 @@ export function SectionD() {
               }}
               onClick={() => setSelectedPost(post)}
             >
-              <div className="bg-white p-3 pb-8 rounded-xs shadow-md transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-2xl relative border border-neutral-200">
+              <div className="bg-white p-3 pb-8 rounded-xs shadow-md transition-all duration-200 group-hover:shadow-2xl group-hover:scale-[1.01] relative border border-neutral-200 group-hover:border-neutral-400">
                 {/* Wobbly tape overlay */}
                 <div
                   className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-12 h-4.5 bg-neutral-200/90 rounded-2xs shadow-2xs z-10"

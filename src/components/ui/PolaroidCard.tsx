@@ -38,12 +38,7 @@ export function PolaroidCard({
       onKeyDown={onClick ? (e) => e.key === "Enter" && onClick() : undefined}
     >
       {/* Photo frame */}
-      <div
-        className="bg-white p-3 pb-12 shadow-photo rounded-sm transition-shadow duration-300 group-hover:shadow-lg"
-        style={{
-          transform: "group-hover:translateY(-4px)",
-        }}
-      >
+      <div className="bg-white p-3 pb-12 shadow-photo rounded-sm transition-all duration-200 group-hover:shadow-xl border border-neutral-200 group-hover:border-neutral-400">
         {/* Photo */}
         <div className="relative overflow-hidden bg-[#F0F0F0] aspect-[4/3]">
           <img

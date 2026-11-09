@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { HeroSection } from "@/components/hero/HeroSection";
@@ -19,6 +20,7 @@ import {
 import { ExploreMapModal } from "@/components/app/ExploreMapModal";
 import { SocialFeedModal } from "@/components/app/SocialFeedModal";
 import { ProfileModal } from "@/components/app/ProfileModal";
+import { api } from "@/lib/api";
 
 export default function Home() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -46,6 +48,31 @@ export default function Home() {
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Connect to real backend API to load live posts
+  useEffect(() => {
+    api.getPosts({ limit: 40 })
+      .then((serverPosts) => {
+        if (serverPosts && serverPosts.length > 0) {
+          const mapped: TravelDoodlePost[] = serverPosts.map((p) => ({
+            id: p.id,
+            location: p.location || `${p.city}, ${p.country}`,
+            city: p.city,
+            country: p.country,
+            caption: p.caption,
+            date: p.date,
+            visibility: p.visibility,
+            image: p.image || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=500&h=350&fit=crop",
+            doodleSticker: p.doodleSticker || "📍",
+            author: p.author,
+            avatar: p.avatar,
+            likes: p.likes,
+          }));
+          setUserPosts(mapped);
+        }
+      })
+      .catch((e) => console.warn("Notice: using initial post buffer:", e));
+  }, []);
+
   const handlePublishPost = (newPost: TravelDoodlePost) => {
     setUserPosts((prev) => [newPost, ...prev]);
     setToastMessage(`Pinned "${newPost.city}" to the travel whiteboard! 📌`);
@@ -59,10 +86,16 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--ink-primary)] selection:bg-[var(--ink-primary)] selection:text-[var(--bg-primary)] flex flex-col relative overflow-x-hidden">
-      {/* Toast Notification */}
+      {/* Toast Notification with Link to Explore Map */}
       {toastMessage && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-2xl bg-[var(--ink-primary)] text-[var(--bg-primary)] shadow-2xl font-hand text-base flex items-center gap-2 animate-fade-in-up border border-[var(--border-color)]">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-2xl bg-[var(--ink-primary)] text-[var(--bg-primary)] shadow-2xl font-hand text-base flex items-center gap-3 animate-fade-in-up border border-[var(--border-color)]">
           <span>{toastMessage}</span>
+          <Link
+            href="/explore"
+            className="px-2.5 py-0.5 rounded-lg bg-[var(--bg-primary)] text-[var(--ink-primary)] font-sans text-xs font-semibold hover:opacity-90 transition-opacity"
+          >
+            View in Explore Atlas 🗺️
+          </Link>
         </div>
       )}
 
@@ -75,7 +108,7 @@ export default function Home() {
       />
 
       {/* Main Page Canvas Sections */}
-      <main className="flex-1">
+      <main id="main-content" tabIndex={-1} className="flex-1">
         {/* Landing Page Hero with Hand-drawn World Map & Parallax */}
         <HeroSection
           onStartDoodling={() => setIsCreateOpen(true)}

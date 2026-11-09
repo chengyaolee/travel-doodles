@@ -40,6 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# local runtime data
+/.data/
+
 # raw intermediate geo datasets
 scripts/ne_*.geojson
 

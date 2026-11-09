@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import { DoodlePin, DoodleGlobe, DoodleCompass } from "@/components/doodles";
 import { TravelDoodlePost } from "./CreatePostModal";
 import {
@@ -209,6 +210,14 @@ export function ExploreMapModal({
               ))}
             </div>
 
+            <Link
+              href="/explore"
+              className="px-3 py-1.5 rounded-xl bg-[var(--ink-primary)] text-[var(--bg-primary)] text-xs font-medium hover:opacity-90 transition-opacity flex items-center gap-1.5 shadow-xs whitespace-nowrap"
+            >
+              <span>Full Atlas</span>
+              <span>🗺️ →</span>
+            </Link>
+
             <button
               onClick={onClose}
               className="w-9 h-9 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-color)] flex items-center justify-center text-sm font-bold text-[var(--ink-primary)] hover:bg-[var(--border-color)] transition-colors cursor-pointer"
@@ -353,7 +362,7 @@ export function ExploreMapModal({
                 return (
                   <div
                     key={post.id}
-                    className="absolute cursor-pointer z-20 group"
+                    className="absolute cursor-pointer z-20 group select-none p-2 -m-2"
                     style={{
                       left: `${(coords.x / 1000) * 100}%`,
                       top: `${(coords.y / 560) * 100}%`,
@@ -362,14 +371,14 @@ export function ExploreMapModal({
                     onClick={() => setActivePinId(post.id)}
                   >
                     <div
-                      className={`transition-all duration-200 flex flex-col items-center ${
+                      className={`transition-all duration-200 flex flex-col items-center origin-bottom ${
                         isSelected
-                          ? "scale-125 -translate-y-2 filter drop-shadow-xl"
-                          : "group-hover:scale-110 group-hover:-translate-y-1"
+                          ? "scale-115 filter drop-shadow-xl"
+                          : "group-hover:scale-105"
                       }`}
                     >
-                      {/* Floating Mini Polaroid Thumbnail */}
-                      <div className="w-13 h-13 bg-white p-1 pb-3 rounded-2xs shadow-md border border-neutral-300 relative mb-1">
+                      {/* Floating Mini Polaroid Thumbnail with needle pin */}
+                      <div className="w-13 h-13 bg-white p-1 pb-3 rounded-2xs shadow-md border border-neutral-300 relative mb-1 group-hover:shadow-xl transition-shadow">
                         <img
                           src={post.image}
                           alt={post.city}
@@ -381,17 +390,22 @@ export function ExploreMapModal({
                       </div>
 
                       <DoodlePin
-                        size={22}
+                        size={24}
                         filled={isSelected}
                         color={isSelected ? "var(--ink-primary)" : "var(--ink-secondary)"}
                       />
 
+                      {/* Big city label: bold text without white badge or red dot */}
                       <span
-                        className={`text-[10px] font-hand font-bold px-1.5 py-0.5 rounded shadow-2xs mt-0.5 whitespace-nowrap ${
+                        className={`text-xs font-sans font-bold whitespace-nowrap mt-0.5 select-none transition-colors ${
                           isSelected
-                            ? "bg-[var(--ink-primary)] text-[var(--bg-primary)]"
-                            : "bg-[var(--bg-primary)] text-[var(--ink-primary)] border border-[var(--border-color)]"
+                            ? "text-[var(--ink-primary)] underline underline-offset-2 decoration-2"
+                            : "text-[var(--ink-primary)]"
                         }`}
+                        style={{
+                          textShadow:
+                            "0 1px 3px var(--bg-primary), 0 0 6px var(--bg-primary)",
+                        }}
                       >
                         {post.city}
                       </span>

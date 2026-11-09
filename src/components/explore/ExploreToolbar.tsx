@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import Link from "next/link";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { DoodleGlobe } from "@/components/doodles";
+import { Brand } from "@/components/layout/Brand";
+import { InkIcon } from "@/components/ui/InkIcon";
 import { DisputedBordersLegend } from "./DisputedBordersLegend";
 
 export interface InventoryItem {
@@ -75,6 +76,10 @@ export function ExploreToolbar({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Escape") {
+      setIsOpen(false);
+      return;
+    }
     if (!isOpen || searchResults.length === 0) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -85,165 +90,61 @@ export function ExploreToolbar({
     } else if (e.key === "Enter" && activeIndex >= 0) {
       e.preventDefault();
       handleSelectResult(searchResults[activeIndex].code);
-    } else if (e.key === "Escape") {
-      setIsOpen(false);
     }
   };
 
   return (
-    <header className="h-14 md:h-16 border-b border-[var(--border-color)] bg-[var(--bg-primary)]/90 backdrop-blur-md px-3 sm:px-5 flex items-center justify-between gap-3 relative z-30 select-none shadow-xs">
-      {/* Left: Brand Wordmark */}
-      <div className="flex items-center gap-3 shrink-0">
-        <Link href="/" className="flex items-center gap-2 group cursor-pointer" title="Return to Home">
-          <DoodleGlobe size={26} className="text-[var(--ink-primary)] transition-transform duration-300 group-hover:rotate-12" />
-          <div className="flex flex-col">
-            <span className="font-hand text-xl md:text-2xl font-bold text-[var(--ink-primary)] leading-none tracking-tight">
-              Travel Doodles
-            </span>
-            <span className="text-[9px] font-mono tracking-widest text-[var(--ink-secondary)] uppercase">
-              Atlas Sketchbook
-            </span>
-          </div>
-        </Link>
-      </div>
+    <header className="explore-toolbar">
+      <div className="explore-brand"><Brand /><span className="toolbar-page">Explore the world</span></div>
 
-      {/* Middle: Place Search & Audience Switch */}
-      <div className="flex items-center gap-2 sm:gap-3 flex-1 max-w-lg mx-auto">
-        {/* Place Search Bar */}
-        <div ref={searchRef} className="relative flex-1">
-          <div className="relative flex items-center h-9">
-            <span className="absolute left-3 text-[var(--ink-secondary)] pointer-events-none text-xs">
-              🔍
-            </span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setIsOpen(true);
-                setActiveIndex(-1);
-              }}
-              onFocus={() => setIsOpen(true)}
-              onKeyDown={handleKeyDown}
-              placeholder="Search 250 countries & islands..."
-              aria-label="Search countries and territories"
-              className="w-full h-9 pl-9 pr-8 text-xs rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--ink-primary)] placeholder-[var(--ink-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--ink-primary)] transition-all font-sans"
-            />
-            {searchQuery && (
+      <div ref={searchRef} className="place-search">
+        <div className="place-search-field">
+          <InkIcon name="search" size={19} />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setIsOpen(true); setActiveIndex(-1); }}
+            onFocus={() => setIsOpen(true)}
+            onKeyDown={handleKeyDown}
+            placeholder="Where will you wander?"
+            aria-label="Search countries and territories"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={isOpen && Boolean(searchQuery.trim())}
+            aria-controls="place-results"
+            aria-activedescendant={activeIndex >= 0 ? `place-${searchResults[activeIndex]?.code}` : undefined}
+          />
+          {searchQuery ? <button className="search-clear" onClick={() => { setSearchQuery(""); setActiveIndex(-1); }} aria-label="Clear search"><InkIcon name="close" size={16} /></button> : <span className="search-hint">Find a place</span>}
+        </div>
+        {isOpen && searchQuery.trim() && (
+          <div id="place-results" role="listbox" aria-label="Places" className="place-results">
+            <p className="search-results-label">Places to explore</p>
+            {searchResults.length ? searchResults.map((item, index) => (
               <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 w-5 h-5 flex items-center justify-center text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] cursor-pointer"
-                aria-label="Clear search"
+                key={item.code} id={`place-${item.code}`} role="option" aria-selected={index === activeIndex}
+                onClick={() => handleSelectResult(item.code)} onMouseEnter={() => setActiveIndex(index)}
+                className={`place-result ${index === activeIndex ? "is-active" : ""}`}
               >
-                ✕
+                <span className="place-code">{item.code}</span><span>{item.displayName}</span><InkIcon name="arrow" size={16} />
               </button>
-            )}
+            )) : <p className="search-empty">No places found. Try a country name or code.</p>}
           </div>
-
-          {/* Autocomplete Dropdown */}
-          {isOpen && searchResults.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1.5 py-1 bg-[var(--bg-primary)]/95 backdrop-blur-md rounded-xl border border-[var(--border-color)] shadow-xl z-50 max-h-72 overflow-y-auto">
-              {searchResults.map((item, index) => {
-                const isActive = index === activeIndex;
-                return (
-                  <button
-                    key={item.code}
-                    onClick={() => handleSelectResult(item.code)}
-                    onMouseEnter={() => setActiveIndex(index)}
-                    className={`w-full text-left px-3.5 py-2 text-xs flex items-center justify-between transition-colors cursor-pointer ${
-                      isActive ? "bg-[var(--bg-secondary)] text-[var(--ink-primary)] font-medium" : "text-[var(--ink-primary)]"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-elevated)] text-[var(--ink-secondary)]">
-                        {item.code}
-                      </span>
-                      <span>{item.displayName}</span>
-                    </div>
-                    {item.aliases.length > 0 && (
-                      <span className="text-[10px] text-[var(--ink-secondary)] truncate max-w-[120px]">
-                        {item.aliases[0]}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Explore / Friends Switch */}
-        <div className="hidden sm:flex items-center h-9 p-1 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium shrink-0">
-          <button
-            onClick={() => onVisibilityChange("everyone")}
-            className={`h-7 px-3.5 flex items-center justify-center rounded-full transition-all cursor-pointer whitespace-nowrap ${
-              visibilityFilter === "everyone"
-                ? "bg-[var(--bg-primary)] text-[var(--ink-primary)] shadow-xs font-semibold"
-                : "text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]"
-            }`}
-            aria-pressed={visibilityFilter === "everyone"}
-          >
-            Explore
-          </button>
-          <button
-            onClick={() => onVisibilityChange("friends")}
-            className={`h-7 px-3.5 flex items-center justify-center rounded-full transition-all cursor-pointer whitespace-nowrap ${
-              visibilityFilter === "friends"
-                ? "bg-[var(--bg-primary)] text-[var(--ink-primary)] shadow-xs font-semibold"
-                : "text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]"
-            }`}
-            aria-pressed={visibilityFilter === "friends"}
-          >
-            Friends
-          </button>
-        </div>
+        )}
       </div>
 
-      {/* Right Controls: Zoom, Reset World, Legend & Theme (Exact uniform h-9 height) */}
-      <div className="flex items-center gap-2 shrink-0">
-        {/* Back to world button */}
-        {selectedCountry && (
-          <button
-            onClick={onResetWorld}
-            className="h-9 flex items-center gap-1.5 px-3.5 text-xs font-medium rounded-full bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--ink-primary)] hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer shrink-0 whitespace-nowrap shadow-xs"
-            title="Reset to world overview"
-            aria-label="Back to world"
-          >
-            <span>🌍</span>
-            <span className="hidden md:inline">Back to world</span>
-          </button>
-        )}
+      <div className="audience-switch" aria-label="Whose stories to explore">
+        <button onClick={() => onVisibilityChange("everyone")} aria-pressed={visibilityFilter === "everyone"}>Everyone</button>
+        <button onClick={() => onVisibilityChange("friends")} aria-pressed={visibilityFilter === "friends"}><InkIcon name="people" size={16} />Friends</button>
+      </div>
 
-        {/* Zoom controls */}
-        <div className="h-9 flex items-center rounded-full border border-[var(--border-color)] bg-[var(--bg-elevated)] overflow-hidden shrink-0 shadow-xs">
-          <button
-            onClick={onZoomIn}
-            className="w-9 h-9 flex items-center justify-center text-sm font-bold text-[var(--ink-primary)] hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer"
-            title="Zoom in"
-            aria-label="Zoom in"
-          >
-            +
-          </button>
-          <div className="w-[1px] h-4 bg-[var(--border-color)]" />
-          <button
-            onClick={onZoomOut}
-            className="w-9 h-9 flex items-center justify-center text-sm font-bold text-[var(--ink-primary)] hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer"
-            title="Zoom out"
-            aria-label="Zoom out"
-          >
-            –
-          </button>
+      <div className="toolbar-actions">
+        {selectedCountry && <button onClick={onResetWorld} className="world-reset" title="Back to world" aria-label="Back to world"><DoodleGlobe size={20} /><span>World view</span></button>}
+        <div className="toolbar-zoom" aria-label="Map zoom">
+          <button onClick={onZoomOut} title="Zoom out" aria-label="Zoom out"><InkIcon name="minus" size={17} /></button>
+          <button onClick={onZoomIn} title="Zoom in" aria-label="Zoom in"><InkIcon name="plus" size={17} /></button>
         </div>
-
-        {/* Disputed borders legend trigger */}
-        <div className="hidden lg:block shrink-0">
-          <DisputedBordersLegend />
-        </div>
-
-        {/* Light/Dark Toggle */}
-        <div className="shrink-0">
-          <ThemeToggle />
-        </div>
+        <div className="toolbar-legend"><DisputedBordersLegend /></div>
+        <ThemeToggle />
       </div>
     </header>
   );

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { DoodlePin, DoodleStar, DoodleUnderline } from "@/components/doodles";
+import { api } from "@/lib/api";
 
 export interface TravelDoodlePost {
   id: string;
@@ -51,11 +52,42 @@ export function CreatePostModal({
 
   const currentPhoto = customPhotoUrl.trim() || selectedPhoto;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setTimeout(() => {
+
+    try {
+      // Connect to real backend API
+      const serverPost = await api.createPost({
+        city,
+        country,
+        caption,
+        date,
+        visibility,
+        image: currentPhoto,
+        doodleSticker: selectedSticker,
+        author: "You (Explorer)",
+      });
+
       const newPost: TravelDoodlePost = {
+        id: serverPost.id,
+        location: `${serverPost.city}, ${serverPost.country}`,
+        city: serverPost.city,
+        country: serverPost.country,
+        caption: serverPost.caption,
+        date: serverPost.date,
+        visibility: serverPost.visibility,
+        image: serverPost.image || currentPhoto,
+        doodleSticker: serverPost.doodleSticker,
+        author: serverPost.author,
+        avatar: serverPost.avatar,
+        likes: serverPost.likes,
+      };
+
+      onPublish(newPost);
+    } catch (err) {
+      console.warn("Backend create fallback to local state:", err);
+      const fallbackPost: TravelDoodlePost = {
         id: "post-" + Date.now(),
         location: `${city}, ${country}`,
         city,
@@ -69,10 +101,11 @@ export function CreatePostModal({
         avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop",
         likes: 1,
       };
-      onPublish(newPost);
+      onPublish(fallbackPost);
+    } finally {
       setIsSubmitting(false);
       onClose();
-    }, 400);
+    }
   };
 
   return (

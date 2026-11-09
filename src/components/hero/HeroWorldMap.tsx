@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { DoodlePin } from "@/components/doodles";
 import {
   WORLD_VIEWBOX,
@@ -15,6 +16,7 @@ export interface HeroPin {
   y: number;
   city: string;
   country: string;
+  countryCode: string;
   label: string;
   note: string;
   src: string;
@@ -29,6 +31,7 @@ export const HERO_PINS: HeroPin[] = [
     y: ACCURATE_CITIES.nyc.y,
     city: "New York",
     country: "USA",
+    countryCode: "US",
     label: "NYC",
     note: "Watching twilight settle over the Manhattan skyline from Brooklyn Bridge.",
     src: "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=400&h=300&fit=crop",
@@ -41,6 +44,7 @@ export const HERO_PINS: HeroPin[] = [
     y: ACCURATE_CITIES.paris.y,
     city: "Paris",
     country: "France",
+    countryCode: "FR",
     label: "Paris",
     note: "Fresh croissants by the Seine while sketching the bridges.",
     src: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=400&h=300&fit=crop",
@@ -53,6 +57,7 @@ export const HERO_PINS: HeroPin[] = [
     y: ACCURATE_CITIES.tokyo.y,
     city: "Tokyo",
     country: "Japan",
+    countryCode: "JP",
     label: "Tokyo",
     note: "Electric alleys of Akihabara and steaming ramen in Shinjuku.",
     src: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&h=300&fit=crop",
@@ -65,6 +70,7 @@ export const HERO_PINS: HeroPin[] = [
     y: ACCURATE_CITIES.capetown.y,
     city: "Cape Town",
     country: "South Africa",
+    countryCode: "ZA",
     label: "Cape Town",
     note: "Table Mountain bathed in golden Atlantic mist at dusk.",
     src: "https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=400&h=300&fit=crop",
@@ -77,6 +83,7 @@ export const HERO_PINS: HeroPin[] = [
     y: ACCURATE_CITIES.sydney.y,
     city: "Sydney",
     country: "Australia",
+    countryCode: "AU",
     label: "Sydney",
     note: "Sunrise coastal walk from Coogee to Bondi. Ocean spray everywhere.",
     src: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=400&h=300&fit=crop",
@@ -90,7 +97,6 @@ export function HeroWorldMap({ onSelectPin }: { onSelectPin?: (city: string) => 
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isVisible, setIsVisible] = useState(false);
   const [activePreview, setActivePreview] = useState<HeroPin | null>(null);
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), 150);
@@ -118,7 +124,7 @@ export function HeroWorldMap({ onSelectPin }: { onSelectPin?: (city: string) => 
   return (
     <div
       ref={containerRef}
-      className="relative w-full max-w-5xl mx-auto aspect-[1000/560] overflow-hidden rounded-3xl border-2 border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-sm select-none"
+      className="hero-board relative w-full max-w-6xl mx-auto aspect-[4/3] sm:aspect-[1000/560] overflow-hidden rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] select-none"
       onMouseMove={handleMouseMove}
     >
       {/* Whiteboard Subtle Dot Grid Texture */}
@@ -281,31 +287,34 @@ export function HeroWorldMap({ onSelectPin }: { onSelectPin?: (city: string) => 
       </svg>
 
       {/* Floating Pinned Polaroid Photographs (Placed at Exact Geographic Coordinates) */}
-      <div className="absolute inset-0 pointer-events-auto" style={parallax(4)}>
+      {/* Kept stable without parallax movement to prevent hover flickering */}
+      <div className="absolute inset-0 pointer-events-auto">
         {HERO_PINS.map((pin) => {
-          const isHovered = hoveredId === pin.id;
           const isActive = activePreview?.id === pin.id;
 
           return (
-            <div
+            <button
+              type="button"
               key={pin.id}
-              className="absolute group cursor-pointer"
+              aria-label={`View memory in ${pin.city}`}
+              aria-pressed={isActive}
+              className={`absolute group cursor-pointer p-2 -m-2 select-none ${
+                pin.id === "capetown" || pin.id === "sydney" ? "hidden sm:block" : ""
+              }`}
               style={{
                 left: `${(pin.x / 1000) * 100}%`,
                 top: `${(pin.y / 560) * 100}%`,
                 transform: `translate(-50%, -105%) rotate(${pin.rotation}deg)`,
-                zIndex: isHovered || isActive ? 40 : 20,
+                zIndex: isActive ? 45 : 20,
               }}
-              onMouseEnter={() => setHoveredId(pin.id)}
-              onMouseLeave={() => setHoveredId(null)}
               onClick={() => handlePinClick(pin)}
             >
               {/* Polaroid Frame */}
               <div
-                className={`w-20 sm:w-24 md:w-28 bg-white p-1.5 pb-4 rounded-xs shadow-md border border-neutral-300 transition-all duration-300 ${
-                  isHovered || isActive
-                    ? "-translate-y-2 scale-110 shadow-2xl ring-2 ring-[var(--ink-primary)]"
-                    : "group-hover:-translate-y-1 group-hover:shadow-lg"
+                className={`w-16 sm:w-24 md:w-28 bg-white p-1 sm:p-1.5 pb-2 sm:pb-3.5 rounded-xs shadow-md border border-neutral-300 transition-all duration-200 group-hover:shadow-2xl group-hover:border-[var(--ink-primary)] ${
+                  isActive
+                    ? "ring-2 ring-[var(--ink-primary)] shadow-2xl scale-105"
+                    : "group-hover:scale-[1.03]"
                 }`}
               >
                 {/* Photo image */}
@@ -318,18 +327,18 @@ export function HeroWorldMap({ onSelectPin }: { onSelectPin?: (city: string) => 
                   />
                 </div>
 
-                {/* City name */}
-                <p className="font-hand text-[10px] sm:text-xs text-neutral-900 font-bold mt-1.5 text-center truncate px-0.5 leading-none">
+                {/* City name - bolded without red dot/background */}
+                <p className="font-sans text-[11px] sm:text-xs text-neutral-900 font-bold mt-1 sm:mt-1.5 text-center truncate px-0.5 leading-none">
                   {pin.label}
                 </p>
               </div>
 
-              {/* Physical illustrated pin & tape */}
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none">
-                <div className="w-8 h-2.5 bg-neutral-200/90 rounded-3xs shadow-2xs rotate-[-4deg] mb-0.5" />
-                <div className="w-2.5 h-2.5 rounded-full bg-[var(--ink-primary)] shadow-sm" />
+              {/* Physical illustrated needle pin & tape holding the Polaroid to the canvas */}
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-10">
+                <DoodlePin size={22} filled color="var(--ink-primary)" />
+                <div className="w-7 h-2 bg-neutral-300/80 rounded-3xs shadow-2xs rotate-[-3deg] -mt-1.5" />
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -337,7 +346,7 @@ export function HeroWorldMap({ onSelectPin }: { onSelectPin?: (city: string) => 
       {/* Floating Travel Memory Preview Modal (When a Pin is Selected) */}
       {activePreview && (
         <div
-          className="absolute bottom-4 left-4 sm:bottom-6 sm:left-6 w-80 bg-[var(--bg-primary)] rounded-2xl border-2 border-[var(--border-color)] shadow-2xl p-4 z-50 animate-fade-in-up"
+          className="absolute bottom-3 left-3 right-3 sm:right-auto sm:bottom-6 sm:left-6 sm:w-80 bg-[var(--bg-primary)] rounded-2xl border-2 border-[var(--border-color)] shadow-2xl p-4 z-50 animate-fade-in-up"
         >
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-[var(--border-color)]">
             <div className="flex items-center gap-1.5">
@@ -348,13 +357,14 @@ export function HeroWorldMap({ onSelectPin }: { onSelectPin?: (city: string) => 
             </div>
             <button
               onClick={() => setActivePreview(null)}
+              aria-label="Close memory preview"
               className="w-6 h-6 rounded-full bg-[var(--bg-elevated)] flex items-center justify-center text-xs font-bold hover:bg-[var(--border-color)] cursor-pointer"
             >
               ✕
             </button>
           </div>
 
-          <div className="aspect-[16/10] rounded-xl overflow-hidden bg-neutral-100 mb-2.5">
+          <div className="aspect-[3/1] sm:aspect-[16/10] rounded-lg overflow-hidden bg-neutral-100 mb-2.5">
             <img
               src={activePreview.src}
               alt={activePreview.city}
@@ -362,7 +372,7 @@ export function HeroWorldMap({ onSelectPin }: { onSelectPin?: (city: string) => 
             />
           </div>
 
-          <p className="font-hand text-sm text-[var(--ink-secondary)] leading-snug font-normal">
+          <p className="text-xs sm:text-sm text-[var(--ink-secondary)] leading-relaxed font-normal">
             &ldquo;{activePreview.note}&rdquo;
           </p>
 
@@ -370,6 +380,15 @@ export function HeroWorldMap({ onSelectPin }: { onSelectPin?: (city: string) => 
             <span>{activePreview.date}</span>
             <span className="font-hand text-xs text-[var(--ink-primary)]">#pinned</span>
           </div>
+
+          {/* Action button: Direct connection to Explore Page Map */}
+          <Link
+            href={`/explore?country=${activePreview.countryCode}&city=${encodeURIComponent(activePreview.city)}`}
+            className="mt-3 w-full py-2 px-3 rounded-xl bg-[var(--ink-primary)] text-[var(--bg-primary)] text-xs font-sans font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer select-none"
+          >
+            <span>Explore {activePreview.city} on World Map</span>
+            <span>🗺️ →</span>
+          </Link>
         </div>
       )}
 

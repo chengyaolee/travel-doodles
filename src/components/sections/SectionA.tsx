@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
+import Link from "next/link";
 import { DoodlePin, DoodleUnderline } from "@/components/doodles";
 import {
   WORLD_VIEWBOX,
@@ -16,6 +17,7 @@ const PINS = [
     region: "Americas",
     city: "New York",
     country: "USA",
+    countryCode: "US",
     image: "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=500&h=350&fit=crop",
     story: "First time seeing the skyline from Brooklyn Bridge at dusk. Pure magic in the city that never sleeps.",
   },
@@ -26,6 +28,7 @@ const PINS = [
     region: "Europe",
     city: "Paris",
     country: "France",
+    countryCode: "FR",
     image: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=500&h=350&fit=crop",
     story: "Fresh croissants by the Seine while sketching the bridges. Living inside a digital notebook.",
   },
@@ -36,6 +39,7 @@ const PINS = [
     region: "Africa",
     city: "Cape Town",
     country: "South Africa",
+    countryCode: "ZA",
     image: "https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=500&h=350&fit=crop",
     story: "Table Mountain bathed in golden hour mist. Coastal winds carrying sea salt through the streets.",
   },
@@ -46,6 +50,7 @@ const PINS = [
     region: "Asia",
     city: "Tokyo",
     country: "Japan",
+    countryCode: "JP",
     image: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=500&h=350&fit=crop",
     story: "Lost in the labyrinth of Omoide Yokocho. Found the best handmade tonkotsu ramen of my life.",
   },
@@ -56,6 +61,7 @@ const PINS = [
     region: "Oceania",
     city: "Sydney",
     country: "Australia",
+    countryCode: "AU",
     image: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=500&h=350&fit=crop",
     story: "Bondi Beach sunrise surf session. Golden water reflecting pink clouds.",
   },
@@ -66,6 +72,7 @@ const PINS = [
     region: "Americas",
     city: "Rio de Janeiro",
     country: "Brazil",
+    countryCode: "BR",
     image: "https://images.unsplash.com/photo-1483729558449-99ef09a8c325?w=500&h=350&fit=crop",
     story: "Christ the Redeemer soaring above the morning clouds. Breathtaking panoramas of the bay.",
   },
@@ -103,11 +110,11 @@ export function SectionA({ onExploreClick }: { onExploreClick?: () => void }) {
     >
       {/* Header */}
       <div className="text-center mb-14 flex flex-col items-center">
-        <div className="inline-block px-3 py-1 rounded-full text-xs font-hand tracking-wider uppercase bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--ink-secondary)] mb-4">
-          Geographic Discovery
+        <div className="section-kicker mb-5">
+          A world worth exploring
         </div>
         <h2
-          className="font-hand text-4xl sm:text-5xl md:text-6xl font-bold text-[var(--ink-primary)] mb-3"
+          className="text-4xl sm:text-5xl md:text-6xl font-medium tracking-[-0.05em] leading-[1.1] text-[var(--ink-primary)] mb-3"
           style={{
             opacity: isVisible ? 1 : 0,
             transform: isVisible ? "translateY(0)" : "translateY(20px)",
@@ -115,7 +122,7 @@ export function SectionA({ onExploreClick }: { onExploreClick?: () => void }) {
           }}
         >
           Every pin has a{" "}
-          <span className="relative inline-block whitespace-nowrap">
+          <span className="font-hand relative inline-block whitespace-nowrap font-semibold">
             story
             <span className="absolute -bottom-1 left-0 w-full flex justify-center">
               <DoodleUnderline width={130} animate={isVisible} delay={500} />
@@ -139,7 +146,7 @@ export function SectionA({ onExploreClick }: { onExploreClick?: () => void }) {
             <button
               key={reg}
               onClick={() => setSelectedRegion(reg)}
-              className={`px-3.5 py-1 rounded-full text-xs font-hand capitalize transition-colors cursor-pointer border ${
+              className={`px-3.5 py-1 rounded-full text-xs font-medium capitalize transition-colors cursor-pointer border ${
                 selectedRegion.toLowerCase() === reg.toLowerCase()
                   ? "bg-[var(--ink-primary)] text-[var(--bg-primary)] border-[var(--ink-primary)] font-bold"
                   : "bg-[var(--bg-secondary)] text-[var(--ink-secondary)] border-[var(--border-color)] hover:border-[var(--ink-primary)]"
@@ -197,15 +204,13 @@ export function SectionA({ onExploreClick }: { onExploreClick?: () => void }) {
 
         {/* Open Full Map Button */}
         <div className="absolute top-4 right-4 z-20 flex gap-2">
-          {onExploreClick && (
-            <button
-              onClick={onExploreClick}
-              className="px-3.5 py-1.5 text-xs font-bold text-[var(--bg-primary)] bg-[var(--ink-primary)] rounded-xl hover:opacity-90 transition-opacity flex items-center gap-1.5 shadow-xs cursor-pointer"
-            >
-              <span>Open Infinite Map</span>
-              <span>🗺️</span>
-            </button>
-          )}
+          <Link
+            href="/explore"
+            className="px-3.5 py-1.5 text-xs font-bold text-[var(--bg-primary)] bg-[var(--ink-primary)] rounded-xl hover:opacity-90 transition-opacity flex items-center gap-1.5 shadow-xs cursor-pointer select-none"
+          >
+            <span>Open Infinite Map</span>
+            <span>🗺️</span>
+          </Link>
         </div>
 
         {/* Scalable Canvas Layer with Real Coastlines */}
@@ -233,13 +238,13 @@ export function SectionA({ onExploreClick }: { onExploreClick?: () => void }) {
             />
           </svg>
 
-          {/* Interactive Pins Located Accurately on Real Landmasses */}
+          {/* Interactive Needle Pins Located Accurately on Real Landmasses */}
           {filteredPins.map((pin) => {
             const isSelected = activePin === pin.id;
             return (
               <button
                 key={pin.id}
-                className="absolute group cursor-pointer z-10 transition-transform duration-200"
+                className="absolute group cursor-pointer z-10 select-none p-2 -m-2"
                 style={{
                   left: `${pin.x}%`,
                   top: `${pin.y}%`,
@@ -249,23 +254,28 @@ export function SectionA({ onExploreClick }: { onExploreClick?: () => void }) {
                 aria-label={`View story in ${pin.city}`}
               >
                 <div
-                  className={`transition-all duration-200 flex flex-col items-center ${
+                  className={`transition-all duration-200 flex flex-col items-center origin-bottom ${
                     isSelected
-                      ? "scale-125 -translate-y-1.5 filter drop-shadow-lg"
-                      : "group-hover:scale-110 group-hover:-translate-y-1"
+                      ? "scale-115 filter drop-shadow-lg"
+                      : "group-hover:scale-110"
                   }`}
                 >
                   <DoodlePin
-                    size={30}
+                    size={28}
                     filled={isSelected}
                     color={isSelected ? "var(--ink-primary)" : "var(--ink-secondary)"}
                   />
+                  {/* Big city label: bolded text without white badge or red dot */}
                   <span
-                    className={`font-hand text-[11px] whitespace-nowrap px-1.5 py-0.5 rounded shadow-2xs mt-0.5 transition-colors ${
+                    className={`font-sans text-xs tracking-tight whitespace-nowrap mt-0.5 transition-all select-none ${
                       isSelected
-                        ? "text-[var(--bg-primary)] bg-[var(--ink-primary)] font-bold"
-                        : "text-[var(--ink-primary)] bg-[var(--bg-primary)] border border-[var(--border-color)]"
+                        ? "font-bold text-[var(--ink-primary)] underline underline-offset-4 decoration-2"
+                        : "font-bold text-[var(--ink-primary)] group-hover:text-[var(--ink-primary)]"
                     }`}
+                    style={{
+                      textShadow:
+                        "0 1px 3px var(--bg-primary), 0 0 6px var(--bg-primary), 0 0 10px var(--bg-primary)",
+                    }}
                   >
                     {pin.city}
                   </span>
@@ -311,6 +321,14 @@ export function SectionA({ onExploreClick }: { onExploreClick?: () => void }) {
               <p className="text-xs text-[var(--ink-secondary)] leading-relaxed font-sans line-clamp-3 font-normal">
                 {active.story}
               </p>
+
+              <Link
+                href={`/explore?country=${active.countryCode}&city=${encodeURIComponent(active.city)}`}
+                className="mt-3 w-full py-1.5 px-3 rounded-xl bg-[var(--ink-primary)] text-[var(--bg-primary)] text-xs font-sans font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer select-none"
+              >
+                <span>Explore {active.city} on World Map</span>
+                <span>🗺️ →</span>
+              </Link>
             </div>
           </div>
         )}

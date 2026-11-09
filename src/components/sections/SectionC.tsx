@@ -76,11 +76,11 @@ export function SectionC() {
     <section ref={sectionRef} id="stories" className="py-24 md:py-32 px-4 sm:px-6 max-w-5xl mx-auto w-full flex flex-col items-center">
       {/* Section Header */}
       <div className="text-center mb-16 flex flex-col items-center">
-        <div className="inline-block px-3 py-1 rounded-full text-xs font-hand tracking-wider uppercase bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--ink-secondary)] mb-4">
-          Social Journeys
+        <div className="section-kicker mb-5">
+          Better with your people
         </div>
         <h2
-          className="font-hand text-4xl sm:text-5xl md:text-6xl font-bold text-[var(--ink-primary)]"
+          className="text-4xl sm:text-5xl md:text-6xl font-medium tracking-[-0.05em] leading-[1.1] text-[var(--ink-primary)]"
           style={{
             opacity: isVisible ? 1 : 0,
             transform: isVisible ? "translateY(0)" : "translateY(20px)",
@@ -88,7 +88,7 @@ export function SectionC() {
           }}
         >
           See where your friends{" "}
-          <span className="relative inline-block whitespace-nowrap">
+          <span className="font-hand relative inline-block whitespace-nowrap font-semibold">
             wander
             <span className="absolute -bottom-1 left-0 w-full flex justify-center">
               <DoodleUnderline width={165} animate={isVisible} delay={500} />

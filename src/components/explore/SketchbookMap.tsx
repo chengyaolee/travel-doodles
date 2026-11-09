@@ -574,13 +574,20 @@ export function SketchbookMap({
       if (city.rank === 1 && mapZoom < 3.8) return;
       if (city.rank === 2 && mapZoom < 5.2) return;
 
+      const isBigCity = city.rank === 1;
       const el = document.createElement("button");
-      el.className =
-        "city-label group pointer-events-auto cursor-pointer select-none flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/85 dark:bg-stone-900/85 backdrop-blur-xs border border-stone-300/60 dark:border-stone-700/60 shadow-xs hover:scale-110 transition-transform";
+      // Bold big cities cleanly without white background pill or red dot, zero hover movement/flicker
+      el.className = `city-label pointer-events-auto cursor-pointer select-none px-1 py-0.5 text-center transition-colors ${
+        isBigCity
+          ? "font-sans font-bold text-xs tracking-wide text-stone-900 dark:text-stone-100"
+          : "font-sans font-medium text-[11px] text-stone-600 dark:text-stone-400"
+      }`;
+      el.style.textShadow = isDark
+        ? "0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.9)"
+        : "0 1px 3px rgba(255,255,255,0.95), 0 0 6px rgba(255,255,255,0.9)";
       el.setAttribute("aria-label", `${city.name}, ${city.country}`);
       el.innerHTML = `
-        <span class="w-1.5 h-1.5 rounded-full bg-[#d94e34]"></span>
-        <span class="text-[10px] font-sans font-semibold text-stone-800 dark:text-stone-200 group-hover:text-[#d94e34]">
+        <span class="hover:underline underline-offset-2 decoration-1 block">
           ${city.name}
         </span>
       `;
@@ -602,7 +609,7 @@ export function SketchbookMap({
 
       cityLabelsRef.current.push(marker);
     });
-  }, [citiesData, mapZoom, selectedCountry, onSelectCountry, onSelectRegion, zoomToRegion]);
+  }, [citiesData, mapZoom, selectedCountry, onSelectCountry, onSelectRegion, zoomToRegion, isDark]);
 
   // Requirements 5, 6, 7:
   // - Requirement 5: Sleek pin with notification icon on top right (no white circle background)
@@ -632,17 +639,23 @@ export function SketchbookMap({
 
       Object.values(countByCountry).forEach((group) => {
         const el = document.createElement("button");
+        // Stable hitbox with zero flicker; needle pin points down to coordinates
         el.className =
-          "relative group cursor-pointer hover:scale-115 transition-transform select-none";
+          "relative group cursor-pointer select-none p-1.5 -m-1.5 focus:outline-none";
         el.setAttribute("aria-label", `${group.count} stories in ${group.code}`);
         el.innerHTML = `
-          <svg width="24" height="30" viewBox="0 0 24 30" fill="none" class="drop-shadow-md">
-            <path d="M12 0C5.37 0 0 5.37 0 12c0 8.5 12 18 12 18s12-9.5 12-18c0-6.63-5.37-12-12-12z" fill="#d94e34"/>
-            <circle cx="12" cy="11" r="4" fill="#ffffff"/>
-          </svg>
-          <span class="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-[#d94e34] text-white font-mono text-[10px] font-bold shadow-sm border border-white dark:border-stone-900 leading-none">
-            ${group.count}
-          </span>
+          <div class="relative transition-transform duration-200 group-hover:drop-shadow-lg flex flex-col items-center">
+            <svg width="26" height="32" viewBox="0 0 32 38" fill="none" class="drop-shadow-md">
+              <ellipse cx="16" cy="36" rx="4.5" ry="1.6" fill="black" opacity="0.25" />
+              <path d="M 14.8 14 L 15.6 34.5 L 16 36 L 16.4 34.5 L 17.2 14 Z" fill="#94a3b8" stroke="#64748b" stroke-width="0.6"/>
+              <line x1="16" y1="14" x2="16" y2="34" stroke="#ffffff" stroke-width="0.75" stroke-linecap="round" opacity="0.85"/>
+              <circle cx="16" cy="9" r="7.5" fill="${isDark ? '#f5f5f5' : '#181818'}" stroke="${isDark ? '#f5f5f5' : '#181818'}" stroke-width="1.6"/>
+              <circle cx="13.8" cy="6.8" r="2.2" fill="#ffffff" opacity="0.75"/>
+            </svg>
+            <span class="absolute -top-1 -right-2.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-[var(--ink-primary)] text-[var(--bg-primary)] font-mono text-[10px] font-bold shadow border border-[var(--border-color)] leading-none">
+              ${group.count}
+            </span>
+          </div>
         `;
 
         el.onclick = (e) => {
@@ -675,8 +688,9 @@ export function SketchbookMap({
 
       Object.values(clusterByRegion).forEach(({ post, count, regionId }) => {
         const el = document.createElement("button");
+        // Stable hover elevation without scale jitter in MapLibre
         el.className =
-          "group relative p-1 rounded-md bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 shadow-md hover:shadow-xl transition-all duration-200 cursor-pointer select-none hover:scale-110";
+          "group relative p-1 rounded-md bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 shadow-md hover:shadow-xl hover:border-stone-800 dark:hover:border-stone-200 transition-all duration-200 cursor-pointer select-none";
         el.setAttribute("aria-label", `${count} posts in ${post.city}`);
 
         el.innerHTML = `
@@ -724,8 +738,8 @@ export function SketchbookMap({
       const el = document.createElement("button");
       el.className = `group relative p-1.5 rounded-lg bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 shadow-md hover:shadow-2xl transition-all duration-200 cursor-pointer select-none ${
         isSelected
-          ? "ring-2 ring-[var(--ink-primary)] ring-offset-2 ring-offset-[var(--bg-primary)] z-30 scale-105 shadow-2xl"
-          : "z-10 hover:scale-105"
+          ? "ring-2 ring-[var(--ink-primary)] ring-offset-2 ring-offset-[var(--bg-primary)] z-30 shadow-2xl border-stone-900 dark:border-stone-100"
+          : "z-10 hover:border-stone-800 dark:hover:border-stone-200"
       }`;
       el.style.width = `${cardWidth}px`;
       el.setAttribute("aria-label", `Story by ${post.author} in ${post.city}`);

@@ -73,11 +73,11 @@ export function SectionB({ onCreateClick }: { onCreateClick?: () => void }) {
       <div className="max-w-5xl mx-auto w-full flex flex-col items-center">
         {/* Header */}
         <div className="text-center mb-18 flex flex-col items-center">
-          <div className="inline-block px-3 py-1 rounded-full text-xs font-hand tracking-wider uppercase bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--ink-secondary)] mb-4">
-            Creation Workflow
+          <div className="section-kicker mb-5">
+            Make a memory
           </div>
           <h2
-            className="font-hand text-4xl sm:text-5xl md:text-6xl font-bold text-[var(--ink-primary)]"
+            className="text-4xl sm:text-5xl md:text-6xl font-medium tracking-[-0.05em] leading-[1.1] text-[var(--ink-primary)]"
             style={{
               opacity: isVisible ? 1 : 0,
               transform: isVisible ? "translateY(0)" : "translateY(20px)",
@@ -85,7 +85,7 @@ export function SectionB({ onCreateClick }: { onCreateClick?: () => void }) {
             }}
           >
             Leave your{" "}
-            <span className="relative inline-block whitespace-nowrap">
+            <span className="font-hand relative inline-block whitespace-nowrap font-semibold">
               mark
               <span className="absolute -bottom-1 left-0 w-full flex justify-center">
                 <DoodleUnderline width={110} animate={isVisible} delay={500} />
@@ -99,7 +99,7 @@ export function SectionB({ onCreateClick }: { onCreateClick?: () => void }) {
               transition: "opacity 0.8s ease 0.3s",
             }}
           >
-            Turning moments into timeless hand-drawn memories takes just three intuitive steps.
+            A place, a photograph, a few words. That’s how a journey becomes a memory.
           </p>
         </div>
 

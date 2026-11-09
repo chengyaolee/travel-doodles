@@ -45,11 +45,11 @@ export function SectionE() {
     <section ref={sectionRef} className="py-24 md:py-32 px-4 sm:px-6 max-w-6xl mx-auto w-full flex flex-col items-center">
       {/* Header */}
       <div className="text-center mb-16 flex flex-col items-center">
-        <div className="inline-block px-3 py-1 rounded-full text-xs font-hand tracking-wider uppercase bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--ink-secondary)] mb-4">
-          Personal Travel Board
+        <div className="section-kicker mb-5">
+          Uniquely yours
         </div>
         <h2
-          className="font-hand text-4xl sm:text-5xl md:text-6xl font-bold text-[var(--ink-primary)]"
+          className="text-4xl sm:text-5xl md:text-6xl font-medium tracking-[-0.05em] leading-[1.1] text-[var(--ink-primary)]"
           style={{
             opacity: isVisible ? 1 : 0,
             transform: isVisible ? "translateY(0)" : "translateY(20px)",
@@ -62,7 +62,7 @@ export function SectionE() {
           className="text-[var(--ink-secondary)] text-base sm:text-lg mt-4 max-w-lg mx-auto font-normal"
           style={{ opacity: isVisible ? 1 : 0, transition: "opacity 0.8s ease 0.3s" }}
         >
-          Your profile acts as your private digital travel whiteboard — an evolving tapestry of everywhere you&apos;ve touched.
+          A little space for everywhere you’ve been. Collect your photographs, trace your journeys, and make it your own.
         </p>
       </div>
 
@@ -247,7 +247,7 @@ export function SectionE() {
                 {PROFILE_DATA.photos.map((item, i) => (
                   <div
                     key={i}
-                    className="relative bg-white p-2 pb-6 rounded-xs shadow-xs border border-neutral-200 transition-all duration-200 hover:-translate-y-1 hover:shadow-md cursor-pointer"
+                    className="relative bg-white p-2 pb-6 rounded-xs shadow-xs border border-neutral-200 transition-all duration-200 hover:shadow-lg hover:border-neutral-400 cursor-pointer select-none"
                     style={{ transform: `rotate(${item.rot}deg)` }}
                   >
                     <div className="aspect-square overflow-hidden bg-neutral-100 rounded-2xs mb-1.5">

@@ -9,16 +9,17 @@ export function DisputedBordersLegend() {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="h-9 flex items-center gap-2 px-3 text-xs font-mono font-medium rounded-full bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] border border-[var(--border-color)] transition-colors cursor-pointer shadow-xs shrink-0 whitespace-nowrap"
+        className="h-11 flex items-center gap-2 px-3 text-xs font-medium rounded-xl bg-[var(--bg-primary)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+        aria-expanded={isOpen}
         title="View boundary policy and dispute legend"
         aria-label="Boundary policy and dispute legend"
       >
         <span className="w-3 h-0.5 border-b-2 border-dashed border-[#8c3b2d] dark:border-[#e06c58] inline-block" />
-        <span>Disputed Lines</span>
+        <span>Map key</span>
       </button>
 
       {isOpen && (
-        <div className="absolute top-full right-0 mt-2 w-80 p-3.5 rounded-xl bg-[var(--bg-primary)]/95 backdrop-blur-md border border-[var(--border-color)] shadow-2xl z-50 text-xs">
+        <div className="absolute top-full right-0 mt-3 w-80 p-5 rounded-xl bg-[var(--bg-primary)]/95 backdrop-blur-md border border-[var(--border-color)] shadow-2xl z-50 text-xs">
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-[var(--border-color)]">
             <h4 className="font-semibold text-[var(--ink-primary)] flex items-center gap-2">
               <span className="w-3 h-0.5 border-b-2 border-dashed border-[#8c3b2d] dark:border-[#e06c58]" />
