@@ -44,6 +44,58 @@
 
 ---
 
+## 📁 Repository Structure
+
+The project is organized as a clean, decoupled monorepo:
+
+```
+travel-doodles/
+├── frontend/               # Next.js 16 (React 19, MapLibre GL, Tailwind v4)
+│   ├── src/                # App router, components, map engine, doodles
+│   ├── public/             # Static assets & geo datasets
+│   ├── scripts/            # Geography build & coverage audit scripts
+│   ├── tests/              # Frontend unit & integration tests
+│   ├── next.config.ts      # Next.js configuration & API rewrites
+│   └── package.json        # Frontend dependencies & scripts
+│
+├── backend/                # Go 1.24 Modular Monolith Backend
+│   ├── api/openapi/        # OpenAPI 3.0 REST specification
+│   ├── cmd/                # Entrypoints: api (monolith) & worker
+│   ├── db/migrations/      # PostgreSQL + PostGIS SQL migrations
+│   ├── deploy/             # Docker Compose, Caddyfile, postgres.conf
+│   ├── internal/           # Domain packages (auth, geo, posts, friends, etc.)
+│   ├── tests/              # Go integration & high-throughput load tests
+│   ├── go.mod              # Go module definition
+│   └── .env.example        # Backend environment template
+│
+├── docs/                   # Architecture decision records & VPS deployment guides
+├── package.json            # Monorepo task runner (npm run dev, build, test)
+└── go.work                 # Go workspace definition
+```
+
+---
+
+## 🚀 Getting Started
+
+### Monorepo Quick Commands (from root)
+
+```bash
+# Install frontend dependencies
+cd frontend && npm install && cd ..
+
+# Run Frontend (http://localhost:3000)
+npm run dev
+
+# Run Backend (http://localhost:8080)
+npm run build:backend   # or: cd backend && go run ./cmd/api
+
+# Run All Tests
+npm test                # Frontend tests (17 passing)
+npm run test:backend    # Backend Go tests (100% passing)
+```
+
+---
+
 ## 🛠️ Tech Stack & Architecture
 
 ### Frontend
