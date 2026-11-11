@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *, .dark, .dark *));
+
 @theme inline {
   --font-sans: var(--font-geist), system-ui, -apple-system, sans-serif;
   --font-hand: var(--font-caveat), cursive;
@@ -44,16 +46,17 @@
   color-scheme: light;
 }
 
-[data-theme="dark"] {
+[data-theme="dark"],
+.dark {
   --bg-primary: #111111;
   --bg-secondary: #191919;
   --bg-elevated: #252525;
-  --ink-primary: #F5F5F5;
-  --ink-secondary: #A3A3A3;
+  --ink-primary: #FFFFFF;
+  --ink-secondary: #D4D4D8;
   --border-color: #383838;
   --border-subtle: #292929;
 
-  --stroke-color: #F5F5F5;
+  --stroke-color: #FFFFFF;
 
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.4);

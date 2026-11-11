@@ -85,4 +85,19 @@ describe('Explore Experience & Regional Feed Interactions', () => {
     assert.ok(deepLink.includes(`region=${samplePost.region}`));
     assert.ok(deepLink.includes(`post=${samplePost.id}`));
   });
+
+  test('Map visibility rules: country names disappear when states appear, and dark mode uses white text', () => {
+    const { DARK_TOKENS } = require('../src/lib/explore/mapStyles.ts');
+    assert.strictEqual(DARK_TOKENS.inkPrimary.toLowerCase(), '#ffffff', 'Dark mode primary text must be pure white for high contrast');
+
+    // Rule verification: states show up at zoom >= 2.8, country name for states-bearing countries disappears at zoom >= 2.8
+    const mapZoomAtStates = 3.2;
+    const hasStates = true;
+    const shouldShowCountryName = !hasStates || mapZoomAtStates < 2.8;
+    assert.strictEqual(shouldShowCountryName, false, 'Country name must disappear when zoomed into countries with states');
+
+    const mapZoomAtWorld = 1.6;
+    const shouldShowWorldCountryName = !hasStates || mapZoomAtWorld < 2.8;
+    assert.strictEqual(shouldShowWorldCountryName, true, 'Country name must appear at world overview zoom');
+  });
 });

@@ -37,8 +37,8 @@ export const DARK_TOKENS: SketchbookThemeTokens = {
   regionBorder: "#555562",   // Subtle subnational stroke
   disputedLine: "#e06c58",   // Soft terracotta dashed dispute line
   graticuleColor: "rgba(255, 255, 255, 0.05)",
-  inkPrimary: "#f5f5f7",
-  inkSecondary: "#a1a1aa",
+  inkPrimary: "#ffffff",
+  inkSecondary: "#d4d4d8",
   pinBorder: "#2a2a32",
 };
 

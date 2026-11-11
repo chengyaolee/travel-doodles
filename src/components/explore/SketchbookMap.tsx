@@ -466,6 +466,7 @@ export function SketchbookMap({
   }, [selectedCountry, selectedRegion, inventory, zoomToCountry, zoomToRegion]);
 
   // Requirement 9: Google Maps style Country Names inside areas by zoom level
+  // Disappears when zoomed in and states show up
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -476,6 +477,14 @@ export function SketchbookMap({
 
     // Filter which country names appear based on current zoom
     inventory.forEach((item) => {
+      // Check if this country has subnational states in the dataset
+      const hasStates = regionsData.some((r) => r.country === item.code);
+
+      // When zoomed in into countries and states show up, country name disappears
+      if (hasStates && mapZoom >= 2.8) return;
+      if (selectedCountry === item.code && mapZoom >= 2.8) return;
+      if (mapZoom >= 5.8) return;
+
       const [[w, s], [e, n]] = item.cameraBounds;
       const span = Math.max(Math.abs(e - w), Math.abs(n - s));
 
@@ -490,11 +499,20 @@ export function SketchbookMap({
 
       if (mapZoom >= minZoom) {
         const el = document.createElement("button");
+        // Completely fixed position: zero scale, zero translate on hover to prevent moving away
         el.className =
-          "country-label group pointer-events-auto cursor-pointer select-none px-1.5 py-0.5 text-center transition-all hover:scale-105";
+          "country-label group pointer-events-auto cursor-pointer select-none px-1.5 py-0.5 text-center";
+        el.style.transform = "none";
+        el.style.transition = "none";
         el.setAttribute("aria-label", item.displayName);
+
+        const textColor = isDark ? "#ffffff" : "#1c1917";
+        const textShadow = isDark
+          ? "0 1px 3px rgba(0,0,0,0.95), 0 0 4px rgba(0,0,0,0.9)"
+          : "0 1px 2px rgba(255,255,255,0.95), 0 0 3px rgba(255,255,255,0.9)";
+
         el.innerHTML = `
-          <span class="block text-[11px] font-sans font-bold uppercase tracking-wider text-stone-700 dark:text-stone-300 drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)] dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] group-hover:text-amber-800 dark:group-hover:text-amber-300">
+          <span class="block text-[11px] font-sans font-bold uppercase tracking-wider transition-colors group-hover:text-[#d94e34] dark:group-hover:text-[#f87171]" style="color: ${textColor}; text-shadow: ${textShadow};">
             ${item.displayName}
           </span>
         `;
@@ -510,7 +528,7 @@ export function SketchbookMap({
         countryLabelsRef.current.push(marker);
       }
     });
-  }, [inventory, mapZoom, onSelectCountry, zoomToCountry]);
+  }, [inventory, mapZoom, onSelectCountry, zoomToCountry, selectedCountry, regionsData, isDark]);
 
   // State / Regional Labels on the map with short form names ("CA, TX, ID...")
   useEffect(() => {
@@ -520,29 +538,38 @@ export function SketchbookMap({
     stateLabelsRef.current.forEach((m) => m.remove());
     stateLabelsRef.current = [];
 
-    // State labels appear when zoomed in to countries or states (zoom >= 3.0 up to 7.2)
-    if (mapZoom < 3.0 || mapZoom > 7.2) return;
+    // State labels appear starting at zoom 2.8 (or 2.5 when country is selected) up to zoom 7.2
+    const minStateZoom = selectedCountry ? 2.5 : 2.8;
+    if (mapZoom < minStateZoom || mapZoom > 7.2) return;
 
     const visibleRegions = selectedCountry
       ? regionsData.filter((r) => r.country === selectedCountry)
-      : regionsData.filter((r) => mapZoom >= 4.0);
+      : regionsData.filter((r) => mapZoom >= 3.6);
 
     visibleRegions.forEach((reg) => {
       // Short form name like "CA, TX, ID..." or full name if no commonly known short form
       const displayLabel = reg.shortName || reg.name;
 
       const el = document.createElement("button");
+      // Completely fixed position: zero scale, zero translate on hover to prevent moving away
       el.className =
-        "state-label group pointer-events-auto cursor-pointer select-none px-1.5 py-0.5 text-center transition-all hover:scale-110";
+        "state-label group pointer-events-auto cursor-pointer select-none px-1.5 py-0.5 text-center";
+      el.style.transform = "none";
+      el.style.transition = "none";
       el.setAttribute("aria-label", `${reg.name} (${displayLabel})`);
 
       const isShortCode = displayLabel.length <= 4 && displayLabel === displayLabel.toUpperCase();
+      const textColor = isDark ? "#ffffff" : "#1c1917";
+      const textShadow = isDark
+        ? "0 1px 3px rgba(0,0,0,0.95), 0 0 4px rgba(0,0,0,0.9)"
+        : "0 1px 2px rgba(255,255,255,0.95), 0 0 3px rgba(255,255,255,0.9)";
+
       el.innerHTML = `
         <span class="block ${
           isShortCode
-            ? "text-[12px] font-mono font-bold tracking-widest text-stone-700 dark:text-stone-300 drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)] dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
-            : "text-[10px] font-sans font-semibold tracking-wide text-stone-700 dark:text-stone-300 drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)] dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
-        } group-hover:text-[#d94e34]">
+            ? "text-[12px] font-mono font-bold tracking-widest"
+            : "text-[10px] font-sans font-semibold tracking-wide"
+        } transition-colors group-hover:text-[#d94e34] dark:group-hover:text-[#f87171]" style="color: ${textColor}; text-shadow: ${textShadow};">
           ${displayLabel}
         </span>
       `;
@@ -556,7 +583,7 @@ export function SketchbookMap({
       const marker = new Marker({ element: el }).setLngLat(reg.center).addTo(map);
       stateLabelsRef.current.push(marker);
     });
-  }, [regionsData, mapZoom, selectedCountry, onSelectRegion, zoomToRegion]);
+  }, [regionsData, mapZoom, selectedCountry, onSelectRegion, zoomToRegion, isDark]);
 
   // Requirement 10: Names of big and popular cities / hotspots when zoomed in
   useEffect(() => {
@@ -576,18 +603,21 @@ export function SketchbookMap({
 
       const isBigCity = city.rank === 1;
       const el = document.createElement("button");
-      // Bold big cities cleanly without white background pill or red dot, zero hover movement/flicker
-      el.className = `city-label pointer-events-auto cursor-pointer select-none px-1 py-0.5 text-center transition-colors ${
+      // Fixed position, zero movement on hover
+      el.className = `city-label pointer-events-auto cursor-pointer select-none px-1 py-0.5 text-center ${
         isBigCity
-          ? "font-sans font-bold text-xs tracking-wide text-stone-900 dark:text-stone-100"
-          : "font-sans font-medium text-[11px] text-stone-600 dark:text-stone-400"
+          ? "font-sans font-bold text-xs tracking-wide"
+          : "font-sans font-medium text-[11px]"
       }`;
+      el.style.transform = "none";
+      el.style.transition = "none";
+      el.style.color = isDark ? "#ffffff" : isBigCity ? "#1c1917" : "#44403c";
       el.style.textShadow = isDark
         ? "0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.9)"
         : "0 1px 3px rgba(255,255,255,0.95), 0 0 6px rgba(255,255,255,0.9)";
       el.setAttribute("aria-label", `${city.name}, ${city.country}`);
       el.innerHTML = `
-        <span class="hover:underline underline-offset-2 decoration-1 block">
+        <span class="hover:underline underline-offset-2 decoration-1 block hover:text-[#d94e34] dark:hover:text-[#f87171] transition-colors">
           ${city.name}
         </span>
       `;
@@ -700,7 +730,7 @@ export function SketchbookMap({
               <span>📷</span><span>${count}</span>
             </span>
           </div>
-          <div class="text-[9px] font-sans font-semibold text-center mt-0.5 text-stone-700 dark:text-stone-300 truncate max-w-[56px]">
+          <div class="text-[9px] font-sans font-semibold text-center mt-0.5 text-stone-800 dark:text-white truncate max-w-[56px]">
             ${post.city}
           </div>
         `;
@@ -748,10 +778,10 @@ export function SketchbookMap({
         el.innerHTML = `
           <div class="p-2 rounded bg-amber-50/60 dark:bg-stone-800/60 text-left">
             <span class="text-xs">✍️</span>
-            <p class="text-[11px] text-stone-700 dark:text-stone-300 font-sans line-clamp-2 mt-1">
+            <p class="text-[11px] text-stone-800 dark:text-white font-sans line-clamp-2 mt-1">
               "${post.caption}"
             </p>
-            <span class="text-[9px] font-mono text-stone-500 block mt-1">${post.author} · ${post.city}</span>
+            <span class="text-[9px] font-mono text-stone-500 dark:text-stone-300 block mt-1">${post.author} · ${post.city}</span>
           </div>
         `;
       } else {
@@ -768,10 +798,10 @@ export function SketchbookMap({
             </span>
           </div>
           <div class="pt-1 text-left flex items-center justify-between">
-            <span class="text-[10px] font-sans font-medium text-stone-700 dark:text-stone-300 truncate">
+            <span class="text-[10px] font-sans font-medium text-stone-800 dark:text-white truncate">
               ${post.author}
             </span>
-            <span class="text-[9px] font-mono text-stone-400">
+            <span class="text-[9px] font-mono text-stone-500 dark:text-stone-300">
               ❤️ ${post.likes}
             </span>
           </div>
@@ -801,6 +831,7 @@ export function SketchbookMap({
     onSelectPost,
     zoomToCountry,
     zoomToRegion,
+    isDark,
   ]);
 
   // Keep peek aligned with camera movements
