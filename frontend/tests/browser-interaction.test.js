@@ -292,6 +292,13 @@ describe('Explore Experience & Regional Feed Interactions', () => {
     assert.ok(sampleAutocomplete.coordinates[1] >= -90 && sampleAutocomplete.coordinates[1] <= 90, 'Latitude must be valid WGS84');
     assert.strictEqual(sampleAutocomplete.countryCode, 'FR', 'Country code must be ISO2 uppercase');
 
+    // Verify English country normalization (converting ISO codes and foreign names to English)
+    const englishRegionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+    assert.strictEqual(englishRegionNames.of('JP'), 'Japan', 'JP must normalize to Japan');
+    assert.strictEqual(englishRegionNames.of('FR'), 'France', 'FR must normalize to France');
+    assert.strictEqual(englishRegionNames.of('KR'), 'South Korea', 'KR must normalize to South Korea');
+    assert.strictEqual(englishRegionNames.of('TH'), 'Thailand', 'TH must normalize to Thailand');
+
     // Verify red badge and marker elements have stationary fixed styling (zero scale, zero transition)
     const fs = require('fs');
     const path = require('path');
