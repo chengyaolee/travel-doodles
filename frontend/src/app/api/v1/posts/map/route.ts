@@ -11,7 +11,12 @@ export async function GET(request: NextRequest) {
 
   if (BACKEND_URL) {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/v1/posts/map?${searchParams.toString()}`);
+      const res = await fetch(`${BACKEND_URL}/api/v1/posts/map?${searchParams.toString()}`, {
+        headers: {
+          ...(request.headers.get("cookie") ? { cookie: request.headers.get("cookie")! } : {}),
+          ...(request.headers.get("authorization") ? { authorization: request.headers.get("authorization")! } : {}),
+        },
+      });
       if (res.ok) {
         const data = await res.json();
         return NextResponse.json(data);
@@ -24,6 +29,7 @@ export async function GET(request: NextRequest) {
   const posts = postsStore.getMapPosts(bbox, zoom);
   return NextResponse.json({
     posts,
+    markers: posts,
     clusters: [],
     total: posts.length,
   });

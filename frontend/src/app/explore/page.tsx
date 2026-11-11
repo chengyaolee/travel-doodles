@@ -8,7 +8,7 @@ import { SketchbookMap } from "@/components/explore/SketchbookMap";
 import { RegionalFeed, RegionItem } from "@/components/explore/RegionalFeed";
 import { MobileFeedSheet } from "@/components/explore/MobileFeedSheet";
 import { PaperGrainOverlay } from "@/components/explore/PaperGrainOverlay";
-import { MOCK_POSTS, getPostsByLocation, ExplorePost } from "@/lib/explore/mockPosts";
+import type { ExplorePost } from "@/lib/explore/mockPosts";
 import { CreatePostModal, TravelDoodlePost } from "@/components/app/CreatePostModal";
 import { api } from "@/lib/api";
 
@@ -144,7 +144,7 @@ function ExploreContent() {
   // Post selection handler
   const handleSelectPost = (postId: string) => {
     setSelectedPostId(postId);
-    const post = MOCK_POSTS.find((p) => p.id === postId);
+    const post = realPosts.find((p) => p.id === postId);
     if (post) {
       if (!selectedCountry) setSelectedCountry(post.country);
       if (!selectedRegion) setSelectedRegion(post.region);
@@ -211,17 +211,10 @@ function ExploreContent() {
     };
   }, [selectedCountry, selectedRegion, selectedCity, visibilityFilter]);
 
-  // Derive relevant posts: use real backend data once loaded, with instant fallback
+  // Active posts strictly driven by real backend API data (zero mock data fallback)
   const activePosts = React.useMemo(() => {
-    if (hasLoadedApi && realPosts.length > 0) {
-      return realPosts;
-    }
-    return getPostsByLocation(
-      selectedCountry || undefined,
-      selectedRegion || undefined,
-      visibilityFilter
-    );
-  }, [hasLoadedApi, realPosts, selectedCountry, selectedRegion, visibilityFilter]);
+    return realPosts;
+  }, [realPosts]);
 
   // Current country & region metadata
   const currentCountry = inventory.find((i) => i.code === selectedCountry);
@@ -380,6 +373,7 @@ function ExploreContent() {
               selectedCity={selectedCity}
               onSelectCity={setSelectedCity}
               posts={activePosts}
+              isLoading={!hasLoadedApi}
               selectedPostId={selectedPostId}
               onSelectPost={handleSelectPost}
               onClose={() => {
