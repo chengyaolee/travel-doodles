@@ -6,10 +6,10 @@ This guide explains how to deploy Travel Doodles on a single Linux VPS (2 vCPU /
 
 ## 1. Quick Setup (Docker Compose)
 
-### Step 1: Clone / Copy Repository to VPS
+### Step 1: Clone Repository to VPS
 ```bash
-git clone <your-repo-url> /opt/travel-doodles
-cd /opt/travel-doodles
+git clone https://github.com/chengyaolee/travel-doodles.git /opt/travel-doodles
+cd /opt/travel-doodles/backend
 ```
 
 ### Step 2: Create Your Local `.env` File
@@ -23,24 +23,22 @@ cat <<EOF > .env
 # Server
 PORT=8080
 ENV=production
-BASE_URL=https://api.traveldoodles.app
-FRONTEND_URL=https://traveldoodles.app
+BACKEND_DOMAIN=api.yourdomain.com
+BASE_URL=https://api.yourdomain.com
+FRONTEND_URL=https://your-app.vercel.app
 
 # Database (internal Docker network URL)
 DATABASE_URL=postgres://travel_user:travel_password@travel-db:5432/travel_doodles?sslmode=disable
-DB_MAX_CONNS=25
-DB_MIN_CONNS=5
+DB_MAX_CONNS=15
+DB_MIN_CONNS=2
 
-# Redis (internal Docker network URL)
-REDIS_ENABLED=true
-REDIS_URL=redis://travel-redis:6379/0
-REDIS_KEY_PREFIX=travel:
+# Redis (optional, system uses in-process cache if set to false)
+REDIS_ENABLED=false
 
 # Media Storage
-# Use 'local' to store images directly on the VPS disk, or 's3' for Cloudflare R2 / AWS S3
 STORAGE_TYPE=local
 STORAGE_LOCAL_DIR=/app/data/storage
-STORAGE_PUBLIC_URL=https://api.traveldoodles.app/media/files
+STORAGE_PUBLIC_URL=https://api.yourdomain.com/media/files
 
 # Security & Sessions
 SESSION_SECRET=${SECRET}
@@ -49,15 +47,10 @@ SESSION_DURATION_HOURS=168
 SESSION_SECURE_COOKIE=true
 SESSION_SAME_SITE=lax
 
-# Rate Limiting
+# Rate Limiting & Workers
 RATELIMIT_ENABLED=true
 RATELIMIT_REQUESTS_PER_MINUTE=120
-RATELIMIT_AUTH_PER_MINUTE=10
-
-# Worker Pool
-WORKER_CONCURRENCY=4
-WORKER_IMAGE_CONCURRENCY=2
-WORKER_POLL_INTERVAL_MS=1000
+WORKER_CONCURRENCY=2
 EOF
 
 chmod 600 .env

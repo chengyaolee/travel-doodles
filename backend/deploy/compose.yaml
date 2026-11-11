@@ -122,6 +122,11 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      - BACKEND_DOMAIN=${BACKEND_DOMAIN:-localhost}
+    env_file:
+      - path: ../.env
+        required: false
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
