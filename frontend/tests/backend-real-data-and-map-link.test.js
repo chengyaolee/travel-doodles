@@ -5,8 +5,17 @@ const { postsStore } = require('../src/lib/server/postsStore.ts');
 describe('Backend Real Data Store & Landing-to-Explore Map Links', () => {
   test('postsStore manages real posts and filtering', () => {
     const initial = postsStore.getPosts();
-    assert.ok(initial.total > 0, 'Posts store must contain seeded real posts');
     assert.ok(Array.isArray(initial.posts), 'Posts must be an array');
+
+    // Create a Japan post
+    const jpPost = postsStore.createPost({
+      city: 'Tokyo',
+      country: 'JP',
+      caption: 'Neon rain reflections in Shibuya.',
+      coordinates: [139.7006, 35.6595],
+      author: 'Test Traveler',
+    });
+    assert.ok(jpPost.id, 'Created Japan post must have an ID');
 
     // Filter by country
     const jp = postsStore.getPosts({ country: 'JP' });
@@ -69,6 +78,15 @@ describe('Backend Real Data Store & Landing-to-Explore Map Links', () => {
   });
 
   test('Bounding box map spatial filtering works correctly', () => {
+    // Add a Paris post within Europe bounds
+    postsStore.createPost({
+      city: 'Paris',
+      country: 'FR',
+      caption: 'Boulangerie in Le Marais.',
+      coordinates: [2.3522, 48.8566],
+      author: 'Test Traveler',
+    });
+
     // Europe bounding box roughly: minLon: -10, minLat: 35, maxLon: 30, maxLat: 60
     const europeBbox = '-10,35,30,60';
     const europePosts = postsStore.getMapPosts(europeBbox, 5);

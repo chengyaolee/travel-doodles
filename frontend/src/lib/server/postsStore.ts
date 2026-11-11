@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { MOCK_POSTS, type ExplorePost } from "../explore/mockPosts.ts";
+import { type ExplorePost } from "../explore/mockPosts.ts";
 
 // File path for persistence in development
 const DATA_DIR = path.join(process.cwd(), ".data");
@@ -44,9 +44,8 @@ function loadPosts(): ExplorePost[] {
     }
   }
 
-  // Seed with rich default posts collection
-  cachedPosts = [...MOCK_POSTS];
-  savePosts(cachedPosts);
+  // Default empty posts collection (strictly real backend/persisted posts, zero mock data)
+  cachedPosts = [];
   return cachedPosts;
 }
 
@@ -74,37 +73,8 @@ function loadComments(): Record<string, CommentItem[]> {
     }
   }
 
-  // Seed comments for sample posts
-  cachedComments = {
-    "post-jp-1": [
-      {
-        id: "c-1",
-        postId: "post-jp-1",
-        author: "Sarah Jenkins",
-        avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
-        text: "The reflections on the pavement look unreal! Shibuya rain is magical.",
-        createdAt: "2026-05-02T10:14:00Z",
-      },
-      {
-        id: "c-2",
-        postId: "post-jp-1",
-        author: "Alex Rivera",
-        avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop",
-        text: "Was this near the Starbucks second floor view?",
-        createdAt: "2026-05-02T14:30:00Z",
-      },
-    ],
-    "post-fr-1": [
-      {
-        id: "c-3",
-        postId: "post-fr-1",
-        author: "Jordan Smith",
-        avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop",
-        text: "That boulangerie in Le Marais is heaven. Did you try the pistachio escargot?",
-        createdAt: "2026-04-29T09:20:00Z",
-      },
-    ],
-  };
+  // Default empty comments collection
+  cachedComments = {};
   return cachedComments;
 }
 

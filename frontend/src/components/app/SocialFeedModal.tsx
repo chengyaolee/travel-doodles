@@ -1,65 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DoodlePin, DoodleStar, DoodleUnderline } from "@/components/doodles";
 import { TravelDoodlePost } from "./CreatePostModal";
 
 interface FeedPost extends TravelDoodlePost {
   commentsList: { user: string; text: string; time: string }[];
 }
-
-const INITIAL_FEED: FeedPost[] = [
-  {
-    id: "f-1",
-    location: "Alberobello, Puglia, Italy",
-    city: "Alberobello",
-    country: "Italy",
-    caption: "Wandering among the ancient stone trulli roofs in Puglia. Fig trees growing over whitewashed limestone walls.",
-    date: "May 8, 2026",
-    visibility: "everyone",
-    image: "https://images.unsplash.com/photo-1516483638261-f4dbaf036963?w=700&h=500&fit=crop",
-    doodleSticker: "",
-    author: "Gianna De Luca",
-    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=face",
-    likes: 242,
-    commentsList: [
-      { user: "Leo", text: "Did you try the orecchiette pasta nearby?!", time: "2h ago" },
-      { user: "Gianna", text: "Yes! At an open terrace under the olive trees!", time: "1h ago" },
-    ],
-  },
-  {
-    id: "f-2",
-    location: "Ubud Monkey Forest, Bali",
-    city: "Bali",
-    country: "Indonesia",
-    caption: "Morning mist through mossy banyan roots. The air smells like sandalwood incense and tropical rain.",
-    date: "May 7, 2026",
-    visibility: "friends",
-    image: "https://images.unsplash.com/photo-1512100356356-de1b84283e18?w=700&h=500&fit=crop",
-    doodleSticker: "",
-    author: "Marcus Vance",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
-    likes: 189,
-    commentsList: [
-      { user: "Chloe", text: "Watch out for your sunglasses! Monkeys love them haha", time: "5h ago" },
-    ],
-  },
-  {
-    id: "f-3",
-    location: "Zion National Park, Utah, USA",
-    city: "Zion Canyon",
-    country: "USA",
-    caption: "Wading knee-deep through the Virgin River in The Narrows. 1,000-foot sandstone walls glowing copper above us.",
-    date: "May 6, 2026",
-    visibility: "everyone",
-    image: "https://images.unsplash.com/photo-1493246507139-91e8fad9978e?w=700&h=500&fit=crop",
-    doodleSticker: "",
-    author: "Taylor Brooks",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=face",
-    likes: 312,
-    commentsList: [],
-  },
-];
 
 export function SocialFeedModal({
   isOpen,
@@ -70,12 +17,15 @@ export function SocialFeedModal({
   onClose: () => void;
   extraPosts?: TravelDoodlePost[];
 }) {
-  const [feed, setFeed] = useState<FeedPost[]>(() => [
-    ...extraPosts.map((p) => ({ ...p, commentsList: [] })),
-    ...INITIAL_FEED,
-  ]);
+  const [feed, setFeed] = useState<FeedPost[]>(() =>
+    extraPosts.map((p) => ({ ...p, commentsList: [] }))
+  );
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setFeed(extraPosts.map((p) => ({ ...p, commentsList: [] })));
+  }, [extraPosts]);
 
   if (!isOpen) return null;
 
@@ -141,48 +91,68 @@ export function SocialFeedModal({
 
         {/* Scrollable Feed List */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-8 bg-[var(--bg-secondary)]">
-          {feed.map((post) => {
-            const isLiked = likedPosts[post.id];
-            return (
-              <article
-                key={post.id}
-                className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] shadow-sm overflow-hidden"
-              >
-                {/* Author Bar */}
-                <div className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={post.avatar}
-                      alt={post.author}
-                      className="w-10 h-10 rounded-full object-cover border border-[var(--border-color)]"
-                    />
-                    <div>
-                      <h4 className="font-bold text-sm text-[var(--ink-primary)]">
-                        {post.author}
-                      </h4>
-                      <p className="text-xs text-[var(--ink-secondary)] font-mono">
-                        {post.date} · #{post.visibility}
-                      </p>
+          {feed.length === 0 ? (
+            <div className="py-16 px-4 flex flex-col items-center justify-center text-center">
+              <div className="w-16 h-16 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-color)] flex items-center justify-center text-3xl mb-4 shadow-sm">
+                📬
+              </div>
+              <h3 className="font-hand text-2xl font-bold text-[var(--ink-primary)]">
+                The Travel Wire is Quiet
+              </h3>
+              <p className="text-xs text-[var(--ink-secondary)] max-w-sm mt-1.5 font-sans leading-relaxed">
+                No stories shared yet. Pin your memories from the homepage or Explore Atlas to start the conversation!
+              </p>
+            </div>
+          ) : (
+            feed.map((post) => {
+              const isLiked = likedPosts[post.id];
+              return (
+                <article
+                  key={post.id}
+                  className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] shadow-sm overflow-hidden"
+                >
+                  {/* Author Bar */}
+                  <div className="p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={post.avatar}
+                        alt={post.author}
+                        className="w-10 h-10 rounded-full object-cover border border-[var(--border-color)]"
+                      />
+                      <div>
+                        <h4 className="font-bold text-sm text-[var(--ink-primary)]">
+                          {post.author}
+                        </h4>
+                        <p className="text-xs text-[var(--ink-secondary)] font-mono">
+                          {post.date} · #{post.visibility}
+                        </p>
+                      </div>
                     </div>
+                    <button className="text-xs font-hand px-3 py-1 rounded-full border border-[var(--border-color)] hover:border-[var(--ink-primary)] text-[var(--ink-secondary)]">
+                      + Follow
+                    </button>
                   </div>
-                  <button className="text-xs font-hand px-3 py-1 rounded-full border border-[var(--border-color)] hover:border-[var(--ink-primary)] text-[var(--ink-secondary)]">
-                    + Follow
-                  </button>
-                </div>
 
-                {/* Main Photo (Photo-first) */}
-                <div className="aspect-[16/11] bg-neutral-100 overflow-hidden relative">
-                  <img
-                    src={post.image}
-                    alt={post.city}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                  <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-xs text-white font-hand text-xs flex items-center gap-1">
-                    <DoodlePin size={12} color="#fff" filled />
-                    <span>{post.location}</span>
-                  </div>
-                </div>
+                  {/* Main Photo (Photo-first) or Location tag */}
+                  {post.image ? (
+                    <div className="aspect-[16/11] bg-neutral-100 overflow-hidden relative">
+                      <img
+                        src={post.image}
+                        alt={post.city}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                      <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-xs text-white font-hand text-xs flex items-center gap-1">
+                        <DoodlePin size={12} color="#fff" filled />
+                        <span>{post.location}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="px-5 pt-3 pb-1 flex items-center gap-1.5 text-xs text-[var(--ink-secondary)] font-bold">
+                      <DoodlePin size={14} filled />
+                      <span>{post.location}</span>
+                    </div>
+                  )}
 
                 {/* Post Body & Hand-drawn Caption */}
                 <div className="p-5">
@@ -258,7 +228,7 @@ export function SocialFeedModal({
                 </div>
               </article>
             );
-          })}
+          }))}
         </div>
       </div>
     </div>

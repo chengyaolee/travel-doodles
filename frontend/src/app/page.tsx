@@ -28,24 +28,8 @@ export default function Home() {
   const [isFeedOpen, setIsFeedOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
-  // User-created posts stored in React state for instant interactivity
-  const [userPosts, setUserPosts] = useState<TravelDoodlePost[]>([
-    {
-      id: "post-demo-1",
-      location: "Kyoto, Japan",
-      city: "Kyoto",
-      country: "Japan",
-      caption: "Temple bells ringing through morning mist. Green matcha bowl warming my hands.",
-      date: "2026-05-02",
-      visibility: "everyone",
-      image: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=500&h=350&fit=crop",
-      doodleSticker: "",
-      author: "You (Explorer)",
-      avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop",
-      likes: 12,
-      coordinates: [135.7681, 35.0116],
-    },
-  ]);
+  // User-created and backend posts stored in React state (zero mock data default)
+  const [userPosts, setUserPosts] = useState<TravelDoodlePost[]>([]);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -62,17 +46,17 @@ export default function Home() {
             caption: p.caption,
             date: p.date,
             visibility: p.visibility,
-            image: p.image || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=500&h=350&fit=crop",
+            image: p.image || "",
             doodleSticker: "",
             author: p.author,
             avatar: p.avatar,
             likes: p.likes,
-            coordinates: p.coordinates || [135.7681, 35.0116],
+            coordinates: p.coordinates || [0, 0],
           }));
           setUserPosts(mapped);
         }
       })
-      .catch((e) => console.warn("Notice: using initial post buffer:", e));
+      .catch((e) => console.warn("Live backend posts notice:", e));
   }, []);
 
   const handlePublishPost = (newPost: TravelDoodlePost) => {

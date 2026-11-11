@@ -1,11 +1,152 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert');
-const { getPostsByLocation, MOCK_POSTS } = require('../src/lib/explore/mockPosts.ts');
+const { getPostsByLocation } = require('../src/lib/explore/mockPosts.ts');
+
+const TEST_FIXTURE_POSTS = [
+  {
+    id: "post-jp-1",
+    country: "JP",
+    region: "JP-13",
+    city: "Tokyo",
+    location: "Shibuya Crossing, Tokyo",
+    author: "Kenji Sato",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d",
+    date: "2026-05-01",
+    visibility: "everyone",
+    image: "https://images.unsplash.com/photo-1503899036084-c55cdd92da26",
+    caption: "Shibuya crossing in the spring drizzle.",
+    doodleSticker: "",
+    likes: 215,
+    comments: 34,
+    coordinates: [139.7006, 35.6595]
+  },
+  {
+    id: "post-jp-2",
+    country: "JP",
+    region: "JP-13",
+    city: "Tokyo",
+    location: "Yanaka Ginza, Tokyo",
+    author: "Elena Rostova",
+    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb",
+    date: "2026-04-28",
+    visibility: "friends",
+    image: "https://images.unsplash.com/photo-1542051841857-5f90071e7989",
+    caption: "Steamed sweet potato from wooden cart in Yanaka.",
+    doodleSticker: "",
+    likes: 98,
+    comments: 12,
+    coordinates: [139.7680, 35.7275]
+  },
+  {
+    id: "post-jp-3",
+    country: "JP",
+    region: "JP-26",
+    city: "Kyoto",
+    location: "Gion Shijo, Kyoto",
+    author: "Liam O'Connor",
+    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e",
+    date: "2026-04-15",
+    visibility: "everyone",
+    caption: "Lanterns glowing along Shirakawa canal in the dusk.",
+    doodleSticker: "",
+    likes: 72,
+    comments: 8,
+    isTextOnly: true,
+    coordinates: [135.7727, 35.0037]
+  },
+  {
+    id: "post-jp-4",
+    country: "JP",
+    region: "JP-26",
+    city: "Kyoto",
+    location: "Arashiyama Bamboo Grove, Kyoto",
+    author: "Camille Laurent",
+    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330",
+    date: "2026-05-03",
+    visibility: "everyone",
+    image: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e",
+    caption: "Morning light through tall bamboo.",
+    doodleSticker: "",
+    likes: 310,
+    comments: 41,
+    coordinates: [135.6713, 35.0166]
+  },
+  {
+    id: "post-us-1",
+    country: "US",
+    region: "US-HI",
+    city: "Honolulu",
+    location: "Waikiki Beach, Hawaii",
+    author: "Kai Kealoha",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d",
+    date: "2026-04-10",
+    visibility: "friends",
+    image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
+    caption: "Sunset surf session off Diamond Head.",
+    doodleSticker: "",
+    likes: 180,
+    comments: 20,
+    coordinates: [-157.8294, 21.2766]
+  },
+  {
+    id: "post-fj-1",
+    country: "FJ",
+    region: "FJ-W",
+    city: "Nadi",
+    location: "Denarau Island, Fiji",
+    author: "Moana Tui",
+    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb",
+    date: "2026-04-18",
+    visibility: "everyone",
+    image: "https://images.unsplash.com/photo-1512100356356-de1b84283e18",
+    caption: "Clear waters across the 180 degree meridian.",
+    doodleSticker: "",
+    likes: 140,
+    comments: 15,
+    coordinates: [177.3833, -17.7667]
+  },
+  {
+    id: "post-va-1",
+    country: "VA",
+    region: "VA-01",
+    city: "Vatican City",
+    location: "St. Peter's Square, Vatican City",
+    author: "Marco Rossi",
+    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e",
+    date: "2026-04-17",
+    visibility: "everyone",
+    image: "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7",
+    caption: "Bernini's colonnade in morning sunlight.",
+    doodleSticker: "",
+    likes: 210,
+    comments: 26,
+    coordinates: [12.4563, 41.9022]
+  },
+  {
+    id: "post-sg-1",
+    country: "SG",
+    region: "SG-01",
+    city: "Singapore",
+    location: "Marina Bay Sands, Singapore",
+    author: "Zhen Tan",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d",
+    date: "2026-04-22",
+    visibility: "everyone",
+    image: "https://images.unsplash.com/photo-1525625293386-3f8f99389edd",
+    caption: "Gardens by the Bay supertrees glowing after dusk.",
+    doodleSticker: "",
+    likes: 195,
+    comments: 22,
+    coordinates: [103.8636, 1.2816]
+  }
+];
+
+const getPosts = (c, r, v) => getPostsByLocation(c, r, v, TEST_FIXTURE_POSTS);
 
 describe('Explore Experience & Regional Feed Interactions', () => {
   test('Post filtering by audience: Explore (everyone) vs Friends', () => {
-    const everyonePosts = getPostsByLocation(undefined, undefined, 'everyone');
-    const friendsPosts = getPostsByLocation(undefined, undefined, 'friends');
+    const everyonePosts = getPosts(undefined, undefined, 'everyone');
+    const friendsPosts = getPosts(undefined, undefined, 'friends');
 
     assert.ok(everyonePosts.length > 0, 'Everyone posts should be present');
     assert.ok(friendsPosts.length > 0, 'Friends posts should be present');
@@ -17,21 +158,21 @@ describe('Explore Experience & Regional Feed Interactions', () => {
 
   test('Geographic hierarchy navigation: World -> Country -> Region -> Post', () => {
     // 1. World scale
-    const worldPosts = getPostsByLocation();
+    const worldPosts = getPosts();
     assert.ok(worldPosts.length > 5, 'World view has aggregate posts');
 
     // 2. Country scale: Japan (JP)
-    const jpPosts = getPostsByLocation('JP');
+    const jpPosts = getPosts('JP');
     assert.ok(jpPosts.length >= 3, 'Japan has multiple posts');
     assert.ok(jpPosts.every(p => p.country === 'JP'), 'All posts belong to Japan');
 
     // 3. Region scale: Kyoto (JP-26)
-    const kyotoPosts = getPostsByLocation('JP', 'JP-26');
+    const kyotoPosts = getPosts('JP', 'JP-26');
     assert.ok(kyotoPosts.length >= 2, 'Kyoto has posts');
     assert.ok(kyotoPosts.every(p => p.region === 'JP-26'), 'All posts belong to Kyoto');
 
     // 4. Post scale
-    const post = MOCK_POSTS.find(p => p.id === 'post-jp-4');
+    const post = TEST_FIXTURE_POSTS.find(p => p.id === 'post-jp-4');
     assert.ok(post, 'Target Kyoto post exists');
     assert.strictEqual(post.country, 'JP');
     assert.strictEqual(post.region, 'JP-26');
@@ -40,41 +181,41 @@ describe('Explore Experience & Regional Feed Interactions', () => {
 
   test('Outlying territories and antimeridian handling', () => {
     // US Outlying parts (Hawaii, Alaska)
-    const hiPosts = getPostsByLocation('US', 'US-HI');
+    const hiPosts = getPosts('US', 'US-HI');
     assert.ok(Array.isArray(hiPosts));
 
     // Fiji (Antimeridian Crossing 180° meridian)
-    const fjPosts = getPostsByLocation('FJ');
+    const fjPosts = getPosts('FJ');
     assert.ok(fjPosts.length >= 1, 'Fiji post must exist');
     const fijiPost = fjPosts[0];
     assert.ok(fijiPost.coordinates[0] > 170 || fijiPost.coordinates[0] < -170);
   });
 
   test('Microstate point target handling (Vatican City & Singapore)', () => {
-    const vaPosts = getPostsByLocation('VA');
+    const vaPosts = getPosts('VA');
     assert.ok(vaPosts.length >= 1, 'Vatican City post must exist');
     assert.strictEqual(vaPosts[0].country, 'VA');
 
-    const sgPosts = getPostsByLocation('SG');
+    const sgPosts = getPosts('SG');
     assert.ok(sgPosts.length >= 1, 'Singapore post must exist');
     assert.strictEqual(sgPosts[0].country, 'SG');
   });
 
   test('Empty state & retry handling for unpinned regions', () => {
     // Non-existent or empty region
-    const emptyPosts = getPostsByLocation('IS', 'NON_EXISTENT_REGION');
+    const emptyPosts = getPosts('IS', 'NON_EXISTENT_REGION');
     assert.strictEqual(emptyPosts.length, 0, 'Empty region returns 0 posts to trigger empty state UI');
   });
 
   test('Text-only post support', () => {
-    const textOnlyPost = MOCK_POSTS.find(p => p.isTextOnly);
+    const textOnlyPost = TEST_FIXTURE_POSTS.find(p => p.isTextOnly);
     assert.ok(textOnlyPost, 'At least one test fixture must be text-only');
     assert.strictEqual(textOnlyPost.isTextOnly, true);
     assert.ok(textOnlyPost.caption.length > 10, 'Text post must have valid caption');
   });
 
   test('Deep link query generation', () => {
-    const samplePost = MOCK_POSTS[0];
+    const samplePost = TEST_FIXTURE_POSTS[0];
     const params = new URLSearchParams();
     params.set('country', samplePost.country);
     params.set('region', samplePost.region);

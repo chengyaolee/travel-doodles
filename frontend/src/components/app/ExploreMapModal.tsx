@@ -11,101 +11,35 @@ import {
   ACCURATE_CITIES,
 } from "@/lib/worldMapData";
 
-const INITIAL_BOARD_PINS: TravelDoodlePost[] = [
-  {
-    id: "pin-1",
-    location: "New York, USA",
-    city: "New York",
-    country: "USA",
-    caption: "Watching twilight settle over the Manhattan skyline from the ferry. Brooklyn bagel in hand.",
-    date: "2026-04-12",
-    visibility: "everyone",
-    image: "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=500&h=350&fit=crop",
-    doodleSticker: "",
-    author: "Sam Miller",
-    avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop",
-    likes: 67,
-  },
-  {
-    id: "pin-2",
-    location: "Paris, France",
-    city: "Paris",
-    country: "France",
-    caption: "Le Marais bookstore hop in gentle rain. Found vintage art prints from 1920.",
-    date: "2026-04-20",
-    visibility: "everyone",
-    image: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=500&h=350&fit=crop",
-    doodleSticker: "",
-    author: "Camille Laurent",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
-    likes: 124,
-  },
-  {
-    id: "pin-3",
-    location: "Tokyo, Japan",
-    city: "Tokyo",
-    country: "Japan",
-    caption: "Electric alleys of Akihabara at midnight. Neon reflections after an evening drizzle.",
-    date: "2026-05-01",
-    visibility: "friends",
-    image: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=500&h=350&fit=crop",
-    doodleSticker: "",
-    author: "Kenji Sato",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop",
-    likes: 215,
-  },
-  {
-    id: "pin-4",
-    location: "Sydney, Australia",
-    city: "Sydney",
-    country: "Australia",
-    caption: "Coastal cliff walk from Coogee to Bondi. Turquoise swells crashing against limestone.",
-    date: "2026-05-04",
-    visibility: "everyone",
-    image: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=500&h=350&fit=crop",
-    doodleSticker: "",
-    author: "Liam O'Connor",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop",
-    likes: 89,
-  },
-  {
-    id: "pin-5",
-    location: "Reykjavik, Iceland",
-    city: "Reykjavik",
-    country: "Iceland",
-    caption: "Northern lights dancing across Thingvellir canyon. Cold air, hot thermos.",
-    date: "2026-03-14",
-    visibility: "friends",
-    image: "https://images.unsplash.com/photo-1504893524553-b855bce32c67?w=500&h=350&fit=crop",
-    doodleSticker: "",
-    author: "Freja Lind",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop",
-    likes: 340,
-  },
-  {
-    id: "pin-6",
-    location: "Rio de Janeiro, Brazil",
-    city: "Rio",
-    country: "Brazil",
-    caption: "Samba rhythm flowing from Lapa arches. Ipanema coconut water at golden sunset.",
-    date: "2026-02-28",
-    visibility: "everyone",
-    image: "https://images.unsplash.com/photo-1483729558449-99ef09a8c325?w=500&h=350&fit=crop",
-    doodleSticker: "",
-    author: "Mateo Souza",
-    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop",
-    likes: 182,
-  },
-];
+function getPostMapCoords(post: TravelDoodlePost): { x: number; y: number; region: string } {
+  // Check accurate city presets first
+  const cityKey = post.city?.toLowerCase().trim();
+  for (const [key, cityInfo] of Object.entries(ACCURATE_CITIES)) {
+    if (cityInfo.name.toLowerCase() === cityKey || key === cityKey) {
+      let region = "Americas";
+      if (cityInfo.coords[0] > -30 && cityInfo.coords[0] < 60 && cityInfo.coords[1] > 35) region = "Europe";
+      else if (cityInfo.coords[0] >= 60 && cityInfo.coords[1] > 0) region = "Asia";
+      else if (cityInfo.coords[0] > 100 && cityInfo.coords[1] < 0) region = "Oceania";
+      return { x: cityInfo.x, y: cityInfo.y, region };
+    }
+  }
 
-const PIN_COORDINATES: Record<string, { x: number; y: number; region: string }> = {
-  "pin-1": { x: ACCURATE_CITIES.nyc.x, y: ACCURATE_CITIES.nyc.y, region: "Americas" },
-  "pin-2": { x: ACCURATE_CITIES.paris.x, y: ACCURATE_CITIES.paris.y, region: "Europe" },
-  "pin-3": { x: ACCURATE_CITIES.tokyo.x, y: ACCURATE_CITIES.tokyo.y, region: "Asia" },
-  "pin-4": { x: ACCURATE_CITIES.sydney.x, y: ACCURATE_CITIES.sydney.y, region: "Oceania" },
-  "pin-5": { x: ACCURATE_CITIES.reykjavik.x, y: ACCURATE_CITIES.reykjavik.y, region: "Europe" },
-  "pin-6": { x: ACCURATE_CITIES.rio.x, y: ACCURATE_CITIES.rio.y, region: "Americas" },
-};
+  // Equirectangular projection from post.coordinates [lng, lat]
+  if (post.coordinates && post.coordinates.length >= 2 && (post.coordinates[0] !== 0 || post.coordinates[1] !== 0)) {
+    const lng = post.coordinates[0];
+    const lat = Math.max(-80, Math.min(84, post.coordinates[1]));
+    const x = ((lng + 180) / 360) * 1000;
+    const y = 280 - (lat / 90) * 230;
+
+    let region = "Americas";
+    if (lng > -30 && lng < 50 && lat > 30) region = "Europe";
+    else if (lng >= 50 && lat > 0) region = "Asia";
+    else if (lng > 90 && lat < 10) region = "Oceania";
+    return { x, y, region };
+  }
+
+  return { x: 500, y: 280, region: "Americas" };
+}
 
 export function ExploreMapModal({
   isOpen,
@@ -120,15 +54,15 @@ export function ExploreMapModal({
   const [filterAudience, setFilterAudience] = useState<"all" | "friends" | "everyone">("all");
   const [selectedRegion, setSelectedRegion] = useState("all");
   const [zoom, setZoom] = useState(1);
-  const [activePinId, setActivePinId] = useState<string | null>("pin-2");
+  const [activePinId, setActivePinId] = useState<string | null>(null);
 
   const allPosts = useMemo(() => {
-    return [...extraPosts, ...INITIAL_BOARD_PINS];
+    return extraPosts;
   }, [extraPosts]);
 
   const filteredPosts = useMemo(() => {
     return allPosts.filter((post) => {
-      const coord = PIN_COORDINATES[post.id] || { region: "Americas" };
+      const coord = getPostMapCoords(post);
       if (selectedRegion !== "all" && coord.region.toLowerCase() !== selectedRegion.toLowerCase()) {
         return false;
       }
@@ -353,10 +287,7 @@ export function ExploreMapModal({
 
               {/* Pins on the Map */}
               {filteredPosts.map((post) => {
-                const coords = PIN_COORDINATES[post.id] || {
-                  x: 500 + ((parseInt(post.id.slice(-2)) || 10) % 20) * 15 - 150,
-                  y: 250 + ((parseInt(post.id.slice(-2)) || 10) % 20) * 10 - 50,
-                };
+                const coords = getPostMapCoords(post);
                 const isSelected = activePinId === post.id;
 
                 return (
@@ -378,13 +309,19 @@ export function ExploreMapModal({
                       }`}
                     >
                       {/* Floating Mini Polaroid Thumbnail with needle pin */}
-                      <div className="w-13 h-13 bg-white p-1 pb-3 rounded-2xs shadow-md border border-neutral-300 relative mb-1 group-hover:shadow-xl transition-shadow">
-                        <img
-                          src={post.image}
-                          alt={post.city}
-                          className="w-full h-full object-cover rounded-3xs"
-                        />
-                      </div>
+                      {post.image ? (
+                        <div className="w-13 h-13 bg-white p-1 pb-3 rounded-2xs shadow-md border border-neutral-300 relative mb-1 group-hover:shadow-xl transition-shadow">
+                          <img
+                            src={post.image}
+                            alt={post.city}
+                            className="w-full h-full object-cover rounded-3xs"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-10 h-10 bg-[var(--bg-elevated)] p-1 rounded-full shadow-md border border-[var(--border-color)] flex items-center justify-center text-xs mb-1">
+                          📝
+                        </div>
+                      )}
 
                       <DoodlePin
                         size={24}
@@ -411,6 +348,21 @@ export function ExploreMapModal({
                 );
               })}
             </div>
+
+            {/* Empty State Overlay */}
+            {filteredPosts.length === 0 && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center pointer-events-none z-30">
+                <div className="w-14 h-14 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-color)] flex items-center justify-center text-2xl mb-3 shadow-md pointer-events-auto">
+                  📍
+                </div>
+                <h3 className="font-hand text-xl font-bold text-[var(--ink-primary)]">
+                  No Doodles on the Whiteboard Yet
+                </h3>
+                <p className="text-xs text-[var(--ink-secondary)] max-w-sm mt-1 font-mono">
+                  Publish your first travel doodle to pin your memories to this world canvas!
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Active Post Preview Floating Card */}
@@ -442,16 +394,18 @@ export function ExploreMapModal({
                 </button>
               </div>
 
-              <div className="aspect-[16/10] rounded-2xl overflow-hidden bg-neutral-100 mb-3 relative">
-                <img
-                  src={activePost.image}
-                  alt={activePost.city}
-                  className="w-full h-full object-cover"
-                />
-                <span className="absolute bottom-2 right-2 px-2.5 py-1 bg-black/60 backdrop-blur-xs text-white rounded-lg text-xs font-hand">
-                  {activePost.city}
-                </span>
-              </div>
+              {activePost.image && (
+                <div className="aspect-[16/10] rounded-2xl overflow-hidden bg-neutral-100 mb-3 relative">
+                  <img
+                    src={activePost.image}
+                    alt={activePost.city}
+                    className="w-full h-full object-cover"
+                  />
+                  <span className="absolute bottom-2 right-2 px-2.5 py-1 bg-black/60 backdrop-blur-xs text-white rounded-lg text-xs font-hand">
+                    {activePost.city}
+                  </span>
+                </div>
+              )}
 
               <div className="flex items-center gap-1.5 text-xs text-[var(--ink-primary)] font-bold mb-1">
                 <DoodlePin size={14} filled />

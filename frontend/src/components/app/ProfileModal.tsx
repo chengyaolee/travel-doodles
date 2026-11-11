@@ -19,13 +19,11 @@ export function ProfileModal({
 
   if (!isOpen) return null;
 
-  const defaultUserPhotos = [
-    { src: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=400&h=400&fit=crop", loc: "Paris, France" },
-    { src: "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=400&h=400&fit=crop", loc: "New York, USA" },
-    { src: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&h=400&fit=crop", loc: "Tokyo, Japan" },
-    { src: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=400&h=400&fit=crop", loc: "Sydney, Australia" },
-    ...userPosts.map((p) => ({ src: p.image, loc: p.location })),
-  ];
+  const userPhotos = userPosts
+    .filter((p) => Boolean(p.image))
+    .map((p) => ({ src: p.image!, loc: p.location || `${p.city}, ${p.country}` }));
+
+  const uniqueCountries = new Set(userPosts.map((p) => p.country).filter(Boolean)).size;
 
   return (
     <div
@@ -86,12 +84,14 @@ export function ProfileModal({
         {/* Minimal Stats */}
         <div className="grid grid-cols-4 gap-3 my-6">
           <div className="p-3 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] text-center">
-            <span className="font-hand text-2xl font-bold text-[var(--ink-primary)] block">18</span>
+            <span className="font-hand text-2xl font-bold text-[var(--ink-primary)] block">
+              {uniqueCountries}
+            </span>
             <span className="text-[10px] text-[var(--ink-secondary)] uppercase font-mono">Countries</span>
           </div>
           <div className="p-3 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] text-center">
             <span className="font-hand text-2xl font-bold text-[var(--ink-primary)] block">
-              {defaultUserPhotos.length}
+              {userPhotos.length}
             </span>
             <span className="text-[10px] text-[var(--ink-secondary)] uppercase font-mono">Memories</span>
           </div>
@@ -163,20 +163,32 @@ export function ProfileModal({
         )}
 
         {tab === "photos" && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {defaultUserPhotos.map((item, i) => (
-              <div
-                key={i}
-                className="bg-white p-2 pb-6 rounded-xs shadow-md border border-neutral-200 transition-transform hover:-translate-y-1 hover:shadow-lg"
-                style={{ transform: `rotate(${i % 2 === 0 ? -1.5 : 2}deg)` }}
-              >
-                <div className="aspect-square overflow-hidden bg-neutral-100 rounded-2xs mb-2">
-                  <img src={item.src} alt={item.loc} className="w-full h-full object-cover" />
+          userPhotos.length === 0 ? (
+            <div className="py-12 flex flex-col items-center justify-center text-center bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6">
+              <span className="text-3xl mb-2">📷</span>
+              <h4 className="font-hand text-lg font-bold text-[var(--ink-primary)]">
+                No Polaroids Pinned Yet
+              </h4>
+              <p className="text-xs text-[var(--ink-secondary)] max-w-xs mt-1 font-mono">
+                Capture memories with photos to build your visual travel wall!
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {userPhotos.map((item, i) => (
+                <div
+                  key={i}
+                  className="bg-white p-2 pb-6 rounded-xs shadow-md border border-neutral-200 transition-transform hover:-translate-y-1 hover:shadow-lg"
+                  style={{ transform: `rotate(${i % 2 === 0 ? -1.5 : 2}deg)` }}
+                >
+                  <div className="aspect-square overflow-hidden bg-neutral-100 rounded-2xs mb-2">
+                    <img src={item.src} alt={item.loc} className="w-full h-full object-cover" />
+                  </div>
+                  <p className="font-hand text-xs text-neutral-800 text-center truncate">{item.loc}</p>
                 </div>
-                <p className="font-hand text-xs text-neutral-800 text-center truncate">{item.loc}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )
         )}
 
         {tab === "routes" && (
