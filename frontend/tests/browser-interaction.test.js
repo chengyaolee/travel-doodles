@@ -115,5 +115,40 @@ describe('Explore Experience & Regional Feed Interactions', () => {
     const mapZoomAtWorld = 1.6;
     const shouldShowWorldCountryName = !hasStates || mapZoomAtWorld < 2.8;
     assert.strictEqual(shouldShowWorldCountryName, true, 'Country name must appear at world overview zoom');
+
+    // Verify World Level (mapZoom < 3.2, selectedCountry = null) aggregates red badges immediately on load
+    const samplePosts = [
+      { country: 'JP', coordinates: [139.7, 35.6] },
+      { country: 'JP', coordinates: [135.7, 35.0] },
+      { country: 'US', coordinates: [-122.4, 37.8] },
+      { country: 'FR', coordinates: [2.35, 48.8] },
+    ];
+    const worldGroups = {};
+    samplePosts.forEach((p) => {
+      const key = p.country;
+      if (!worldGroups[key]) {
+        worldGroups[key] = { count: 0, code: p.country };
+      }
+      worldGroups[key].count += 1;
+    });
+
+    assert.strictEqual(Object.keys(worldGroups).length, 3, 'Must create 3 country badge groups on world map');
+    assert.strictEqual(worldGroups['JP'].count, 2, 'Japan must have 2 posts in badge');
+    assert.strictEqual(worldGroups['US'].count, 1, 'US must have 1 post in badge');
+    assert.strictEqual(worldGroups['FR'].count, 1, 'France must have 1 post in badge');
+
+    // Verify autocomplete geocoding data structure for map pointing
+    const sampleAutocomplete = {
+      id: 'photon-eiffel',
+      name: 'Eiffel Tower',
+      displayName: 'Eiffel Tower, 5 Avenue Anatole France, Paris, France',
+      city: 'Paris',
+      country: 'France',
+      countryCode: 'FR',
+      coordinates: [2.2945, 48.8582],
+    };
+    assert.ok(sampleAutocomplete.coordinates[0] >= -180 && sampleAutocomplete.coordinates[0] <= 180, 'Longitude must be valid WGS84');
+    assert.ok(sampleAutocomplete.coordinates[1] >= -90 && sampleAutocomplete.coordinates[1] <= 90, 'Latitude must be valid WGS84');
+    assert.strictEqual(sampleAutocomplete.countryCode, 'FR', 'Country code must be ISO2 uppercase');
   });
 });

@@ -21,7 +21,7 @@ const INITIAL_BOARD_PINS: TravelDoodlePost[] = [
     date: "2026-04-12",
     visibility: "everyone",
     image: "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=500&h=350&fit=crop",
-    doodleSticker: "🗽",
+    doodleSticker: "",
     author: "Sam Miller",
     avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop",
     likes: 67,
@@ -35,7 +35,7 @@ const INITIAL_BOARD_PINS: TravelDoodlePost[] = [
     date: "2026-04-20",
     visibility: "everyone",
     image: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=500&h=350&fit=crop",
-    doodleSticker: "🥐",
+    doodleSticker: "",
     author: "Camille Laurent",
     avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
     likes: 124,
@@ -49,7 +49,7 @@ const INITIAL_BOARD_PINS: TravelDoodlePost[] = [
     date: "2026-05-01",
     visibility: "friends",
     image: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=500&h=350&fit=crop",
-    doodleSticker: "🍜",
+    doodleSticker: "",
     author: "Kenji Sato",
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop",
     likes: 215,
@@ -63,7 +63,7 @@ const INITIAL_BOARD_PINS: TravelDoodlePost[] = [
     date: "2026-05-04",
     visibility: "everyone",
     image: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=500&h=350&fit=crop",
-    doodleSticker: "🏄",
+    doodleSticker: "",
     author: "Liam O'Connor",
     avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop",
     likes: 89,
@@ -77,7 +77,7 @@ const INITIAL_BOARD_PINS: TravelDoodlePost[] = [
     date: "2026-03-14",
     visibility: "friends",
     image: "https://images.unsplash.com/photo-1504893524553-b855bce32c67?w=500&h=350&fit=crop",
-    doodleSticker: "🌌",
+    doodleSticker: "",
     author: "Freja Lind",
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop",
     likes: 340,
@@ -91,7 +91,7 @@ const INITIAL_BOARD_PINS: TravelDoodlePost[] = [
     date: "2026-02-28",
     visibility: "everyone",
     image: "https://images.unsplash.com/photo-1483729558449-99ef09a8c325?w=500&h=350&fit=crop",
-    doodleSticker: "🌴",
+    doodleSticker: "",
     author: "Mateo Souza",
     avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop",
     likes: 182,
@@ -384,9 +384,6 @@ export function ExploreMapModal({
                           alt={post.city}
                           className="w-full h-full object-cover rounded-3xs"
                         />
-                        <span className="absolute -top-2 -right-1 text-xs">
-                          {post.doodleSticker}
-                        </span>
                       </div>
 
                       <DoodlePin
@@ -452,7 +449,7 @@ export function ExploreMapModal({
                   className="w-full h-full object-cover"
                 />
                 <span className="absolute bottom-2 right-2 px-2.5 py-1 bg-black/60 backdrop-blur-xs text-white rounded-lg text-xs font-hand">
-                  {activePost.doodleSticker} {activePost.city}
+                  {activePost.city}
                 </span>
               </div>
 

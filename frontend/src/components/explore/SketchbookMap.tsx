@@ -87,6 +87,7 @@ export function SketchbookMap({
   const [activePeekPost, setActivePeekPost] = useState<ExplorePost | null>(null);
   const [peekCoords, setPeekCoords] = useState<{ x: number; y: number } | null>(null);
   const [mapZoom, setMapZoom] = useState(1.6);
+  const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
 
   // Cached regions and cities data
@@ -277,7 +278,16 @@ export function SketchbookMap({
       if (mapInstanceRef) {
         mapInstanceRef.current = map;
       }
+      setMapLoaded(true);
     });
+
+    if (map.loaded()) {
+      mapRef.current = map;
+      if (mapInstanceRef) {
+        mapInstanceRef.current = map;
+      }
+      setMapLoaded(true);
+    }
 
     map.on("zoom", () => {
       setMapZoom(map.getZoom());
@@ -477,7 +487,7 @@ export function SketchbookMap({
   // Disappears when zoomed in and states show up
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !mapLoaded) return;
 
     // Clean up previous country labels
     countryLabelsRef.current.forEach((m) => m.remove());
@@ -531,17 +541,17 @@ export function SketchbookMap({
           zoomToCountry(item.code);
         };
 
-        const marker = new Marker({ element: el }).setLngLat(item.labelAnchor).addTo(map);
+        const marker = new Marker({ element: el, offset: [0, 12] }).setLngLat(item.labelAnchor).addTo(map);
 
         countryLabelsRef.current.push(marker);
       }
     });
-  }, [inventory, mapZoom, onSelectCountry, zoomToCountry, selectedCountry, regionsData, isDark]);
+  }, [inventory, mapZoom, onSelectCountry, zoomToCountry, selectedCountry, regionsData, isDark, mapLoaded]);
 
   // State / Regional Labels on the map with short form names ("CA, TX, ID...")
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !mapLoaded) return;
 
     stateLabelsRef.current.forEach((m) => m.remove());
     stateLabelsRef.current = [];
@@ -591,12 +601,12 @@ export function SketchbookMap({
       const marker = new Marker({ element: el }).setLngLat(reg.center).addTo(map);
       stateLabelsRef.current.push(marker);
     });
-  }, [regionsData, mapZoom, selectedCountry, onSelectRegion, zoomToRegion, isDark]);
+  }, [regionsData, mapZoom, selectedCountry, onSelectRegion, zoomToRegion, isDark, mapLoaded]);
 
   // Requirement 10: Names of big and popular cities / hotspots when zoomed in
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !mapLoaded) return;
 
     cityLabelsRef.current.forEach((m) => m.remove());
     cityLabelsRef.current = [];
@@ -647,7 +657,7 @@ export function SketchbookMap({
 
       cityLabelsRef.current.push(marker);
     });
-  }, [citiesData, mapZoom, selectedCountry, onSelectCountry, onSelectRegion, zoomToRegion, isDark]);
+  }, [citiesData, mapZoom, selectedCountry, onSelectCountry, onSelectRegion, zoomToRegion, isDark, mapLoaded]);
 
   // Requirements 5, 6, 7:
   // - Requirement 5: Sleek pin with notification icon on top right (no white circle background)
@@ -655,12 +665,10 @@ export function SketchbookMap({
   // - Requirement 7: Scaling images dynamically (min 20% of screen up to fixed max ~280px)
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !mapLoaded) return;
 
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
-
-    const visiblePosts = posts.slice(0, 45);
 
     // Tier 1 (Zoom < 3.2): Collapsed Red Rounded Rectangle Badge with post count (Req 4)
     // No pin asset; capped at "99+" if count > 99
@@ -670,12 +678,25 @@ export function SketchbookMap({
         { count: number; coords: [number, number]; code: string; regionId?: string }
       > = {};
 
-      visiblePosts.forEach((p) => {
+      posts.forEach((p) => {
         const key = selectedCountry ? p.region || p.country : p.country;
         if (!countByGroup[key]) {
+          let coords = p.coordinates;
+          if (!selectedCountry) {
+            const inv = inventory.find((i) => i.code === p.country);
+            if (inv && inv.labelAnchor) {
+              coords = inv.labelAnchor;
+            }
+          } else if (p.region) {
+            const reg = regionsData.find((r) => r.id === p.region);
+            if (reg && reg.center) {
+              coords = reg.center;
+            }
+          }
+
           countByGroup[key] = {
             count: 0,
-            coords: p.coordinates,
+            coords,
             code: p.country,
             regionId: p.region,
           };
@@ -687,7 +708,7 @@ export function SketchbookMap({
         const countBadge = group.count > 99 ? "99+" : group.count;
         const el = document.createElement("button");
         el.className =
-          "relative pointer-events-auto cursor-pointer select-none px-2 py-0.5 rounded-full bg-[#d94e34] hover:bg-[#b91c1c] text-white font-mono text-[11px] font-bold shadow-md border-2 border-white dark:border-stone-900 leading-none flex items-center justify-center transition-colors";
+          "relative pointer-events-auto cursor-pointer select-none px-2.5 py-1 rounded-md bg-[#d94e34] hover:bg-[#b91c1c] text-white font-mono text-[11px] font-bold shadow-md border-2 border-white dark:border-stone-900 leading-none flex items-center justify-center transition-transform hover:scale-105 active:scale-95";
         el.setAttribute("aria-label", `${group.count} stories in ${group.code}`);
         el.innerHTML = `<span>${countBadge}</span>`;
 
@@ -702,11 +723,14 @@ export function SketchbookMap({
           }
         };
 
-        const marker = new Marker({ element: el }).setLngLat(group.coords).addTo(map);
+        const offset: [number, number] = !selectedCountry ? [0, -14] : [0, 0];
+        const marker = new Marker({ element: el, offset }).setLngLat(group.coords).addTo(map);
         markersRef.current.push(marker);
       });
       return;
     }
+
+    const visiblePosts = posts.slice(0, 45);
 
     // Tier 2 (Zoom 3.2 to 4.8): Collapsed Regional Polaroid with Red Rounded Rectangle Count (Req 4, 5)
     // No emojis tagged; red rounded rectangle count badge capped at "99+"
@@ -828,6 +852,9 @@ export function SketchbookMap({
     zoomToCountry,
     zoomToRegion,
     isDark,
+    mapLoaded,
+    inventory,
+    regionsData,
   ]);
 
   // Keep peek aligned with camera movements

@@ -27,6 +27,7 @@ interface ExploreToolbarProps {
   onResetWorld: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
+  onCreateDoodle?: () => void;
 }
 
 export function ExploreToolbar({
@@ -38,6 +39,7 @@ export function ExploreToolbar({
   onResetWorld,
   onZoomIn,
   onZoomOut,
+  onCreateDoodle,
 }: ExploreToolbarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -138,6 +140,17 @@ export function ExploreToolbar({
       </div>
 
       <div className="toolbar-actions">
+        {onCreateDoodle && (
+          <button
+            onClick={onCreateDoodle}
+            className="h-9 px-3 rounded-lg bg-[#d94e34] hover:bg-[#b91c1c] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
+            title="Create a new doodle memory"
+            aria-label="Create a new doodle memory"
+          >
+            <InkIcon name="plus" size={15} />
+            <span className="hidden sm:inline">Doodle</span>
+          </button>
+        )}
         {selectedCountry && <button onClick={onResetWorld} className="world-reset" title="Back to world" aria-label="Back to world"><DoodleGlobe size={20} /><span>World view</span></button>}
         <div className="toolbar-zoom" aria-label="Map zoom">
           <button onClick={onZoomOut} title="Zoom out" aria-label="Zoom out"><InkIcon name="minus" size={17} /></button>

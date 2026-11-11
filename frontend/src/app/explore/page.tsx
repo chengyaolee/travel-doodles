@@ -9,6 +9,7 @@ import { RegionalFeed, RegionItem } from "@/components/explore/RegionalFeed";
 import { MobileFeedSheet } from "@/components/explore/MobileFeedSheet";
 import { PaperGrainOverlay } from "@/components/explore/PaperGrainOverlay";
 import { MOCK_POSTS, getPostsByLocation, ExplorePost } from "@/lib/explore/mockPosts";
+import { CreatePostModal, TravelDoodlePost } from "@/components/app/CreatePostModal";
 import { api } from "@/lib/api";
 
 function ExploreContent() {
@@ -30,6 +31,8 @@ function ExploreContent() {
   const [regionsInventory, setRegionsInventory] = useState<Record<string, RegionItem[]>>({});
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const mapInstanceRef = useRef<MapLibreMap | null>(null);
 
@@ -284,8 +287,49 @@ function ExploreContent() {
     return [];
   }, [selectedRegion]);
 
+  const handlePublishDoodle = (newPost: TravelDoodlePost) => {
+    const postItem: ExplorePost = {
+      id: newPost.id,
+      country: newPost.country,
+      region: newPost.region || "",
+      city: newPost.city,
+      location: newPost.location,
+      author: newPost.author,
+      avatar: newPost.avatar,
+      date: newPost.date,
+      visibility: newPost.visibility as "everyone" | "friends",
+      image: newPost.image,
+      caption: newPost.caption,
+      doodleSticker: "",
+      likes: newPost.likes,
+      comments: 0,
+      coordinates: newPost.coordinates || [15, 25],
+    };
+
+    setRealPosts((prev) => [postItem, ...prev]);
+    setToastMessage(`Pinned "${newPost.city}" to the atlas!`);
+    setTimeout(() => setToastMessage(null), 4000);
+
+    // Smoothly fly to the new post's exact coordinates on the map
+    if (mapInstanceRef.current && newPost.coordinates) {
+      mapInstanceRef.current.flyTo({
+        center: newPost.coordinates,
+        zoom: 6,
+        duration: 900,
+      });
+    }
+  };
+
   return (
-    <div className="explore-shell">
+    <div className="explore-shell relative">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-stone-900/90 dark:bg-stone-100/90 text-white dark:text-stone-900 text-xs font-semibold rounded-full shadow-xl backdrop-blur-xs flex items-center gap-2 animate-in fade-in slide-in-from-top duration-200">
+          <span className="w-2 h-2 rounded-full bg-[#d94e34]" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {/* Top Slim Sketchbook Toolbar */}
       <ExploreToolbar
         inventory={inventory}
@@ -296,6 +340,7 @@ function ExploreContent() {
         onResetWorld={handleResetWorld}
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
+        onCreateDoodle={() => setIsCreateOpen(true)}
       />
 
       {/* Main Map Viewport & Sliding Sidebar Container */}
@@ -385,6 +430,13 @@ function ExploreContent() {
           />
         )}
       </main>
+
+      {/* Doodle Creation Modal with Address Autocomplete */}
+      <CreatePostModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onPublish={handlePublishDoodle}
+      />
     </div>
   );
 }

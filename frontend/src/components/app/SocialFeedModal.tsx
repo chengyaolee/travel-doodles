@@ -18,7 +18,7 @@ const INITIAL_FEED: FeedPost[] = [
     date: "May 8, 2026",
     visibility: "everyone",
     image: "https://images.unsplash.com/photo-1516483638261-f4dbaf036963?w=700&h=500&fit=crop",
-    doodleSticker: "🍋",
+    doodleSticker: "",
     author: "Gianna De Luca",
     avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=face",
     likes: 242,
@@ -36,7 +36,7 @@ const INITIAL_FEED: FeedPost[] = [
     date: "May 7, 2026",
     visibility: "friends",
     image: "https://images.unsplash.com/photo-1512100356356-de1b84283e18?w=700&h=500&fit=crop",
-    doodleSticker: "🐒",
+    doodleSticker: "",
     author: "Marcus Vance",
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
     likes: 189,
@@ -53,7 +53,7 @@ const INITIAL_FEED: FeedPost[] = [
     date: "May 6, 2026",
     visibility: "everyone",
     image: "https://images.unsplash.com/photo-1493246507139-91e8fad9978e?w=700&h=500&fit=crop",
-    doodleSticker: "🥾",
+    doodleSticker: "",
     author: "Taylor Brooks",
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=face",
     likes: 312,
@@ -157,9 +157,8 @@ export function SocialFeedModal({
                       className="w-10 h-10 rounded-full object-cover border border-[var(--border-color)]"
                     />
                     <div>
-                      <h4 className="font-bold text-sm text-[var(--ink-primary)] flex items-center gap-1.5">
-                        <span>{post.author}</span>
-                        <span className="text-xs">{post.doodleSticker}</span>
+                      <h4 className="font-bold text-sm text-[var(--ink-primary)]">
+                        {post.author}
                       </h4>
                       <p className="text-xs text-[var(--ink-secondary)] font-mono">
                         {post.date} · #{post.visibility}

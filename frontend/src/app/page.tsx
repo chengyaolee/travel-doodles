@@ -39,10 +39,11 @@ export default function Home() {
       date: "2026-05-02",
       visibility: "everyone",
       image: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=500&h=350&fit=crop",
-      doodleSticker: "🍵",
+      doodleSticker: "",
       author: "You (Explorer)",
       avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop",
       likes: 12,
+      coordinates: [135.7681, 35.0116],
     },
   ]);
 
@@ -62,10 +63,11 @@ export default function Home() {
             date: p.date,
             visibility: p.visibility,
             image: p.image || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=500&h=350&fit=crop",
-            doodleSticker: p.doodleSticker || "📍",
+            doodleSticker: "",
             author: p.author,
             avatar: p.avatar,
             likes: p.likes,
+            coordinates: p.coordinates || [135.7681, 35.0116],
           }));
           setUserPosts(mapped);
         }

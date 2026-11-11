@@ -31,7 +31,7 @@ export const MOCK_POSTS: ExplorePost[] = [
     visibility: "everyone",
     image: "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=600&h=420&fit=crop",
     caption: "Midnight umbrellas reflecting neon billboards during a soft spring drizzle. The pulse of Shibuya never slows.",
-    doodleSticker: "🍜",
+    doodleSticker: "",
     likes: 215,
     comments: 34,
     coordinates: [139.7006, 35.6595]
@@ -48,7 +48,7 @@ export const MOCK_POSTS: ExplorePost[] = [
     visibility: "friends",
     image: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=600&h=420&fit=crop",
     caption: "Steamed sweet potato from an old wooden cart in Yanaka. Cat sleeping peacefully on the stone steps.",
-    doodleSticker: "🐱",
+    doodleSticker: "",
     likes: 98,
     comments: 12,
     coordinates: [139.7680, 35.7275]
@@ -64,7 +64,7 @@ export const MOCK_POSTS: ExplorePost[] = [
     date: "2026-04-15",
     visibility: "everyone",
     caption: "Early morning tamagoyaki tasting. The master chef folded four layers in twenty seconds without breaking stride.",
-    doodleSticker: "🍣",
+    doodleSticker: "",
     likes: 72,
     comments: 8,
     isTextOnly: true,
@@ -84,7 +84,7 @@ export const MOCK_POSTS: ExplorePost[] = [
     visibility: "everyone",
     image: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=600&h=420&fit=crop",
     caption: "Filtered emerald morning light through tall bamboo stalks. Hearing the wind hollow through the culms is pure calm.",
-    doodleSticker: "🎋",
+    doodleSticker: "",
     likes: 310,
     comments: 41,
     coordinates: [135.6713, 35.0166]
@@ -101,7 +101,7 @@ export const MOCK_POSTS: ExplorePost[] = [
     visibility: "friends",
     image: "https://images.unsplash.com/photo-1528164344705-475426879c0d?w=600&h=420&fit=crop",
     caption: "Climbing thousands of vermilion torii gates at dusk. The mountain air turns crisp as twilight sets in.",
-    doodleSticker: "⛩️",
+    doodleSticker: "",
     likes: 184,
     comments: 29,
     coordinates: [135.7727, 34.9671]
@@ -120,7 +120,7 @@ export const MOCK_POSTS: ExplorePost[] = [
     visibility: "everyone",
     image: "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=600&h=420&fit=crop",
     caption: "Watching Karl the Fog roll under the red suspension towers. Warm clam chowder sourdough bowl in hand.",
-    doodleSticker: "🌉",
+    doodleSticker: "",
     likes: 189,
     comments: 22,
     coordinates: [-122.4786, 37.8199]
@@ -137,7 +137,7 @@ export const MOCK_POSTS: ExplorePost[] = [
     visibility: "friends",
     image: "https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=600&h=420&fit=crop",
     caption: "Sunset roller-skates and guitar acoustics echoing against palm fronds.",
-    doodleSticker: "🌴",
+    doodleSticker: "",
     likes: 142,
     comments: 18,
     coordinates: [-118.4720, 33.9850]
@@ -156,7 +156,7 @@ export const MOCK_POSTS: ExplorePost[] = [
     visibility: "everyone",
     image: "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=600&h=420&fit=crop",
     caption: "Twilight stroll across the East River. Manhattan illuminated like a thousand small constellation dots.",
-    doodleSticker: "🗽",
+    doodleSticker: "",
     likes: 275,
     comments: 31,
     coordinates: [-73.9969, 40.7061]
@@ -175,7 +175,7 @@ export const MOCK_POSTS: ExplorePost[] = [
     visibility: "everyone",
     image: "https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=600&h=420&fit=crop",
     caption: "Cascading green terraces in the early morning haze. The fragrance of incense and frangipani blossoms.",
-    doodleSticker: "🌺",
+    doodleSticker: "",
     likes: 245,
     comments: 38,
     coordinates: [115.2786, -8.4332]
@@ -192,7 +192,7 @@ export const MOCK_POSTS: ExplorePost[] = [
     visibility: "friends",
     image: "https://images.unsplash.com/photo-1518548419970-58e3b4079ab2?w=600&h=420&fit=crop",
     caption: "Traditional jukung outrigger canoes floating in glass-smooth water at dawn.",
-    doodleSticker: "⛵",
+    doodleSticker: "",
     likes: 112,
     comments: 14,
     coordinates: [115.2625, -8.6850]
@@ -211,7 +211,7 @@ export const MOCK_POSTS: ExplorePost[] = [
     visibility: "everyone",
     image: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=600&h=420&fit=crop",
     caption: "Bookstore crawl through Rue des Rosiers. Found 1920s architecture sketches and warm pistachio croissants.",
-    doodleSticker: "🥐",
+    doodleSticker: "",
     likes: 388,
     comments: 52,
     coordinates: [2.3622, 48.8575]
@@ -230,7 +230,7 @@ export const MOCK_POSTS: ExplorePost[] = [
     visibility: "everyone",
     image: "https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=600&h=420&fit=crop",
     caption: "Cacio e pepe lunch on a sunny piazza, framed by ivy-covered ochre walls. Vespa scooters purring past.",
-    doodleSticker: "🍝",
+    doodleSticker: "",
     likes: 290,
     comments: 36,
     coordinates: [12.4700, 41.8890]
@@ -249,7 +249,7 @@ export const MOCK_POSTS: ExplorePost[] = [
     visibility: "everyone",
     image: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=600&h=420&fit=crop",
     caption: "Limestone cliffs carved by Pacific swells. Salty breeze and flat white coffee to finish the morning.",
-    doodleSticker: "🏄",
+    doodleSticker: "",
     likes: 195,
     comments: 24,
     coordinates: [151.2743, -33.8915]
@@ -268,7 +268,7 @@ export const MOCK_POSTS: ExplorePost[] = [
     visibility: "everyone",
     image: "https://images.unsplash.com/photo-1483729558449-99ef09a8c325?w=600&h=420&fit=crop",
     caption: "Golden sunset dipping behind Dois Irmãos. Cold água de coco and gentle bossa nova rhythm in the air.",
-    doodleSticker: "🥥",
+    doodleSticker: "",
     likes: 220,
     comments: 31,
     coordinates: [-43.2045, -22.9868]
@@ -287,7 +287,7 @@ export const MOCK_POSTS: ExplorePost[] = [
     visibility: "friends",
     image: "https://images.unsplash.com/photo-1504893524553-b855bce32c67?w=600&h=420&fit=crop",
     caption: "Aurora borealis ribbons waving across the tectonic rift. Sub-zero stillness warmed by a hot thermos.",
-    doodleSticker: "🌌",
+    doodleSticker: "",
     likes: 340,
     comments: 48,
     coordinates: [-21.1290, 64.2559]
@@ -306,7 +306,7 @@ export const MOCK_POSTS: ExplorePost[] = [
     visibility: "everyone",
     image: "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=600&h=420&fit=crop",
     caption: "Supertrees twinkling in blue and gold during the evening garden rhapsody. Tropical breeze high in the canopy.",
-    doodleSticker: "🌿",
+    doodleSticker: "",
     likes: 260,
     comments: 30,
     coordinates: [103.8636, 1.2816]
@@ -325,7 +325,7 @@ export const MOCK_POSTS: ExplorePost[] = [
     visibility: "everyone",
     image: "https://images.unsplash.com/photo-1540206351-d6465b3ac5c1?w=600&h=420&fit=crop",
     caption: "Coral reef snorkeling along Beqa lagoon. Meeting the 180th meridian where each day begins first.",
-    doodleSticker: "🐠",
+    doodleSticker: "",
     likes: 175,
     comments: 19,
     coordinates: [178.4419, -18.1416]
@@ -344,7 +344,7 @@ export const MOCK_POSTS: ExplorePost[] = [
     visibility: "everyone",
     image: "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=600&h=420&fit=crop",
     caption: "Bernini's colonnade sweeping around the piazza in quiet early sunlight. Marble steps cool to the touch.",
-    doodleSticker: "🏛️",
+    doodleSticker: "",
     likes: 210,
     comments: 26,
     coordinates: [12.4563, 41.9022]

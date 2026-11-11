@@ -21,6 +21,8 @@ export interface CreatePostData {
   city: string;
   country: string;
   caption: string;
+  region?: string;
+  location?: string;
   date?: string;
   visibility?: "everyone" | "friends" | "private";
   image?: string;

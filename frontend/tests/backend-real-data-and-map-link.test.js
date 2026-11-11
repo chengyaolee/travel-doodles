@@ -13,12 +13,12 @@ describe('Backend Real Data Store & Landing-to-Explore Map Links', () => {
     assert.ok(jp.posts.length > 0, 'Must return Japan posts');
     assert.ok(jp.posts.every(p => p.country === 'JP'), 'All posts must have country JP');
 
-    // Create a new post
+    // Create a new post with actual map coordinates and no emoji sticker
     const created = postsStore.createPost({
       city: 'Reykjavik',
       country: 'IS',
       caption: 'Aurora borealis dancing above the geothermal hot spring.',
-      doodleSticker: '🌌',
+      doodleSticker: '',
       author: 'Test Traveler',
       coordinates: [-21.9426, 64.1466],
     });
@@ -26,6 +26,8 @@ describe('Backend Real Data Store & Landing-to-Explore Map Links', () => {
     assert.ok(created.id, 'Created post must have an ID');
     assert.strictEqual(created.city, 'Reykjavik');
     assert.strictEqual(created.country, 'IS');
+    assert.strictEqual(created.doodleSticker, '', 'Doodle sticker must be empty (emojis removed)');
+    assert.deepStrictEqual(created.coordinates, [-21.9426, 64.1466], 'Created post must store exact map coordinates');
 
     // Verify it is queryable
     const queried = postsStore.getPosts({ country: 'IS' });

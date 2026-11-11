@@ -179,9 +179,42 @@ export const postsStore = {
     const cityName = (newPostData.city || "").toLowerCase().trim();
     const defaultCoords = cityCoords[cityName] || [15, 25];
 
+    const countryRaw = (newPostData.country || "JP").trim();
+    let countryCode = countryRaw.toUpperCase();
+    if (countryCode.length > 2) {
+      const countryMap: Record<string, string> = {
+        "JAPAN": "JP",
+        "UNITED STATES": "US",
+        "USA": "US",
+        "FRANCE": "FR",
+        "ITALY": "IT",
+        "GERMANY": "DE",
+        "INDONESIA": "ID",
+        "AUSTRALIA": "AU",
+        "BRAZIL": "BR",
+        "ICELAND": "IS",
+        "SINGAPORE": "SG",
+        "SPAIN": "ES",
+        "UNITED KINGDOM": "GB",
+        "UK": "GB",
+        "CANADA": "CA",
+        "CHINA": "CN",
+        "SOUTH KOREA": "KR",
+        "KOREA": "KR",
+        "MALAYSIA": "MY",
+        "THAILAND": "TH",
+        "VIETNAM": "VN",
+        "SWITZERLAND": "CH",
+        "NETHERLANDS": "NL",
+        "DENMARK": "DK",
+        "NORWAY": "NO",
+      };
+      countryCode = countryMap[countryCode] || countryCode.slice(0, 2);
+    }
+
     const post: ExplorePost = {
       id: "post-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
-      country: (newPostData.country || "JP").toUpperCase().slice(0, 2),
+      country: countryCode,
       region: newPostData.region || "",
       city: newPostData.city || "Kyoto",
       location: newPostData.location || `${newPostData.city}, ${newPostData.country}`,
@@ -193,7 +226,7 @@ export const postsStore = {
       visibility: (newPostData.visibility as "everyone" | "friends") || "everyone",
       image: newPostData.image || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=600&h=420&fit=crop",
       caption: newPostData.caption || "",
-      doodleSticker: newPostData.doodleSticker || "📍",
+      doodleSticker: newPostData.doodleSticker || "",
       likes: 1,
       comments: 0,
       coordinates: newPostData.coordinates || defaultCoords,
