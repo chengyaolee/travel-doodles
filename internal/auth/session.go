@@ -27,12 +27,14 @@ type Session struct {
 
 type User struct {
 	ID           string    `json:"id"`
+	CustomID     string    `json:"custom_id"`
 	Username     string    `json:"username"`
-	Email        string    `json:"email"`
+	Email        string    `json:"email,omitempty"`
 	DisplayName  string    `json:"display_name"`
 	Bio          string    `json:"bio"`
 	AvatarKey    *string   `json:"avatar_key,omitempty"`
 	AvatarURL    string    `json:"avatar_url,omitempty"`
+	AuthProvider string    `json:"auth_provider"`
 	PasswordHash string    `json:"-"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
@@ -109,7 +111,17 @@ func (sm *SessionManager) ValidateSessionToken(ctx context.Context, rawToken str
 
 	tokenHash := HashToken(rawToken)
 	query := `
-		SELECT u.id, u.username, u.email, u.display_name, u.bio, u.avatar_key, u.created_at, u.updated_at
+		SELECT 
+			u.id, 
+			COALESCE(u.custom_id, u.username), 
+			u.username, 
+			COALESCE(u.email, ''), 
+			u.display_name, 
+			u.bio, 
+			u.avatar_key, 
+			COALESCE(u.auth_provider, 'passwordless'), 
+			u.created_at, 
+			u.updated_at
 		FROM sessions s
 		JOIN users u ON s.user_id = u.id
 		WHERE s.token_hash = $1 AND s.expires_at > NOW();
@@ -118,11 +130,13 @@ func (sm *SessionManager) ValidateSessionToken(ctx context.Context, rawToken str
 	var u User
 	err := sm.pool.QueryRow(ctx, query, tokenHash).Scan(
 		&u.ID,
+		&u.CustomID,
 		&u.Username,
 		&u.Email,
 		&u.DisplayName,
 		&u.Bio,
 		&u.AvatarKey,
+		&u.AuthProvider,
 		&u.CreatedAt,
 		&u.UpdatedAt,
 	)

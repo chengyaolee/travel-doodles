@@ -4,9 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"travel-doodles/internal/auth"
 	"travel-doodles/internal/cache"
@@ -14,12 +18,16 @@ import (
 )
 
 var (
-	ErrUserNotFound = errors.New("user not found")
-	ErrForbidden    = errors.New("access forbidden")
+	ErrUserNotFound    = errors.New("user not found")
+	ErrForbidden       = errors.New("access forbidden")
+	ErrCustomIDTaken   = errors.New("this user ID is already in use by another traveler")
+	ErrInvalidCustomID = errors.New("user ID must be 3-30 characters long and contain only letters, numbers, and underscores")
+	customIDRegex      = regexp.MustCompile(`^[a-zA-Z0-9_]{3,30}$`)
 )
 
 type ProfileResponse struct {
 	ID             string    `json:"id"`
+	CustomID       string    `json:"custom_id"`
 	Username       string    `json:"username"`
 	DisplayName    string    `json:"display_name"`
 	Bio            string    `json:"bio"`
@@ -27,6 +35,8 @@ type ProfileResponse struct {
 	PostCount      int       `json:"post_count"`
 	FollowerCount  int       `json:"follower_count"`
 	FollowingCount int       `json:"following_count"`
+	FriendCount    int       `json:"friend_count"`
+	IsFriend       bool      `json:"is_friend"`
 	IsFollowing    bool      `json:"is_following"`
 	IsSelf         bool      `json:"is_self"`
 	CreatedAt      time.Time `json:"created_at"`
@@ -52,10 +62,10 @@ func NewService(pool *pgxpool.Pool, cache cache.CacheService, storage storage.St
 	}
 }
 
-// GetProfile retrieves user profile with follower counts and follow state
-func (s *Service) GetProfile(ctx context.Context, username string, viewerID string) (*ProfileResponse, error) {
+// GetProfile retrieves user profile with follower counts, friends count, and relationship states
+func (s *Service) GetProfile(ctx context.Context, identifier string, viewerID string) (*ProfileResponse, error) {
 	// Try cache for anonymous public views
-	cacheKey := cache.ProfileKey(username)
+	cacheKey := cache.ProfileKey(identifier)
 	if viewerID == "" && s.cache != nil {
 		if cached, ok := s.cache.Get(ctx, cacheKey); ok {
 			var resp ProfileResponse
@@ -67,14 +77,22 @@ func (s *Service) GetProfile(ctx context.Context, username string, viewerID stri
 
 	query := `
 		SELECT 
-			u.id, u.username, u.display_name, u.bio, u.avatar_key, u.created_at,
+			u.id, 
+			COALESCE(u.custom_id, u.username), 
+			u.username, 
+			u.display_name, 
+			u.bio, 
+			u.avatar_key, 
+			u.created_at,
 			(SELECT COUNT(*) FROM posts p WHERE p.author_id = u.id AND p.deleted_at IS NULL AND p.visibility = 'public') as post_count,
 			(SELECT COUNT(*) FROM follows f WHERE f.following_id = u.id) as follower_count,
 			(SELECT COUNT(*) FROM follows f WHERE f.follower_id = u.id) as following_count,
+			(SELECT COUNT(*) FROM friends fr WHERE fr.user_id_1 = u.id OR fr.user_id_2 = u.id) as friend_count,
+			EXISTS(SELECT 1 FROM friends fr WHERE (fr.user_id_1 = LEAST(u.id, NULLIF($2, '')::uuid) AND fr.user_id_2 = GREATEST(u.id, NULLIF($2, '')::uuid))) as is_friend,
 			EXISTS(SELECT 1 FROM follows f WHERE f.follower_id = NULLIF($2, '')::uuid AND f.following_id = u.id) as is_following,
 			EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_id = u.id AND b.blocked_id = NULLIF($2, '')::uuid) OR (b.blocker_id = NULLIF($2, '')::uuid AND b.blocked_id = u.id)) as is_blocked
 		FROM users u
-		WHERE LOWER(u.username) = LOWER($1);
+		WHERE LOWER(u.custom_id) = LOWER($1) OR LOWER(u.username) = LOWER($1);
 	`
 
 	var (
@@ -83,8 +101,9 @@ func (s *Service) GetProfile(ctx context.Context, username string, viewerID stri
 		isBlocked bool
 	)
 
-	err := s.pool.QueryRow(ctx, query, username, viewerID).Scan(
+	err := s.pool.QueryRow(ctx, query, identifier, viewerID).Scan(
 		&p.ID,
+		&p.CustomID,
 		&p.Username,
 		&p.DisplayName,
 		&p.Bio,
@@ -93,6 +112,8 @@ func (s *Service) GetProfile(ctx context.Context, username string, viewerID stri
 		&p.PostCount,
 		&p.FollowerCount,
 		&p.FollowingCount,
+		&p.FriendCount,
+		&p.IsFriend,
 		&p.IsFollowing,
 		&isBlocked,
 	)
@@ -122,6 +143,33 @@ func (s *Service) GetProfile(ctx context.Context, username string, viewerID stri
 	return &p, nil
 }
 
+// UpdateCustomID allows travelers to customize their user ID
+func (s *Service) UpdateCustomID(ctx context.Context, userID, newCustomID string) error {
+	newCustomID = strings.TrimSpace(newCustomID)
+	if !customIDRegex.MatchString(newCustomID) {
+		return ErrInvalidCustomID
+	}
+
+	query := `
+		UPDATE users
+		SET custom_id = $2, username = $2, updated_at = NOW()
+		WHERE id = $1;
+	`
+	_, err := s.pool.Exec(ctx, query, userID, newCustomID)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return ErrCustomIDTaken
+		}
+		return fmt.Errorf("failed to update custom user ID: %w", err)
+	}
+
+	if s.cache != nil {
+		_ = s.cache.Delete(ctx, cache.ProfileKey(newCustomID))
+	}
+	return nil
+}
+
 // UpdateProfile updates the profile fields of an authenticated user
 func (s *Service) UpdateProfile(ctx context.Context, userID string, req UpdateProfileRequest) (*auth.User, error) {
 	query := `
@@ -132,17 +180,19 @@ func (s *Service) UpdateProfile(ctx context.Context, userID string, req UpdatePr
 			avatar_key = COALESCE($4, avatar_key),
 			updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, username, email, display_name, bio, avatar_key, created_at, updated_at;
+		RETURNING id, COALESCE(custom_id, username), username, COALESCE(email, ''), display_name, bio, avatar_key, auth_provider, created_at, updated_at;
 	`
 
 	var u auth.User
 	err := s.pool.QueryRow(ctx, query, userID, req.DisplayName, req.Bio, req.AvatarKey).Scan(
 		&u.ID,
+		&u.CustomID,
 		&u.Username,
 		&u.Email,
 		&u.DisplayName,
 		&u.Bio,
 		&u.AvatarKey,
+		&u.AuthProvider,
 		&u.CreatedAt,
 		&u.UpdatedAt,
 	)
@@ -156,6 +206,7 @@ func (s *Service) UpdateProfile(ctx context.Context, userID string, req UpdatePr
 
 	// Invalidate cache
 	if s.cache != nil {
+		_ = s.cache.Delete(ctx, cache.ProfileKey(u.CustomID))
 		_ = s.cache.Delete(ctx, cache.ProfileKey(u.Username))
 	}
 

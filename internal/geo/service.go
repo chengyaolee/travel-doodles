@@ -92,7 +92,11 @@ func (s *Service) queryBoxMarkers(ctx context.Context, bbox BoundingBox, viewerI
 		  AND ST_Intersects(p.location, ST_MakeEnvelope($1, $2, $3, $4, 4326)::geography)
 		  AND (
 			  p.visibility = 'public'
-			  OR (p.visibility = 'friends' AND $5 != '' AND (p.author_id = $5::uuid OR EXISTS(SELECT 1 FROM follows f WHERE f.follower_id = $5::uuid AND f.following_id = p.author_id)))
+			  OR (p.visibility = 'friends' AND $5 != '' AND (
+				  p.author_id = $5::uuid 
+				  OR EXISTS(SELECT 1 FROM friends fr WHERE (fr.user_id_1 = LEAST(p.author_id, $5::uuid) AND fr.user_id_2 = GREATEST(p.author_id, $5::uuid)))
+				  OR EXISTS(SELECT 1 FROM follows f WHERE f.follower_id = $5::uuid AND f.following_id = p.author_id)
+			  ))
 			  OR (p.visibility = 'private' AND $5 != '' AND p.author_id = $5::uuid)
 		  )
 		  AND NOT EXISTS (
@@ -175,7 +179,11 @@ func (s *Service) GetNearbyPosts(ctx context.Context, lon, lat float64, radiusKm
 		  AND ST_DWithin(p.location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography, $3)
 		  AND (
 			  p.visibility = 'public'
-			  OR (p.visibility = 'friends' AND $4 != '' AND (p.author_id = $4::uuid OR EXISTS(SELECT 1 FROM follows f WHERE f.follower_id = $4::uuid AND f.following_id = p.author_id)))
+			  OR (p.visibility = 'friends' AND $4 != '' AND (
+				  p.author_id = $4::uuid 
+				  OR EXISTS(SELECT 1 FROM friends fr WHERE (fr.user_id_1 = LEAST(p.author_id, $4::uuid) AND fr.user_id_2 = GREATEST(p.author_id, $4::uuid)))
+				  OR EXISTS(SELECT 1 FROM follows f WHERE f.follower_id = $4::uuid AND f.following_id = p.author_id)
+			  ))
 			  OR (p.visibility = 'private' AND $4 != '' AND p.author_id = $4::uuid)
 		  )
 		ORDER BY ST_Distance(p.location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography) ASC

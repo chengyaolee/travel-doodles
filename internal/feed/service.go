@@ -74,9 +74,12 @@ func (s *Service) GetFeed(ctx context.Context, userID string, cursor string, lim
 				EXISTS(SELECT 1 FROM likes l WHERE l.post_id = p.id AND l.user_id = $1) as has_liked
 			FROM posts p
 			JOIN users u ON p.author_id = u.id
-			JOIN follows f ON f.following_id = p.author_id AND f.follower_id = $1
 			WHERE p.deleted_at IS NULL
 			  AND p.visibility IN ('public', 'friends')
+			  AND (
+				  EXISTS(SELECT 1 FROM friends fr WHERE (fr.user_id_1 = LEAST(p.author_id, $1) AND fr.user_id_2 = GREATEST(p.author_id, $1)))
+				  OR EXISTS(SELECT 1 FROM follows f WHERE f.following_id = p.author_id AND f.follower_id = $1)
+			  )
 			  AND (p.created_at, p.id) < ($2, $3::uuid)
 			  AND NOT EXISTS (
 				  SELECT 1 FROM blocks b 
@@ -97,9 +100,12 @@ func (s *Service) GetFeed(ctx context.Context, userID string, cursor string, lim
 				EXISTS(SELECT 1 FROM likes l WHERE l.post_id = p.id AND l.user_id = $1) as has_liked
 			FROM posts p
 			JOIN users u ON p.author_id = u.id
-			JOIN follows f ON f.following_id = p.author_id AND f.follower_id = $1
 			WHERE p.deleted_at IS NULL
 			  AND p.visibility IN ('public', 'friends')
+			  AND (
+				  EXISTS(SELECT 1 FROM friends fr WHERE (fr.user_id_1 = LEAST(p.author_id, $1) AND fr.user_id_2 = GREATEST(p.author_id, $1)))
+				  OR EXISTS(SELECT 1 FROM follows f WHERE f.following_id = p.author_id AND f.follower_id = $1)
+			  )
 			  AND NOT EXISTS (
 				  SELECT 1 FROM blocks b 
 				  WHERE (b.blocker_id = p.author_id AND b.blocked_id = $1)

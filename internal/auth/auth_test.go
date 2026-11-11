@@ -63,3 +63,35 @@ func TestGenerateToken(t *testing.T) {
 		t.Errorf("expected 64 char SHA-256 hex string, got %d", len(h1))
 	}
 }
+
+func TestGenerateRandomCustomID(t *testing.T) {
+	id1 := GenerateRandomCustomID("wanderer")
+	id2 := GenerateRandomCustomID("wanderer")
+
+	if id1 == id2 {
+		t.Errorf("expected random custom IDs to be unique")
+	}
+	if len(id1) < 10 {
+		t.Errorf("unexpected custom ID length: %s", id1)
+	}
+
+	idDefault := GenerateRandomCustomID("")
+	if len(idDefault) < 10 {
+		t.Errorf("unexpected default custom ID: %s", idDefault)
+	}
+}
+
+func TestGenerateChallenge(t *testing.T) {
+	ch1, err := GenerateChallenge()
+	if err != nil {
+		t.Fatalf("failed to generate challenge: %v", err)
+	}
+	ch2, _ := GenerateChallenge()
+
+	if ch1 == ch2 {
+		t.Errorf("expected unique challenges")
+	}
+	if len(ch1) == 0 {
+		t.Errorf("expected non-empty challenge")
+	}
+}

@@ -13,6 +13,7 @@ import (
 	"travel-doodles/internal/cache"
 	"travel-doodles/internal/comments"
 	"travel-doodles/internal/feed"
+	"travel-doodles/internal/friends"
 	"travel-doodles/internal/geo"
 	"travel-doodles/internal/media"
 	"travel-doodles/internal/moderation"
@@ -56,6 +57,7 @@ func setupTestRouter(t *testing.T) http.Handler {
 	socialHandler := social.NewHandler(social.NewService(nil, memCache))
 	commentHandler := comments.NewHandler(comments.NewService(nil, store))
 	feedHandler := feed.NewHandler(feed.NewService(nil, memCache, store))
+	friendsHandler := friends.NewHandler(friends.NewService(nil, memCache, store, cfg))
 	mediaHandler := media.NewHandler(media.NewService(nil, store), store)
 	notifHandler := notifications.NewHandler(notifications.NewService(nil, store))
 	modHandler := moderation.NewHandler(moderation.NewService(nil))
@@ -78,6 +80,11 @@ func setupTestRouter(t *testing.T) http.Handler {
 	// API v1
 	r.Route("/api/v1", func(api chi.Router) {
 		api.Route("/auth", func(authR chi.Router) {
+			authR.Post("/passwordless/register", authHandler.PasswordlessRegister)
+			authR.Post("/passwordless/login", authHandler.PasswordlessLogin)
+			authR.Post("/oauth", authHandler.OAuthLogin)
+			authR.Post("/passkey/register/start", authHandler.PasskeyRegisterStart)
+			authR.Post("/passkey/register/finish", authHandler.PasskeyRegisterFinish)
 			authR.Post("/register", authHandler.Register)
 			authR.Post("/login", authHandler.Login)
 			authR.Post("/logout", authHandler.Logout)
@@ -94,7 +101,16 @@ func setupTestRouter(t *testing.T) http.Handler {
 		api.With(middleware.RequireAuth()).Get("/feed", feedHandler.GetFeed)
 		api.Route("/users", func(userR chi.Router) {
 			userR.Get("/{username}", userHandler.GetProfile)
+			userR.With(middleware.RequireAuth()).Patch("/custom-id", userHandler.UpdateCustomID)
 			userR.With(middleware.RequireAuth()).Post("/{id}/follow", socialHandler.Follow)
+		})
+		api.Route("/friends", func(friendR chi.Router) {
+			friendR.Get("/invites/{code}", friendsHandler.GetInvite)
+			friendR.With(middleware.RequireAuth()).Post("/add", friendsHandler.AddFriendByID)
+			friendR.With(middleware.RequireAuth()).Post("/invites", friendsHandler.CreateInvite)
+			friendR.With(middleware.RequireAuth()).Post("/invites/{code}/accept", friendsHandler.AcceptInvite)
+			friendR.With(middleware.RequireAuth()).Get("/", friendsHandler.ListFriends)
+			friendR.With(middleware.RequireAuth()).Delete("/{id}", friendsHandler.RemoveFriend)
 		})
 		api.Route("/reports", func(modR chi.Router) {
 			modR.With(middleware.RequireAuth()).Post("/", modHandler.CreateReport)
@@ -137,6 +153,34 @@ func TestMetricsEndpoint(t *testing.T) {
 	}
 }
 
+func TestPasswordAuth_DisabledResponse(t *testing.T) {
+	router := setupTestRouter(t)
+
+	// Password register should be rejected
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", strings.NewReader(`{"username":"alice","password":"password123"}`))
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request, got %d", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "password-based accounts are disabled") {
+		t.Errorf("expected disabled message, got: %s", rec.Body.String())
+	}
+
+	// Password login should be rejected
+	reqLogin := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(`{"login":"alice","password":"password123"}`))
+	recLogin := httptest.NewRecorder()
+	router.ServeHTTP(recLogin, reqLogin)
+
+	if recLogin.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request for login, got %d", recLogin.Code)
+	}
+	if !strings.Contains(recLogin.Body.String(), "password-based logins are disabled") {
+		t.Errorf("expected disabled message, got: %s", recLogin.Body.String())
+	}
+}
+
 func TestUnauthenticated_ProtectedRoutes(t *testing.T) {
 	router := setupTestRouter(t)
 
@@ -150,6 +194,11 @@ func TestUnauthenticated_ProtectedRoutes(t *testing.T) {
 		{"like_post", http.MethodPost, "/api/v1/posts/123/likes"},
 		{"follow_user", http.MethodPost, "/api/v1/users/456/follow"},
 		{"notifications", http.MethodGet, "/api/v1/notifications"},
+		{"friends_list", http.MethodGet, "/api/v1/friends"},
+		{"friends_add", http.MethodPost, "/api/v1/friends/add"},
+		{"friends_invite", http.MethodPost, "/api/v1/friends/invites"},
+		{"friends_accept", http.MethodPost, "/api/v1/friends/invites/code123/accept"},
+		{"custom_id_update", http.MethodPatch, "/api/v1/users/custom-id"},
 	}
 
 	for _, tt := range tests {
@@ -162,6 +211,19 @@ func TestUnauthenticated_ProtectedRoutes(t *testing.T) {
 				t.Errorf("expected 401 Unauthorized for %s %s, got %d", tt.method, tt.path, rec.Code)
 			}
 		})
+	}
+}
+
+func TestFriendInvite_PublicPreview_NotFound(t *testing.T) {
+	router := setupTestRouter(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/friends/invites/nonexistent_code", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	// In-memory test without db returns 500 or 404
+	if rec.Code == http.StatusOK {
+		t.Fatalf("expected non-200 for nonexistent invite code, got %d", rec.Code)
 	}
 }
 
@@ -202,7 +264,7 @@ func TestMediaFiles_NotFound(t *testing.T) {
 func TestCORS_Headers(t *testing.T) {
 	router := setupTestRouter(t)
 
-	req := httptest.NewRequest(http.MethodOptions, "/api/v1/auth/login", nil)
+	req := httptest.NewRequest(http.MethodOptions, "/api/v1/auth/passwordless/register", nil)
 	req.Header.Set("Origin", "http://localhost:3000")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
@@ -220,11 +282,10 @@ func TestBodyLimit_Exceeded(t *testing.T) {
 
 	// Create payload larger than 2 MB
 	hugePayload := bytes.Repeat([]byte("A"), 3*1024*1024)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", bytes.NewReader(hugePayload))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/passwordless/register", bytes.NewReader(hugePayload))
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
-	// Should fail with 400 (EOF/Body limit read error) or 500
 	if rec.Code < 400 {
 		t.Errorf("expected error status for body exceeding limit, got %d", rec.Code)
 	}

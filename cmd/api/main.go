@@ -16,6 +16,7 @@ import (
 	"travel-doodles/internal/cache"
 	"travel-doodles/internal/comments"
 	"travel-doodles/internal/feed"
+	"travel-doodles/internal/friends"
 	"travel-doodles/internal/geo"
 	"travel-doodles/internal/jobs"
 	"travel-doodles/internal/media"
@@ -47,6 +48,7 @@ type Application struct {
 	SocialHandler       *social.Handler
 	CommentHandler      *comments.Handler
 	FeedHandler         *feed.Handler
+	FriendHandler       *friends.Handler
 	MediaHandler        *media.Handler
 	NotificationHandler *notifications.Handler
 	ModerationHandler   *moderation.Handler
@@ -127,6 +129,9 @@ func main() {
 	feedService := feed.NewService(pool, cacheService, store)
 	feedHandler := feed.NewHandler(feedService)
 
+	friendsService := friends.NewService(pool, cacheService, store, cfg)
+	friendsHandler := friends.NewHandler(friendsService)
+
 	mediaService := media.NewService(pool, store)
 	mediaHandler := media.NewHandler(mediaService, store)
 
@@ -151,6 +156,7 @@ func main() {
 		SocialHandler:       socialHandler,
 		CommentHandler:      commentHandler,
 		FeedHandler:         feedHandler,
+		FriendHandler:       friendsHandler,
 		MediaHandler:        mediaHandler,
 		NotificationHandler: notifHandler,
 		ModerationHandler:   modHandler,
@@ -218,10 +224,23 @@ func (app *Application) BuildRouter() http.Handler {
 
 	// API v1 Subrouter
 	r.Route("/api/v1", func(api chi.Router) {
-		// Auth Endpoints
+		// Auth Endpoints (Passwordless)
 		api.Route("/auth", func(authR chi.Router) {
+			// Passwordless Instant Registration & Login
+			authR.Post("/passwordless/register", app.AuthHandler.PasswordlessRegister)
+			authR.Post("/passwordless/login", app.AuthHandler.PasswordlessLogin)
+			authR.Post("/oauth", app.AuthHandler.OAuthLogin)
+
+			// WebAuthn / Passkeys
+			authR.Post("/passkey/register/start", app.AuthHandler.PasskeyRegisterStart)
+			authR.Post("/passkey/register/finish", app.AuthHandler.PasskeyRegisterFinish)
+			authR.Post("/passkey/login/start", app.AuthHandler.PasskeyLoginStart)
+			authR.Post("/passkey/login/finish", app.AuthHandler.PasskeyLoginFinish)
+
+			// Legacy password endpoints disabled
 			authR.Post("/register", app.AuthHandler.Register)
 			authR.Post("/login", app.AuthHandler.Login)
+
 			authR.Post("/logout", app.AuthHandler.Logout)
 			authR.Get("/me", app.AuthHandler.Me)
 		})
@@ -229,6 +248,7 @@ func (app *Application) BuildRouter() http.Handler {
 		// Users & Profiles
 		api.Route("/users", func(userR chi.Router) {
 			userR.Get("/{username}", app.UserHandler.GetProfile)
+			userR.With(middleware.RequireAuth()).Patch("/custom-id", app.UserHandler.UpdateCustomID)
 			userR.With(middleware.RequireAuth()).Patch("/{username}", app.UserHandler.UpdateProfile)
 
 			// Follow / Unfollow / Block
@@ -236,6 +256,19 @@ func (app *Application) BuildRouter() http.Handler {
 			userR.With(middleware.RequireAuth()).Delete("/{id}/follow", app.SocialHandler.Unfollow)
 			userR.With(middleware.RequireAuth()).Post("/{id}/block", app.SocialHandler.Block)
 			userR.With(middleware.RequireAuth()).Delete("/{id}/block", app.SocialHandler.Unblock)
+		})
+
+		// Friend System (Add by Custom ID or Send Invite Links)
+		api.Route("/friends", func(friendR chi.Router) {
+			// Public invite link preview
+			friendR.Get("/invites/{code}", app.FriendHandler.GetInvite)
+
+			// Authenticated friend actions
+			friendR.With(middleware.RequireAuth()).Post("/add", app.FriendHandler.AddFriendByID)
+			friendR.With(middleware.RequireAuth()).Post("/invites", app.FriendHandler.CreateInvite)
+			friendR.With(middleware.RequireAuth()).Post("/invites/{code}/accept", app.FriendHandler.AcceptInvite)
+			friendR.With(middleware.RequireAuth()).Get("/", app.FriendHandler.ListFriends)
+			friendR.With(middleware.RequireAuth()).Delete("/{id}", app.FriendHandler.RemoveFriend)
 		})
 
 		// Posts & Geographic Discovery

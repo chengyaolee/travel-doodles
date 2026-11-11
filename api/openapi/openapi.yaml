@@ -35,16 +35,40 @@ paths:
 
   /api/v1/auth/register:
     post:
-      summary: Register a new traveler account
+      summary: Register with password (DISABLED - returns 400 directing to passwordless)
+      deprecated: true
+      responses:
+        '400':
+          description: Password authentication disabled; directs client to passwordless registration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/login:
+    post:
+      summary: Login with password (DISABLED - returns 400 directing to passwordless)
+      deprecated: true
+      responses:
+        '400':
+          description: Password authentication disabled; directs client to passwordless login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/passwordless/register:
+    post:
+      summary: Instant passwordless account creation (device-bound credentials)
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RegisterRequest'
+              $ref: '#/components/schemas/PasswordlessRegisterRequest'
       responses:
         '201':
-          description: Account created successfully and session cookie set
+          description: Account created successfully with custom ID and session cookie set
           content:
             application/json:
               schema:
@@ -52,26 +76,111 @@ paths:
         '400':
           $ref: '#/components/responses/Error'
         '409':
-          description: Username or email already registered
+          description: Custom ID or username conflict
 
-  /api/v1/auth/login:
+  /api/v1/auth/passwordless/login:
     post:
-      summary: Authenticate with username/email and password
+      summary: Instant passwordless login via device-bound credential token
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LoginRequest'
+              $ref: '#/components/schemas/PasswordlessLoginRequest'
       responses:
         '200':
-          description: Logged in successfully
+          description: Session established
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
         '401':
-          description: Invalid credentials
+          description: Invalid device credential
+
+  /api/v1/auth/oauth:
+    post:
+      summary: Passwordless OAuth2 social authentication (Google, Apple, GitHub)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthLoginRequest'
+      responses:
+        '200':
+          description: Authenticated and session established
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/Error'
+
+  /api/v1/auth/passkey/register/start:
+    post:
+      summary: Begin WebAuthn passkey registration challenge
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasskeyRegisterStartRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasskeyRegisterStartResponse'
+
+  /api/v1/auth/passkey/register/finish:
+    post:
+      summary: Complete WebAuthn passkey registration with attestation
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasskeyRegisterFinishRequest'
+      responses:
+        '200':
+          description: Passkey registered successfully
+
+  /api/v1/auth/passkey/login/start:
+    post:
+      summary: Begin WebAuthn passkey authentication challenge
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasskeyLoginStartRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasskeyLoginStartResponse'
+
+  /api/v1/auth/passkey/login/finish:
+    post:
+      summary: Complete WebAuthn passkey authentication with assertion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasskeyLoginFinishRequest'
+      responses:
+        '200':
+          description: Authenticated and session established
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
 
   /api/v1/auth/logout:
     post:
@@ -317,6 +426,155 @@ paths:
       responses:
         '200':
           description: Profile updated
+
+  /api/v1/users/custom-id:
+    patch:
+      summary: Update user customizable ID
+      description: Allows user to personalize their unique custom ID (e.g. wanderer_dan) used for friend invitations and typing in IDs.
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCustomIDRequest'
+      responses:
+        '200':
+          description: Custom ID updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  custom_id:
+                    type: string
+        '400':
+          $ref: '#/components/responses/Error'
+        '409':
+          description: Custom ID already taken by another traveler
+
+  /api/v1/friends:
+    get:
+      summary: List mutual friends of the authenticated user
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of mutual friends
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  friends:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Friend'
+
+  /api/v1/friends/add:
+    post:
+      summary: Add a friend directly by typing their user ID or custom ID
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddFriendByIDRequest'
+      responses:
+        '201':
+          description: Friend added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Friend'
+        '400':
+          description: Cannot friend yourself, or blocked
+        '404':
+          description: User ID or custom ID not found
+
+  /api/v1/friends/invites:
+    post:
+      summary: Generate a shareable friend invitation link / code
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInviteRequest'
+      responses:
+        '201':
+          description: Invite code and URL generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FriendInvite'
+
+  /api/v1/friends/invites/{code}:
+    get:
+      summary: Preview a friend invite code before accepting
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FriendInvite'
+        '404':
+          description: Invite code not found, expired, or depleted
+
+  /api/v1/friends/invites/{code}/accept:
+    post:
+      summary: Accept a friend invite link / code
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Invite accepted and friendship established
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Friend'
+        '400':
+          description: Cannot accept own invite, already friends, or blocked
+        '404':
+          description: Invalid or expired invite code
+
+  /api/v1/friends/{id}:
+    delete:
+      summary: Remove a friend by friend's user UUID
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Friendship removed
 
   /api/v1/users/{id}/follow:
     post:
@@ -672,6 +930,9 @@ components:
           format: uuid
         username:
           type: string
+        custom_id:
+          type: string
+          example: wanderer_alice
         email:
           type: string
         display_name:
@@ -680,6 +941,9 @@ components:
           type: string
         avatar_url:
           type: string
+        auth_provider:
+          type: string
+          example: passwordless_device
         created_at:
           type: string
           format: date-time
@@ -694,6 +958,8 @@ components:
               type: string
             username:
               type: string
+            custom_id:
+              type: string
             display_name:
               type: string
             bio:
@@ -706,10 +972,228 @@ components:
               type: integer
             following_count:
               type: integer
+            friend_count:
+              type: integer
             is_following:
+              type: boolean
+            is_friend:
               type: boolean
             is_self:
               type: boolean
+
+    PasswordlessRegisterRequest:
+      type: object
+      required: [display_name]
+      properties:
+        username:
+          type: string
+          example: alice
+        custom_id:
+          type: string
+          example: wanderer_alice
+        display_name:
+          type: string
+          example: Alice Walker
+        credential_token:
+          type: string
+          description: Optional device-bound client secret or token
+        bio:
+          type: string
+
+    PasswordlessLoginRequest:
+      type: object
+      required: [identifier, credential_token]
+      properties:
+        identifier:
+          type: string
+          description: Username, custom ID, or user UUID
+          example: wanderer_alice
+        credential_token:
+          type: string
+          description: Device credential token
+
+    OAuthLoginRequest:
+      type: object
+      required: [provider, token]
+      properties:
+        provider:
+          type: string
+          enum: [google, apple, github]
+          example: google
+        token:
+          type: string
+          description: ID token or access token from provider
+        custom_id:
+          type: string
+          example: alice_in_wonderland
+        display_name:
+          type: string
+        email:
+          type: string
+
+    PasskeyRegisterStartRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        custom_id:
+          type: string
+        display_name:
+          type: string
+
+    PasskeyRegisterStartResponse:
+      type: object
+      properties:
+        challenge:
+          type: string
+        rp:
+          type: object
+          properties:
+            name:
+              type: string
+            id:
+              type: string
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            displayName:
+              type: string
+        pubKeyCredParams:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              alg:
+                type: integer
+        timeout:
+          type: integer
+
+    PasskeyRegisterFinishRequest:
+      type: object
+      required: [credential_id, public_key]
+      properties:
+        credential_id:
+          type: string
+        public_key:
+          type: string
+        attestation_object:
+          type: string
+        client_data_json:
+          type: string
+
+    PasskeyLoginStartRequest:
+      type: object
+      properties:
+        custom_id:
+          type: string
+
+    PasskeyLoginStartResponse:
+      type: object
+      properties:
+        challenge:
+          type: string
+        timeout:
+          type: integer
+        rpId:
+          type: string
+
+    PasskeyLoginFinishRequest:
+      type: object
+      required: [credential_id, signature, authenticator_data, client_data_json]
+      properties:
+        credential_id:
+          type: string
+        signature:
+          type: string
+        authenticator_data:
+          type: string
+        client_data_json:
+          type: string
+
+    UpdateCustomIDRequest:
+      type: object
+      required: [custom_id]
+      properties:
+        custom_id:
+          type: string
+          minLength: 3
+          maxLength: 32
+          pattern: '^[a-zA-Z0-9_-]+$'
+          example: wanderlust_jen
+
+    AddFriendByIDRequest:
+      type: object
+      required: [target_id]
+      properties:
+        target_id:
+          type: string
+          description: Friend's customizable ID (e.g. wanderer_dan) or account UUID
+          example: wanderer_dan
+
+    CreateInviteRequest:
+      type: object
+      properties:
+        max_uses:
+          type: integer
+          default: 1
+          example: 5
+        expires_in_hours:
+          type: integer
+          default: 168
+          example: 72
+
+    Friend:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        custom_id:
+          type: string
+          example: wanderer_bob
+        username:
+          type: string
+        display_name:
+          type: string
+        avatar_url:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    FriendInvite:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        creator_id:
+          type: string
+          format: uuid
+        creator_name:
+          type: string
+        invite_code:
+          type: string
+          example: a1b2c3d4e5f67890
+        invite_url:
+          type: string
+          example: https://traveldoodles.app/join/a1b2c3d4e5f67890
+        max_uses:
+          type: integer
+        use_count:
+          type: integer
+        expires_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
 
     CreatePostRequest:
       type: object

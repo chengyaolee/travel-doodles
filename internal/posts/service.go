@@ -162,7 +162,10 @@ func (s *Service) GetPostByID(ctx context.Context, postID, viewerID string) (*Po
 			p.visited_at, p.created_at, p.updated_at,
 			u.username, u.display_name, u.avatar_key,
 			EXISTS(SELECT 1 FROM likes l WHERE l.post_id = p.id AND l.user_id = NULLIF($2, '')::uuid) as has_liked,
-			EXISTS(SELECT 1 FROM follows f WHERE f.follower_id = NULLIF($2, '')::uuid AND f.following_id = p.author_id) as is_friend,
+			(
+				EXISTS(SELECT 1 FROM friends fr WHERE (fr.user_id_1 = LEAST(p.author_id, NULLIF($2, '')::uuid) AND fr.user_id_2 = GREATEST(p.author_id, NULLIF($2, '')::uuid)))
+				OR EXISTS(SELECT 1 FROM follows f WHERE f.follower_id = NULLIF($2, '')::uuid AND f.following_id = p.author_id)
+			) as is_friend,
 			EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_id = p.author_id AND b.blocked_id = NULLIF($2, '')::uuid) OR (b.blocker_id = NULLIF($2, '')::uuid AND b.blocked_id = p.author_id)) as is_blocked
 		FROM posts p
 		JOIN users u ON p.author_id = u.id

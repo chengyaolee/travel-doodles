@@ -78,6 +78,39 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+type UpdateCustomIDRequest struct {
+	CustomID string `json:"custom_id"`
+}
+
+func (h *Handler) UpdateCustomID(w http.ResponseWriter, r *http.Request) {
+	currentUser := auth.UserFromContext(r.Context())
+	if currentUser == nil {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	var req UpdateCustomIDRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	err := h.service.UpdateCustomID(r.Context(), currentUser.ID, req.CustomID)
+	if err != nil {
+		if errors.Is(err, ErrCustomIDTaken) || errors.Is(err, ErrInvalidCustomID) {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "failed to update user ID")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{
+		"message":   "user ID updated successfully",
+		"custom_id": strings.TrimSpace(req.CustomID),
+	})
+}
+
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
