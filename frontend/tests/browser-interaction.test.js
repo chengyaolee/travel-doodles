@@ -150,5 +150,16 @@ describe('Explore Experience & Regional Feed Interactions', () => {
     assert.ok(sampleAutocomplete.coordinates[0] >= -180 && sampleAutocomplete.coordinates[0] <= 180, 'Longitude must be valid WGS84');
     assert.ok(sampleAutocomplete.coordinates[1] >= -90 && sampleAutocomplete.coordinates[1] <= 90, 'Latitude must be valid WGS84');
     assert.strictEqual(sampleAutocomplete.countryCode, 'FR', 'Country code must be ISO2 uppercase');
+
+    // Verify red badge and marker elements have stationary fixed styling (zero scale, zero transition)
+    const fs = require('fs');
+    const path = require('path');
+    const filePath = fs.existsSync('src/components/explore/SketchbookMap.tsx')
+      ? 'src/components/explore/SketchbookMap.tsx'
+      : 'frontend/src/components/explore/SketchbookMap.tsx';
+    const sketchbookMapSource = fs.readFileSync(filePath, 'utf-8');
+    assert.ok(sketchbookMapSource.includes('el.style.transform = "none"'), 'Markers must enforce transform: none');
+    assert.ok(sketchbookMapSource.includes('el.style.transition = "none"'), 'Markers must enforce transition: none');
+    assert.ok(!sketchbookMapSource.includes('hover:scale-'), 'Must not contain hover:scale on map markers');
   });
 });

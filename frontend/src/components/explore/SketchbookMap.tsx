@@ -707,8 +707,11 @@ export function SketchbookMap({
       Object.values(countByGroup).forEach((group) => {
         const countBadge = group.count > 99 ? "99+" : group.count;
         const el = document.createElement("button");
+        // Completely fixed position: zero scale, zero translate, zero transition on hover to prevent moving away
         el.className =
-          "relative pointer-events-auto cursor-pointer select-none px-2.5 py-1 rounded-md bg-[#d94e34] hover:bg-[#b91c1c] text-white font-mono text-[11px] font-bold shadow-md border-2 border-white dark:border-stone-900 leading-none flex items-center justify-center transition-transform hover:scale-105 active:scale-95";
+          "relative pointer-events-auto cursor-pointer select-none px-2.5 py-1 rounded-md bg-[#d94e34] hover:bg-[#b91c1c] text-white font-mono text-[11px] font-bold shadow-md hover:shadow-lg border-2 border-white dark:border-stone-900 leading-none flex items-center justify-center";
+        el.style.transform = "none";
+        el.style.transition = "none";
         el.setAttribute("aria-label", `${group.count} stories in ${group.code}`);
         el.innerHTML = `<span>${countBadge}</span>`;
 
@@ -752,12 +755,14 @@ export function SketchbookMap({
         const el = document.createElement("button");
         el.className =
           "group relative p-1 rounded-md bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 shadow-md hover:shadow-xl hover:border-[#d94e34] dark:hover:border-[#ef4444] transition-colors cursor-pointer select-none";
+        el.style.transform = "none";
+        el.style.transition = "none";
         el.setAttribute("aria-label", `${count} posts in ${post.city}`);
 
         el.innerHTML = `
           <div class="relative w-13 h-13 rounded overflow-hidden bg-stone-100 dark:bg-stone-800">
             <img src="${post.image || post.avatar}" alt="${post.city}" class="w-full h-full object-cover pointer-events-none" />
-            <span class="absolute bottom-0.5 right-0.5 px-1.5 py-0.2 rounded-full bg-[#d94e34] text-white font-mono text-[9px] font-bold shadow border border-white dark:border-stone-900 leading-none">
+            <span class="absolute bottom-0.5 right-0.5 px-1.5 py-0.5 rounded-md bg-[#d94e34] text-white font-mono text-[9px] font-bold shadow border border-white dark:border-stone-900 leading-none">
               ${countBadge}
             </span>
           </div>
@@ -799,6 +804,8 @@ export function SketchbookMap({
           : "z-10 hover:border-[#d94e34] dark:hover:border-[#ef4444]"
       }`;
       el.style.width = `${cardWidth}px`;
+      el.style.transform = "none";
+      el.style.transition = "none";
       el.setAttribute("aria-label", `Story by ${post.author} in ${post.city}`);
 
       if (post.isTextOnly || !post.image) {

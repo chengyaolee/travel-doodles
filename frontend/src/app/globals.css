@@ -149,6 +149,15 @@ body {
   animation: fade-in-up 0.5s var(--ease-out-expo) forwards;
 }
 
+/* ===== MAPLIBRE STATIONARY MARKERS ===== */
+.maplibregl-marker button,
+.maplibregl-marker .country-label,
+.maplibregl-marker .state-label,
+.maplibregl-marker .city-label {
+  transform: none !important;
+  transition: none !important;
+}
+
 /* ===== REDUCED MOTION ===== */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
