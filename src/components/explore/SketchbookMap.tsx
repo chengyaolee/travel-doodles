@@ -415,6 +415,14 @@ export function SketchbookMap({
       tokens.landHover,
       tokens.landFill,
     ]);
+    map.setPaintProperty("regions-fill", "fill-color", [
+      "case",
+      ["boolean", ["feature-state", "selected"], false],
+      tokens.landSelected,
+      ["boolean", ["feature-state", "hovered"], false],
+      tokens.stateHover,
+      "transparent",
+    ]);
     map.setPaintProperty("countries-border", "line-color", tokens.graphiteBorder);
     map.setPaintProperty("regions-border", "line-color", tokens.regionBorder);
   }, [isDark]);
@@ -654,56 +662,55 @@ export function SketchbookMap({
 
     const visiblePosts = posts.slice(0, 45);
 
-    // Zoom < 3.2 without selected country: Show sleek location pins with notification badge on top right (Req 5)
-    if (mapZoom < 3.2 && !selectedCountry) {
-      const countByCountry: Record<
+    // Tier 1 (Zoom < 3.2): Collapsed Red Rounded Rectangle Badge with post count (Req 4)
+    // No pin asset; capped at "99+" if count > 99
+    if (mapZoom < 3.2) {
+      const countByGroup: Record<
         string,
-        { count: number; coords: [number, number]; code: string }
+        { count: number; coords: [number, number]; code: string; regionId?: string }
       > = {};
+
       visiblePosts.forEach((p) => {
-        if (!countByCountry[p.country]) {
-          countByCountry[p.country] = { count: 0, coords: p.coordinates, code: p.country };
+        const key = selectedCountry ? p.region || p.country : p.country;
+        if (!countByGroup[key]) {
+          countByGroup[key] = {
+            count: 0,
+            coords: p.coordinates,
+            code: p.country,
+            regionId: p.region,
+          };
         }
-        countByCountry[p.country].count += 1;
+        countByGroup[key].count += 1;
       });
 
-      Object.values(countByCountry).forEach((group) => {
+      Object.values(countByGroup).forEach((group) => {
+        const countBadge = group.count > 99 ? "99+" : group.count;
         const el = document.createElement("button");
-        // Stable hitbox with zero flicker; needle pin points down to coordinates
         el.className =
-          "relative group cursor-pointer select-none p-1.5 -m-1.5 focus:outline-none";
+          "relative pointer-events-auto cursor-pointer select-none px-2 py-0.5 rounded-full bg-[#d94e34] hover:bg-[#b91c1c] text-white font-mono text-[11px] font-bold shadow-md border-2 border-white dark:border-stone-900 leading-none flex items-center justify-center transition-colors";
         el.setAttribute("aria-label", `${group.count} stories in ${group.code}`);
-        el.innerHTML = `
-          <div class="relative transition-transform duration-200 group-hover:drop-shadow-lg flex flex-col items-center">
-            <svg width="26" height="32" viewBox="0 0 32 38" fill="none" class="drop-shadow-md">
-              <ellipse cx="16" cy="36" rx="4.5" ry="1.6" fill="black" opacity="0.25" />
-              <path d="M 14.8 14 L 15.6 34.5 L 16 36 L 16.4 34.5 L 17.2 14 Z" fill="#94a3b8" stroke="#64748b" stroke-width="0.6"/>
-              <line x1="16" y1="14" x2="16" y2="34" stroke="#ffffff" stroke-width="0.75" stroke-linecap="round" opacity="0.85"/>
-              <circle cx="16" cy="9" r="7.5" fill="${isDark ? '#f5f5f5' : '#181818'}" stroke="${isDark ? '#f5f5f5' : '#181818'}" stroke-width="1.6"/>
-              <circle cx="13.8" cy="6.8" r="2.2" fill="#ffffff" opacity="0.75"/>
-            </svg>
-            <span class="absolute -top-1 -right-2.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-[var(--ink-primary)] text-[var(--bg-primary)] font-mono text-[10px] font-bold shadow border border-[var(--border-color)] leading-none">
-              ${group.count}
-            </span>
-          </div>
-        `;
+        el.innerHTML = `<span>${countBadge}</span>`;
 
         el.onclick = (e) => {
           e.stopPropagation();
-          onSelectCountry(group.code);
-          zoomToCountry(group.code);
+          if (group.regionId && selectedCountry) {
+            onSelectRegion(group.regionId);
+            zoomToRegion(group.regionId);
+          } else {
+            onSelectCountry(group.code);
+            zoomToCountry(group.code);
+          }
         };
 
         const marker = new Marker({ element: el }).setLngLat(group.coords).addTo(map);
-
         markersRef.current.push(marker);
       });
       return;
     }
 
-    // Zoom 3.2 to 4.8: Apple Photos Regional cluster cards with post count on bottom-right (Req 6)
+    // Tier 2 (Zoom 3.2 to 4.8): Collapsed Regional Polaroid with Red Rounded Rectangle Count (Req 4, 5)
+    // No emojis tagged; red rounded rectangle count badge capped at "99+"
     if (mapZoom < 4.8) {
-      // Group by region
       const clusterByRegion: Record<
         string,
         { post: ExplorePost; count: number; regionId: string }
@@ -717,20 +724,20 @@ export function SketchbookMap({
       });
 
       Object.values(clusterByRegion).forEach(({ post, count, regionId }) => {
+        const countBadge = count > 99 ? "99+" : count;
         const el = document.createElement("button");
-        // Stable hover elevation without scale jitter in MapLibre
         el.className =
-          "group relative p-1 rounded-md bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 shadow-md hover:shadow-xl hover:border-stone-800 dark:hover:border-stone-200 transition-all duration-200 cursor-pointer select-none";
+          "group relative p-1 rounded-md bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 shadow-md hover:shadow-xl hover:border-[#d94e34] dark:hover:border-[#ef4444] transition-colors cursor-pointer select-none";
         el.setAttribute("aria-label", `${count} posts in ${post.city}`);
 
         el.innerHTML = `
-          <div class="relative w-14 h-14 rounded overflow-hidden bg-stone-100 dark:bg-stone-800">
+          <div class="relative w-13 h-13 rounded overflow-hidden bg-stone-100 dark:bg-stone-800">
             <img src="${post.image || post.avatar}" alt="${post.city}" class="w-full h-full object-cover pointer-events-none" />
-            <span class="absolute bottom-1 right-1 px-1.5 py-0.2 rounded-full bg-black/75 text-white font-mono text-[9px] font-bold shadow border border-white/40 flex items-center gap-0.5">
-              <span>📷</span><span>${count}</span>
+            <span class="absolute bottom-0.5 right-0.5 px-1.5 py-0.2 rounded-full bg-[#d94e34] text-white font-mono text-[9px] font-bold shadow border border-white dark:border-stone-900 leading-none">
+              ${countBadge}
             </span>
           </div>
-          <div class="text-[9px] font-sans font-semibold text-center mt-0.5 text-stone-800 dark:text-white truncate max-w-[56px]">
+          <div class="text-[9px] font-sans font-semibold text-center mt-0.5 text-stone-800 dark:text-white truncate max-w-[52px]">
             ${post.city}
           </div>
         `;
@@ -747,62 +754,52 @@ export function SketchbookMap({
         };
 
         const marker = new Marker({ element: el }).setLngLat(post.coordinates).addTo(map);
-
         markersRef.current.push(marker);
       });
       return;
     }
 
-    // Zoom >= 4.8: Granularity expands, pictures spread out to actual post coordinates (Req 6 & 7)
-    // Scale image dynamically up to max size with minimum size being 20% of screen (Req 7)
-    const screenDim =
-      typeof window !== "undefined" ? Math.min(window.innerWidth, window.innerHeight) : 800;
-    const minCardWidth = Math.max(140, Math.round(screenDim * 0.2)); // Minimum 20% of screen
-    const maxCardWidth = 280; // Fixed maximum size
-    const zoomProgress = Math.min(1, Math.max(0, (mapZoom - 4.8) / 3.2));
-    const cardWidth = Math.round(minCardWidth + zoomProgress * (maxCardWidth - minCardWidth));
+    // Tier 3 (Zoom >= 4.8): Compact Spread-out Post Polaroids (Req 1, 5)
+    // Scaled to a compact footprint (76px to 94px) so it never blocks the map underneath.
+    // Zero emojis attached.
+    const zoomProgress = Math.min(1, Math.max(0, (mapZoom - 4.8) / 3.0));
+    const cardWidth = Math.round(76 + zoomProgress * 18); // 76px to 94px compact width
     const imageHeight = Math.round(cardWidth * 0.72);
 
     visiblePosts.forEach((post) => {
       const isSelected = post.id === selectedPostId;
       const el = document.createElement("button");
-      el.className = `group relative p-1.5 rounded-lg bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 shadow-md hover:shadow-2xl transition-all duration-200 cursor-pointer select-none ${
+      el.className = `group relative p-1 rounded-md bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 shadow-sm hover:shadow-lg transition-colors cursor-pointer select-none ${
         isSelected
-          ? "ring-2 ring-[var(--ink-primary)] ring-offset-2 ring-offset-[var(--bg-primary)] z-30 shadow-2xl border-stone-900 dark:border-stone-100"
-          : "z-10 hover:border-stone-800 dark:hover:border-stone-200"
+          ? "ring-2 ring-[#d94e34] ring-offset-1 ring-offset-[var(--bg-primary)] z-30 shadow-xl border-[#d94e34]"
+          : "z-10 hover:border-[#d94e34] dark:hover:border-[#ef4444]"
       }`;
       el.style.width = `${cardWidth}px`;
       el.setAttribute("aria-label", `Story by ${post.author} in ${post.city}`);
 
       if (post.isTextOnly || !post.image) {
         el.innerHTML = `
-          <div class="p-2 rounded bg-amber-50/60 dark:bg-stone-800/60 text-left">
-            <span class="text-xs">✍️</span>
-            <p class="text-[11px] text-stone-800 dark:text-white font-sans line-clamp-2 mt-1">
+          <div class="p-1 rounded bg-amber-50/60 dark:bg-stone-800/60 text-left">
+            <p class="text-[9px] text-stone-800 dark:text-white font-sans line-clamp-2 leading-tight">
               "${post.caption}"
             </p>
-            <span class="text-[9px] font-mono text-stone-500 dark:text-stone-300 block mt-1">${post.author} · ${post.city}</span>
+            <span class="text-[8px] font-mono text-stone-500 dark:text-stone-300 block mt-0.5 truncate">${post.author} · ${post.city}</span>
           </div>
         `;
       } else {
         el.innerHTML = `
           <div class="relative w-full rounded overflow-hidden bg-stone-100 dark:bg-stone-800" style="height: ${imageHeight}px;">
             <img src="${post.image}" alt="${post.city}" class="w-full h-full object-cover pointer-events-none" />
-            ${
-              post.doodleSticker
-                ? `<span class="absolute top-1 left-1 text-sm drop-shadow">${post.doodleSticker}</span>`
-                : ""
-            }
-            <span class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/70 text-white font-mono text-[9px] font-bold shadow-xs flex items-center gap-0.5">
-              <span>📍</span><span>${post.city}</span>
+            <span class="absolute bottom-0.5 right-0.5 px-1 py-0.2 rounded bg-black/75 text-white font-mono text-[8px] font-bold shadow-xs leading-none">
+              ${post.city}
             </span>
           </div>
-          <div class="pt-1 text-left flex items-center justify-between">
-            <span class="text-[10px] font-sans font-medium text-stone-800 dark:text-white truncate">
+          <div class="pt-0.5 text-left flex items-center justify-between">
+            <span class="text-[9px] font-sans font-medium text-stone-800 dark:text-white truncate max-w-[50px]">
               ${post.author}
             </span>
-            <span class="text-[9px] font-mono text-stone-500 dark:text-stone-300">
-              ❤️ ${post.likes}
+            <span class="text-[8px] font-mono text-stone-500 dark:text-stone-300">
+              ${post.likes}
             </span>
           </div>
         `;
@@ -818,7 +815,6 @@ export function SketchbookMap({
       };
 
       const marker = new Marker({ element: el }).setLngLat(post.coordinates).addTo(map);
-
       markersRef.current.push(marker);
     });
   }, [

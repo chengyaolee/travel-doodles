@@ -4,6 +4,7 @@ export interface SketchbookThemeTokens {
   paperBackground: string;
   landFill: string;
   landHover: string;
+  stateHover: string;
   landSelected: string;
   graphiteBorder: string;
   regionBorder: string;
@@ -16,8 +17,9 @@ export interface SketchbookThemeTokens {
 
 export const LIGHT_TOKENS: SketchbookThemeTokens = {
   paperBackground: "#f8f5ee", // Warm white / handmade cream paper
-  landFill: "#eae4d8",       // Pale warm gray land fill
-  landHover: "#dfd8cb",      // Hovered land fill
+  landFill: "#eae4d8",       // Pale warm gray land fill (1st base shade)
+  landHover: "#dfd8cb",      // Hovered country fill (2nd shade)
+  stateHover: "#cfc4b2",     // Distinct hovered state fill (3rd shade)
   landSelected: "#d5cbb9",   // Selected country fill
   graphiteBorder: "#34312d", // Fine graphite stroke
   regionBorder: "#787268",   // Subtle subnational stroke
@@ -30,9 +32,10 @@ export const LIGHT_TOKENS: SketchbookThemeTokens = {
 
 export const DARK_TOKENS: SketchbookThemeTokens = {
   paperBackground: "#18181c", // Dark charcoal paper
-  landFill: "#24242c",       // Soft charcoal gray land fill
-  landHover: "#2e2e38",      // Hovered land fill
-  landSelected: "#3a3a48",   // Selected country fill
+  landFill: "#24242c",       // Soft charcoal gray land fill (1st base shade)
+  landHover: "#2e2e38",      // Hovered country fill (2nd shade)
+  stateHover: "#3d3d4e",     // Distinct hovered state fill (3rd shade)
+  landSelected: "#48485a",   // Selected country fill
   graphiteBorder: "#888894", // Light graphite stroke
   regionBorder: "#555562",   // Subtle subnational stroke
   disputedLine: "#e06c58",   // Soft terracotta dashed dispute line
@@ -88,7 +91,7 @@ export function getSketchbookMapStyle(isDark: boolean): StyleSpecification {
         }
       },
 
-      // Subnational regional fills (rendered when zoomed in)
+      // Subnational regional fills (rendered when zoomed in - 3rd shade on state hover)
       {
         id: "regions-fill",
         type: "fill",
@@ -100,10 +103,10 @@ export function getSketchbookMapStyle(isDark: boolean): StyleSpecification {
             ["boolean", ["feature-state", "selected"], false],
             tokens.landSelected,
             ["boolean", ["feature-state", "hovered"], false],
-            tokens.landHover,
+            tokens.stateHover,
             "transparent"
           ],
-          "fill-opacity": 0.45
+          "fill-opacity": 0.8
         }
       },
 

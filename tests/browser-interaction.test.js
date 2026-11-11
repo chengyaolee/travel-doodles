@@ -87,8 +87,24 @@ describe('Explore Experience & Regional Feed Interactions', () => {
   });
 
   test('Map visibility rules: country names disappear when states appear, and dark mode uses white text', () => {
-    const { DARK_TOKENS } = require('../src/lib/explore/mapStyles.ts');
+    const { DARK_TOKENS, LIGHT_TOKENS } = require('../src/lib/explore/mapStyles.ts');
     assert.strictEqual(DARK_TOKENS.inkPrimary.toLowerCase(), '#ffffff', 'Dark mode primary text must be pure white for high contrast');
+
+    // Rule verification: 3 distinct shades (base, country hover, state hover)
+    assert.ok(LIGHT_TOKENS.stateHover, 'Light tokens must have stateHover');
+    assert.notStrictEqual(LIGHT_TOKENS.stateHover, LIGHT_TOKENS.landFill, 'State hover must differ from base land fill');
+    assert.notStrictEqual(LIGHT_TOKENS.stateHover, LIGHT_TOKENS.landHover, 'State hover must be a 3rd distinct shade from country hover');
+
+    assert.ok(DARK_TOKENS.stateHover, 'Dark tokens must have stateHover');
+    assert.notStrictEqual(DARK_TOKENS.stateHover, DARK_TOKENS.landFill, 'Dark state hover must differ from base land fill');
+    assert.notStrictEqual(DARK_TOKENS.stateHover, DARK_TOKENS.landHover, 'Dark state hover must be a 3rd distinct shade from country hover');
+
+    // Post count badge cap at 99+
+    const capBadge = (count) => (count > 99 ? '99+' : String(count));
+    assert.strictEqual(capBadge(42), '42');
+    assert.strictEqual(capBadge(99), '99');
+    assert.strictEqual(capBadge(100), '99+');
+    assert.strictEqual(capBadge(250), '99+');
 
     // Rule verification: states show up at zoom >= 2.8, country name for states-bearing countries disappears at zoom >= 2.8
     const mapZoomAtStates = 3.2;

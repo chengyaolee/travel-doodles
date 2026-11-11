@@ -52,11 +52,6 @@ export function PhotoPeek({ post, onOpenPost, onClose }: PhotoPeekProps) {
             alt={post.caption}
             className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
           />
-          {post.doodleSticker && (
-            <span className="absolute bottom-1.5 right-1.5 text-lg drop-shadow-md select-none">
-              {post.doodleSticker}
-            </span>
-          )}
         </div>
       )}
 
