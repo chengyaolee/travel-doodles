@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { api, AuthUser } from "@/lib/api";
 
 interface AuthContextType {
@@ -29,6 +30,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -96,6 +98,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(loggedUser);
     closeAuthModal();
     executePending();
+    try {
+      router.refresh();
+    } catch {
+      // ignore
+    }
   };
 
   const register = async (params: {
@@ -108,11 +115,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(newUser);
     closeAuthModal();
     executePending();
+    try {
+      router.refresh();
+    } catch {
+      // ignore
+    }
   };
 
   const logout = async () => {
-    await api.logout();
+    // Optimistic UI state reset: immediately reflect logged out without waiting for network
     setUser(null);
+    closeAuthModal();
+    try {
+      await api.logout();
+    } catch {
+      // ignore
+    }
+    try {
+      router.refresh();
+    } catch {
+      // ignore
+    }
   };
 
   const requireAuth = useCallback(

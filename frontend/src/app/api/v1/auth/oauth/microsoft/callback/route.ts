@@ -64,11 +64,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(`${appUrl}?auth_error=microsoft_invalid_profile`);
     }
 
-    // 3. Forward to live Go backend if configured (with strict 4s timeout)
+    // 3. Forward to live Go backend if configured (fast 1.5s timeout)
     if (config.backendUrl) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const timeoutId = setTimeout(() => controller.abort(), 1500);
         const goRes = await fetch(`${config.backendUrl}/api/v1/auth/oauth`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },

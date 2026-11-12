@@ -11,14 +11,18 @@ export async function POST(req: NextRequest) {
 
   if (BACKEND_URL) {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1200);
       await fetch(`${BACKEND_URL}/api/v1/auth/logout`, {
         method: "POST",
         headers: {
           ...(req.headers.get("cookie") ? { cookie: req.headers.get("cookie")! } : {}),
         },
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
     } catch {
-      // ignore
+      // ignore timeout
     }
   }
 
@@ -26,6 +30,7 @@ export async function POST(req: NextRequest) {
   response.cookies.set("travel_session", "", {
     httpOnly: true,
     expires: new Date(0),
+    maxAge: 0,
     path: "/",
   });
   return response;
