@@ -15,6 +15,7 @@ import { ExplorePost } from "@/lib/explore/mockPosts";
 import { PhotoPeek } from "./PhotoPeek";
 import { InventoryItem } from "./ExploreToolbar";
 import { InkIcon } from "@/components/ui/InkIcon";
+import { getDoodlePinSvg } from "@/components/doodles/DoodlePin";
 
 if (typeof window !== "undefined") {
   setWorkerUrl("/maplibre-gl-worker.mjs");
@@ -708,13 +709,20 @@ export function SketchbookMap({
       Object.values(countByGroup).forEach((group) => {
         const countBadge = group.count > 99 ? "99+" : group.count;
         const el = document.createElement("button");
-        // Completely fixed position: zero scale, zero translate, zero transition on hover to prevent moving away
+        // Completely fixed marker base: zero scale, zero translate, zero transition on hover
         el.className =
-          "relative pointer-events-auto cursor-pointer select-none px-2.5 py-1 rounded-md bg-[#d94e34] hover:bg-[#b91c1c] text-white font-mono text-[11px] font-bold shadow-md hover:shadow-lg border-2 border-white dark:border-stone-900 leading-none flex items-center justify-center";
+          "group relative pointer-events-auto cursor-pointer select-none p-0 bg-transparent border-0 outline-none flex items-center justify-center";
         el.style.transform = "none";
         el.style.transition = "none";
         el.setAttribute("aria-label", `${group.count} stories in ${group.code}`);
-        el.innerHTML = `<span>${countBadge}</span>`;
+        el.innerHTML = `
+          <div class="relative flex items-center justify-center animate-bounce group-hover:animate-none">
+            ${getDoodlePinSvg(28, true, "var(--ink-primary)")}
+            <span class="absolute -top-1.5 -right-3.5 px-1.5 py-0.5 rounded-md bg-[#d94e34] text-white font-mono text-[10px] font-bold shadow-md border border-white dark:border-stone-900 leading-none select-none pointer-events-none z-10">
+              ${countBadge}
+            </span>
+          </div>
+        `;
 
         el.onclick = (e) => {
           e.stopPropagation();
@@ -727,8 +735,7 @@ export function SketchbookMap({
           }
         };
 
-        const offset: [number, number] = !selectedCountry ? [0, -14] : [0, 0];
-        const marker = new Marker({ element: el, offset }).setLngLat(group.coords).addTo(map);
+        const marker = new Marker({ element: el, anchor: "bottom" }).setLngLat(group.coords).addTo(map);
         markersRef.current.push(marker);
       });
       return;

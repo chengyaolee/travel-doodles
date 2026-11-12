@@ -8,6 +8,26 @@ interface DoodlePinProps {
 }
 
 /**
+ * Returns raw SVG markup string for DoodlePin to embed in DOM-based map markers (e.g. MapLibre GL).
+ */
+export function getDoodlePinSvg(
+  size = 28,
+  filled = true,
+  color = "var(--ink-primary)"
+): string {
+  const height = Math.round(size * 1.18);
+  const fillColor = filled ? color : "var(--bg-primary)";
+  return `<svg width="${size}" height="${height}" viewBox="0 0 32 38" fill="none" class="pointer-events-none drop-shadow-sm text-[var(--ink-primary)]" aria-hidden="true">
+    <ellipse cx="16" cy="36" rx="4.5" ry="1.6" fill="currentColor" opacity="0.22" />
+    <path d="M 14.8 14 L 15.6 34.5 L 16 36 L 16.4 34.5 L 17.2 14 Z" fill="#94a3b8" stroke="#64748b" stroke-width="0.6" stroke-linejoin="round" />
+    <line x1="16" y1="14" x2="16" y2="34" stroke="#ffffff" stroke-width="0.75" stroke-linecap="round" opacity="0.85" />
+    <circle cx="16" cy="9" r="7.5" fill="${fillColor}" stroke="${color}" stroke-width="1.6" />
+    <circle cx="13.8" cy="6.8" r="2.2" fill="#ffffff" opacity="${filled ? 0.65 : 0.9}" />
+    <circle cx="14.8" cy="7.8" r="1" fill="#ffffff" opacity="${filled ? 0.9 : 0.4}" />
+  </svg>`;
+}
+
+/**
  * Hand-drawn needle pin component.
  * Features a spherical pearl/ball head and a sleek tapered needle tip
  * designed to look pinned directly into the travel whiteboard.

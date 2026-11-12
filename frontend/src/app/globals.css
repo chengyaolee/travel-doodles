@@ -158,6 +158,11 @@ body {
   transition: none !important;
 }
 
+.maplibregl-marker button:hover * {
+  animation: none !important;
+  transform: none !important;
+}
+
 /* ===== REDUCED MOTION ===== */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

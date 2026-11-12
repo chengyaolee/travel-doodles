@@ -309,5 +309,21 @@ describe('Explore Experience & Regional Feed Interactions', () => {
     assert.ok(sketchbookMapSource.includes('el.style.transform = "none"'), 'Markers must enforce transform: none');
     assert.ok(sketchbookMapSource.includes('el.style.transition = "none"'), 'Markers must enforce transition: none');
     assert.ok(!sketchbookMapSource.includes('hover:scale-'), 'Must not contain hover:scale on map markers');
+
+    // Verify tactile needle pin from "The world is a blank whiteboard" is restored with top-right red badge
+    assert.ok(sketchbookMapSource.includes('getDoodlePinSvg'), 'Map markers must restore DoodlePin asset');
+    assert.ok(sketchbookMapSource.includes('animate-bounce'), 'DoodlePin marker wrapper must include animate-bounce');
+    assert.ok(sketchbookMapSource.includes('group-hover:animate-none'), 'Must pause bounce on hover for stationary precision');
+    assert.ok(sketchbookMapSource.includes('-top-1.5 -right-3.5'), 'Red rounded rectangle badge must be positioned on top right of pin');
+    assert.ok(sketchbookMapSource.includes('anchor: "bottom"'), 'Marker must anchor needle tip to geographic coordinates');
+
+    // Verify DoodlePin SVG helper structure
+    const doodlePinPath = fs.existsSync('src/components/doodles/DoodlePin.tsx')
+      ? 'src/components/doodles/DoodlePin.tsx'
+      : 'frontend/src/components/doodles/DoodlePin.tsx';
+    const doodlePinSource = fs.readFileSync(doodlePinPath, 'utf-8');
+    assert.ok(doodlePinSource.includes('export function getDoodlePinSvg'), 'DoodlePin must export getDoodlePinSvg');
+    assert.ok(doodlePinSource.includes('ellipse cx="16" cy="36"'), 'Must contain needle puncture shadow at base');
+    assert.ok(doodlePinSource.includes('circle cx="16" cy="9"'), 'Must contain spherical pearl head');
   });
 });
