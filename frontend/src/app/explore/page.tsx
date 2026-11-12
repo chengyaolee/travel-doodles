@@ -184,8 +184,23 @@ function ExploreContent() {
   // Real posts state from backend
   const [realPosts, setRealPosts] = useState<ExplorePost[]>([]);
   const [hasLoadedApi, setHasLoadedApi] = useState(false);
+  // Atlas-wide posts for persistent map markers across the entire world
+  const [allMapPosts, setAllMapPosts] = useState<ExplorePost[]>([]);
 
-  // Fetch real data from backend API
+  // Fetch all map posts across the atlas whenever visibility filter changes
+  useEffect(() => {
+    let isMounted = true;
+    api.getPosts({ visibility: visibilityFilter })
+      .then((posts) => {
+        if (isMounted) setAllMapPosts(posts);
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, [visibilityFilter]);
+
+  // Fetch real data from backend API for active country/region/city feed
   useEffect(() => {
     let isMounted = true;
 
@@ -302,6 +317,7 @@ function ExploreContent() {
     };
 
     setRealPosts((prev) => [postItem, ...prev]);
+    setAllMapPosts((prev) => [postItem, ...prev]);
     setToastMessage(`Pinned "${newPost.city}" to the atlas!`);
     setTimeout(() => setToastMessage(null), 4000);
 
@@ -351,7 +367,7 @@ function ExploreContent() {
             selectedRegion={selectedRegion}
             onSelectCountry={handleSelectCountry}
             onSelectRegion={handleSelectRegion}
-            posts={activePosts}
+            posts={allMapPosts.length > 0 ? allMapPosts : activePosts}
             selectedPostId={selectedPostId}
             onSelectPost={handleSelectPost}
             isSidebarOpen={isSidebarOpen}

@@ -96,6 +96,12 @@ export function SketchbookMap({
   const [regionsData, setRegionsData] = useState<RegionGeoFeature[]>([]);
   const [citiesData, setCitiesData] = useState<CityGeoFeature[]>([]);
 
+  // Ref tracking selected country for event handlers and map listeners
+  const selectedCountryRef = useRef<string | null>(selectedCountry);
+  useEffect(() => {
+    selectedCountryRef.current = selectedCountry;
+  }, [selectedCountry]);
+
   // Load regions and cities GeoJSON
   useEffect(() => {
     fetch("/data/geo/regions.geojson")
@@ -292,7 +298,12 @@ export function SketchbookMap({
     }
 
     map.on("zoom", () => {
-      setMapZoom(map.getZoom());
+      const z = map.getZoom();
+      setMapZoom(z);
+      // Automatically reset to world overview when user zooms out past world threshold
+      if (z < 2.8 && selectedCountryRef.current) {
+        onSelectCountry("");
+      }
     });
 
     // Requirement 8: Horizontal scrolling to pan left/right
@@ -337,14 +348,34 @@ export function SketchbookMap({
       }
     });
 
-    // Country click: centers country & scales to fill 80% of screen (Req 1)
+    // Background click on map canvas (ocean/empty area) resets selection to world
+    map.on("click", (e: MapLayerMouseEvent) => {
+      const features = map.queryRenderedFeatures(e.point, {
+        layers: ["countries-fill", "regions-fill"],
+      });
+      if (!features || features.length === 0) {
+        if (selectedCountryRef.current) {
+          onSelectCountry("");
+          onSelectRegion("");
+        }
+      }
+    });
+
+    // Country click: centers country & scales to fill 80% of screen (Req 1), or toggles off if already selected
     map.on("click", "countries-fill", (e: MapLayerMouseEvent) => {
       if (!e.features || e.features.length === 0) return;
       const f = e.features[0];
       const code = f.properties?.code;
       if (code) {
-        onSelectCountry(code);
-        zoomToCountry(code);
+        if (selectedCountryRef.current === code) {
+          // Toggle off: clicking the already-selected country resets to world view
+          onSelectCountry("");
+          onSelectRegion("");
+          map.easeTo({ center: [15, 25], zoom: 1.6, duration: 650 });
+        } else {
+          onSelectCountry(code);
+          zoomToCountry(code);
+        }
       }
     });
 
@@ -672,35 +703,26 @@ export function SketchbookMap({
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    // Tier 1 (Zoom < 3.2): Collapsed Red Rounded Rectangle Badge with post count (Req 4)
-    // No pin asset; capped at "99+" if count > 99
-    if (mapZoom < 3.2) {
+    // Tier 1: World Overview (!selectedCountry && mapZoom < 3.2)
+    // Macro pins with red rounded rectangle badge (Req 4, 1) - Stationary, no bouncing
+    if (!selectedCountry && mapZoom < 3.2) {
       const countByGroup: Record<
         string,
         { count: number; coords: [number, number]; code: string; regionId?: string }
       > = {};
 
       posts.forEach((p) => {
-        const key = selectedCountry ? p.region || p.country : p.country;
+        const key = p.country;
         if (!countByGroup[key]) {
           let coords = p.coordinates;
-          if (!selectedCountry) {
-            const inv = inventory.find((i) => i.code === p.country);
-            if (inv && inv.labelAnchor) {
-              coords = inv.labelAnchor;
-            }
-          } else if (p.region) {
-            const reg = regionsData.find((r) => r.id === p.region);
-            if (reg && reg.center) {
-              coords = reg.center;
-            }
+          const inv = inventory.find((i) => i.code === p.country);
+          if (inv && inv.labelAnchor) {
+            coords = inv.labelAnchor;
           }
-
           countByGroup[key] = {
             count: 0,
             coords,
             code: p.country,
-            regionId: p.region,
           };
         }
         countByGroup[key].count += 1;
@@ -716,7 +738,7 @@ export function SketchbookMap({
         el.style.transition = "none";
         el.setAttribute("aria-label", `${group.count} stories in ${group.code}`);
         el.innerHTML = `
-          <div class="relative flex items-center justify-center animate-bounce group-hover:animate-none">
+          <div class="relative flex items-center justify-center">
             ${getDoodlePinSvg(28, true, "var(--ink-primary)")}
             <span class="absolute -top-1.5 -right-3.5 px-1.5 py-0.5 rounded-md bg-[#d94e34] text-white font-mono text-[10px] font-bold shadow-md border border-white dark:border-stone-900 leading-none select-none pointer-events-none z-10">
               ${countBadge}
@@ -726,13 +748,8 @@ export function SketchbookMap({
 
         el.onclick = (e) => {
           e.stopPropagation();
-          if (group.regionId && selectedCountry) {
-            onSelectRegion(group.regionId);
-            zoomToRegion(group.regionId);
-          } else {
-            onSelectCountry(group.code);
-            zoomToCountry(group.code);
-          }
+          onSelectCountry(group.code);
+          zoomToCountry(group.code);
         };
 
         const marker = new Marker({ element: el, anchor: "bottom" }).setLngLat(group.coords).addTo(map);
@@ -741,24 +758,63 @@ export function SketchbookMap({
       return;
     }
 
-    const visiblePosts = posts.slice(0, 45);
+    // Active posts for the current view: filter by selected country if active
+    const activePosts = selectedCountry
+      ? posts.filter((p) => p.country === selectedCountry)
+      : posts;
 
-    // Tier 2 (Zoom 3.2 to 4.8): Collapsed Regional Polaroid with Red Rounded Rectangle Count (Req 4, 5)
-    // No emojis tagged; red rounded rectangle count badge capped at "99+"
+    // If focused on a country with 0 posts, show a friendly marker at label anchor
+    if (selectedCountry && activePosts.length === 0) {
+      const inv = inventory.find((i) => i.code === selectedCountry);
+      if (inv && inv.labelAnchor) {
+        const el = document.createElement("button");
+        el.className =
+          "group relative pointer-events-auto cursor-pointer select-none p-0 bg-transparent border-0 outline-none flex flex-col items-center justify-center";
+        el.style.transform = "none";
+        el.style.transition = "none";
+        el.setAttribute("aria-label", `No stories yet in ${inv.displayName}`);
+        el.innerHTML = `
+          <div class="relative flex items-center justify-center">
+            ${getDoodlePinSvg(28, true, "var(--ink-primary)")}
+            <span class="absolute -top-1.5 -right-3.5 px-1.5 py-0.5 rounded-md bg-[#d94e34] text-white font-mono text-[10px] font-bold shadow-md border border-white dark:border-stone-900 leading-none select-none pointer-events-none z-10">
+              0
+            </span>
+          </div>
+          <span class="text-[9px] font-sans font-semibold text-stone-700 dark:text-stone-300 mt-1 bg-white/90 dark:bg-stone-900/90 px-1.5 py-0.5 rounded shadow-xs">
+            ${inv.displayName}
+          </span>
+        `;
+        const marker = new Marker({ element: el, anchor: "bottom" }).setLngLat(inv.labelAnchor).addTo(map);
+        markersRef.current.push(marker);
+      }
+      return;
+    }
+
+    const visiblePosts = activePosts.slice(0, 45);
+
+    // Tier 2 (Zoom 3.2 to 4.8): Collapsed Regional Pictures with Red Rounded Rectangle Count
     if (mapZoom < 4.8) {
       const clusterByRegion: Record<
         string,
-        { post: ExplorePost; count: number; regionId: string }
+        { post: ExplorePost; count: number; coords: [number, number]; regionId: string }
       > = {};
+
       visiblePosts.forEach((p) => {
-        const key = p.region || p.country;
+        const key = p.region || p.city || p.country;
         if (!clusterByRegion[key]) {
-          clusterByRegion[key] = { post: p, count: 0, regionId: p.region };
+          let coords = p.coordinates;
+          if (p.region) {
+            const reg = regionsData.find((r) => r.id === p.region);
+            if (reg && reg.center) {
+              coords = reg.center;
+            }
+          }
+          clusterByRegion[key] = { post: p, count: 0, coords, regionId: p.region };
         }
         clusterByRegion[key].count += 1;
       });
 
-      Object.values(clusterByRegion).forEach(({ post, count, regionId }) => {
+      Object.values(clusterByRegion).forEach(({ post, count, coords, regionId }) => {
         const countBadge = count > 99 ? "99+" : count;
         const el = document.createElement("button");
         el.className =
@@ -768,13 +824,13 @@ export function SketchbookMap({
         el.setAttribute("aria-label", `${count} posts in ${post.city}`);
 
         el.innerHTML = `
-          <div class="relative w-13 h-13 rounded overflow-hidden bg-stone-100 dark:bg-stone-800">
+          <div class="relative rounded overflow-hidden bg-stone-100 dark:bg-stone-800" style="width: 56px; height: 56px;">
             <img src="${post.image || post.avatar}" alt="${post.city}" class="w-full h-full object-cover pointer-events-none" />
             <span class="absolute bottom-0.5 right-0.5 px-1.5 py-0.5 rounded-md bg-[#d94e34] text-white font-mono text-[9px] font-bold shadow border border-white dark:border-stone-900 leading-none">
               ${countBadge}
             </span>
           </div>
-          <div class="text-[9px] font-sans font-semibold text-center mt-0.5 text-stone-800 dark:text-white truncate max-w-[52px]">
+          <div class="text-[9px] font-sans font-semibold text-center mt-0.5 text-stone-800 dark:text-white truncate max-w-[56px]">
             ${post.city}
           </div>
         `;
@@ -790,7 +846,7 @@ export function SketchbookMap({
           }
         };
 
-        const marker = new Marker({ element: el }).setLngLat(post.coordinates).addTo(map);
+        const marker = new Marker({ element: el }).setLngLat(coords).addTo(map);
         markersRef.current.push(marker);
       });
       return;

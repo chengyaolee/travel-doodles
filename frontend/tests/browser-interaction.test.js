@@ -312,8 +312,7 @@ describe('Explore Experience & Regional Feed Interactions', () => {
 
     // Verify tactile needle pin from "The world is a blank whiteboard" is restored with top-right red badge
     assert.ok(sketchbookMapSource.includes('getDoodlePinSvg'), 'Map markers must restore DoodlePin asset');
-    assert.ok(sketchbookMapSource.includes('animate-bounce'), 'DoodlePin marker wrapper must include animate-bounce');
-    assert.ok(sketchbookMapSource.includes('group-hover:animate-none'), 'Must pause bounce on hover for stationary precision');
+    assert.ok(!sketchbookMapSource.includes('animate-bounce'), 'Explore map markers must not bounce');
     assert.ok(sketchbookMapSource.includes('-top-1.5 -right-3.5'), 'Red rounded rectangle badge must be positioned on top right of pin');
     assert.ok(sketchbookMapSource.includes('anchor: "bottom"'), 'Marker must anchor needle tip to geographic coordinates');
 
