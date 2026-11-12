@@ -53,6 +53,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Automatically open auth modal if redirected back with auth_error
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("auth_error") || params.get("error")) {
+        setAuthModalOpen(true);
+      }
+    }
+  }, []);
+
   const openAuthModal = useCallback((action = "continue", onSuccess?: () => void) => {
     setAuthModalAction(action);
     if (onSuccess) setPendingCallback(() => onSuccess);
@@ -63,6 +73,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthModalOpen(false);
     setAuthModalAction("");
     setPendingCallback(null);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has("auth_error") || url.searchParams.has("error")) {
+        url.searchParams.delete("auth_error");
+        url.searchParams.delete("error");
+        window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
+      }
+    }
   }, []);
 
   const executePending = useCallback(() => {

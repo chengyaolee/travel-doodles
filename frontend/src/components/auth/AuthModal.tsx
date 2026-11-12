@@ -10,6 +10,28 @@ export function AuthModal() {
   const [error, setError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState<"google" | "microsoft" | null>(null);
 
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const authErr = params.get("auth_error") || params.get("error");
+      if (authErr) {
+        if (authErr.includes("not_configured")) {
+          setError(
+            authErr.includes("google")
+              ? "Google OAuth is not configured. Please specify GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in backend .env."
+              : "Microsoft OAuth is not configured. Please specify MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET in backend .env."
+          );
+        } else if (authErr.includes("missing")) {
+          setError("OAuth authorization code was not returned. Please try signing in again.");
+        } else if (authErr.includes("exchange_failed") || authErr.includes("token_failed")) {
+          setError("OAuth token exchange failed with provider. Please check your credentials.");
+        } else {
+          setError(`Authentication error: ${authErr.replace(/_/g, " ")}`);
+        }
+      }
+    }
+  }, [authModalOpen]);
+
   if (!authModalOpen) return null;
 
   const handleOAuthLogin = (provider: "google" | "microsoft") => {

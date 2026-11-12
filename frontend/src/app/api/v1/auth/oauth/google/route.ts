@@ -1,20 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getOAuthConfig } from "@/lib/server/oauthConfig";
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const isSimulated = searchParams.get("simulated") === "true";
-
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
+  const config = getOAuthConfig();
+  const appUrl = config.appUrl || req.nextUrl.origin;
   const redirectUri = `${appUrl}/api/v1/auth/oauth/google/callback`;
 
-  if (isSimulated || !clientId) {
-    // If keys not set or simulated requested, forward to callback with simulation flag
-    return NextResponse.redirect(`${redirectUri}?simulated=true`);
+  if (!config.googleClientId) {
+    // Real OAuth: credentials must be provided in backend .env
+    return NextResponse.redirect(`${appUrl}?auth_error=google_oauth_not_configured`);
   }
 
   const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
-    clientId
+    config.googleClientId
   )}&redirect_uri=${encodeURIComponent(
     redirectUri
   )}&response_type=code&scope=openid%20profile%20email&prompt=select_account`;

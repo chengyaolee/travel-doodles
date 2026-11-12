@@ -258,4 +258,21 @@ describe('Auth, Permissions & Clean Database Synchronization', () => {
     assert.ok(verifiedHeaderUser, 'Bearer header must resolve user');
     assert.strictEqual(verifiedHeaderUser.custom_id, testCustomId);
   });
+
+  test('OAuth routes enforce real provider authentication with zero simulated fallbacks', () => {
+    const googleRoute = fs.readFileSync(path.join(__dirname, '../src/app/api/v1/auth/oauth/google/route.ts'), 'utf-8');
+    const googleCallback = fs.readFileSync(path.join(__dirname, '../src/app/api/v1/auth/oauth/google/callback/route.ts'), 'utf-8');
+    const msRoute = fs.readFileSync(path.join(__dirname, '../src/app/api/v1/auth/oauth/microsoft/route.ts'), 'utf-8');
+    const msCallback = fs.readFileSync(path.join(__dirname, '../src/app/api/v1/auth/oauth/microsoft/callback/route.ts'), 'utf-8');
+
+    // Ensure no simulated flags or fake fallbacks exist
+    assert.strictEqual(googleRoute.includes('simulated'), false, 'Google route must not accept simulated bypass');
+    assert.strictEqual(googleCallback.includes('simulated'), false, 'Google callback must not accept simulated bypass');
+    assert.strictEqual(msRoute.includes('simulated'), false, 'Microsoft route must not accept simulated bypass');
+    assert.strictEqual(msCallback.includes('simulated'), false, 'Microsoft callback must not accept simulated bypass');
+
+    // Ensure they require real OAuth credentials
+    assert.ok(googleRoute.includes('google_oauth_not_configured'), 'Google route must error when not configured');
+    assert.ok(msRoute.includes('microsoft_oauth_not_configured'), 'Microsoft route must error when not configured');
+  });
 });
