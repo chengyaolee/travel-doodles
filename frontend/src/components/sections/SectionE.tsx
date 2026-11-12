@@ -2,6 +2,8 @@
 
 import { useRef, useState, useEffect, useMemo } from "react";
 import { DoodlePin, DoodleStar, DoodleCompass, DoodleGlobe } from "@/components/doodles";
+import { InkIcon } from "@/components/ui/InkIcon";
+import { AnonymousAvatar } from "@/components/ui/AnonymousAvatar";
 import { WORLD_LAND_PATH } from "@/lib/worldMapData";
 import { TravelDoodlePost } from "@/components/app/CreatePostModal";
 import { useAuth } from "@/lib/authContext";
@@ -104,10 +106,11 @@ export function SectionE({
           {/* Traveler Header */}
           <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6 pb-8 border-b border-[var(--border-color)]">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 text-center sm:text-left">
-              <img
-                src={user.avatar_url}
-                alt={user.display_name}
-                className="w-20 h-20 rounded-full object-cover border-2 border-[var(--ink-primary)] shadow-md"
+              <AnonymousAvatar
+                avatarUrl={user.avatar_url}
+                name={user.display_name}
+                size={80}
+                className="border-2 border-[var(--ink-primary)] shadow-md"
               />
               <div>
                 <h3 className="text-2xl font-bold text-[var(--ink-primary)]">
@@ -167,9 +170,10 @@ export function SectionE({
               {onCreateClick && (
                 <button
                   onClick={onCreateClick}
-                  className="mt-4 px-4 py-2 rounded-xl bg-[var(--ink-primary)] text-[var(--bg-primary)] text-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer"
+                  className="mt-4 px-4 py-2 rounded-xl bg-[var(--ink-primary)] text-[var(--bg-primary)] text-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer flex items-center gap-1.5"
                 >
-                  Create Your First Memory ✏️
+                  <span>Create Your First Memory</span>
+                  <InkIcon name="pen" size={13} />
                 </button>
               )}
             </div>
@@ -178,8 +182,8 @@ export function SectionE({
       ) : (
         /* Guest Invitation Board (Zero Fake Profiles) */
         <div className="w-full max-w-2xl bg-[var(--bg-secondary)] border-2 border-[var(--border-color)] rounded-3xl p-8 sm:p-12 text-center flex flex-col items-center shadow-sm">
-          <div className="w-16 h-16 rounded-full border-2 border-dashed border-[var(--ink-primary)] flex items-center justify-center text-2xl mb-4">
-            🎒
+          <div className="w-16 h-16 rounded-full border-2 border-dashed border-[var(--ink-primary)] flex items-center justify-center mb-4 text-[var(--ink-primary)]">
+            <InkIcon name="backpack" size={28} />
           </div>
           <h3 className="font-hand text-3xl font-bold text-[var(--ink-primary)]">
             Claim your personal travel board
@@ -193,7 +197,7 @@ export function SectionE({
               className="px-5 py-2.5 rounded-xl bg-[var(--ink-primary)] text-[var(--bg-primary)] font-semibold text-xs hover:opacity-90 transition-opacity shadow-md cursor-pointer flex items-center justify-center gap-2"
             >
               <span>Create Free Account</span>
-              <span>✨</span>
+              <InkIcon name="sparkle" size={14} />
             </button>
             <button
               onClick={() => openAuthModal("log into your existing travel board")}

@@ -2,6 +2,8 @@
 
 import React from "react";
 import { ExplorePost } from "@/lib/explore/mockPosts";
+import { InkIcon } from "@/components/ui/InkIcon";
+import { AnonymousAvatar } from "@/components/ui/AnonymousAvatar";
 
 interface PhotoPeekProps {
   post: ExplorePost;
@@ -19,11 +21,11 @@ export function PhotoPeek({ post, onOpenPost, onClose }: PhotoPeekProps) {
       {/* Header: Author + Close */}
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={post.avatar}
-            alt={post.author}
-            className="w-6 h-6 rounded-full object-cover border border-[var(--border-color)]"
+          <AnonymousAvatar
+            avatarUrl={post.avatar}
+            name={post.author}
+            size={24}
+            className="border border-[var(--border-color)]"
           />
           <div className="flex flex-col">
             <span className="text-xs font-semibold text-[var(--ink-primary)] leading-none">
@@ -39,7 +41,7 @@ export function PhotoPeek({ post, onOpenPost, onClose }: PhotoPeekProps) {
           className="w-5 h-5 flex items-center justify-center rounded-full text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-secondary)] cursor-pointer"
           aria-label="Close preview"
         >
-          ✕
+          <InkIcon name="close" size={12} />
         </button>
       </div>
 

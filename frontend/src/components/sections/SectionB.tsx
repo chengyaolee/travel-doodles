@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import { DoodleArrow, DoodleUnderline } from "@/components/doodles";
+import { InkIcon } from "@/components/ui/InkIcon";
 
 const STEPS = [
   {
@@ -185,7 +186,7 @@ export function SectionB({ onCreateClick }: { onCreateClick?: () => void }) {
             className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-2xl bg-[var(--ink-primary)] text-[var(--bg-primary)] font-bold text-sm hover:opacity-90 active:scale-95 transition-all cursor-pointer shadow-md"
           >
             <span className="font-hand text-xl font-bold leading-none">Try posting a doodle</span>
-            <span>✏️</span>
+            <InkIcon name="pen" size={16} />
           </button>
         </div>
       </div>

@@ -1,4 +1,4 @@
-# 🚀 Travel Doodles — Backend Services
+# Travel Doodles — Backend Services
 
 Production-ready Go modular monolith engineered for high throughput, low memory overhead (<150MB RSS), and seamless operation on a 1GB–4GB VPS.
 

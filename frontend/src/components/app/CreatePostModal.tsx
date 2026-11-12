@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { DoodlePin } from "@/components/doodles";
+import { InkIcon } from "@/components/ui/InkIcon";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/authContext";
 
@@ -150,9 +151,7 @@ export function CreatePostModal({
     setIsSubmitting(true);
 
     const authorName = user?.display_name || user?.username || "Traveler";
-    const authorAvatar =
-      user?.avatar_url ||
-      "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop";
+    const authorAvatar = user?.avatar_url || "";
 
     const postPayload = {
       city,
@@ -227,13 +226,13 @@ export function CreatePostModal({
           aria-label="Close"
           className="absolute top-5 right-5 w-9 h-9 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-color)] flex items-center justify-center text-sm font-bold text-[var(--ink-primary)] hover:bg-[var(--border-color)] transition-colors cursor-pointer"
         >
-          ✕
+          <InkIcon name="close" size={16} />
         </button>
 
         {/* Modal Header */}
         <div className="mb-6">
           <div className="flex items-center gap-2">
-            <span className="text-xl">✏️</span>
+            <span className="text-[var(--accent)]"><InkIcon name="pen" size={24} /></span>
             <h2 className="font-hand text-3xl font-bold text-[var(--ink-primary)]">
               Create a Doodle Memory
             </h2>

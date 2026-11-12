@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { DoodlePin } from "@/components/doodles";
+import { InkIcon } from "@/components/ui/InkIcon";
 import {
   WORLD_VIEWBOX,
   WORLD_LAND_PATH,
@@ -247,7 +248,7 @@ export function HeroWorldMap({
                 className="px-4 py-2.5 rounded-xl bg-[var(--ink-primary)] text-[var(--bg-primary)] font-sans text-xs font-semibold hover:opacity-90 transition-opacity shadow-md cursor-pointer flex items-center gap-2"
               >
                 <span>Drop the First Pin</span>
-                <span>📌</span>
+                <InkIcon name="pin" size={14} />
               </button>
             )}
           </div>
@@ -267,9 +268,9 @@ export function HeroWorldMap({
             <button
               onClick={() => setActivePreview(null)}
               aria-label="Close memory preview"
-              className="text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] px-2 py-0.5 rounded-full border border-[var(--border-color)] cursor-pointer"
+              className="text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] px-2 py-0.5 rounded-full border border-[var(--border-color)] cursor-pointer flex items-center justify-center"
             >
-              ✕
+              <InkIcon name="close" size={12} />
             </button>
           </div>
           <p className="text-xs text-[var(--ink-secondary)] font-hand text-base mb-3 leading-relaxed">
@@ -285,7 +286,8 @@ export function HeroWorldMap({
               )}`}
               className="text-xs font-semibold text-[var(--ink-primary)] hover:underline flex items-center gap-1"
             >
-              Explore on World Map 🗺️ →
+              <span>Explore on World Map</span>
+              <span>&rarr;</span>
             </Link>
           </div>
         </div>

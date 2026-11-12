@@ -2,15 +2,18 @@
 
 import { useRef, useState, useEffect, useMemo } from "react";
 import { DoodleUnderline, DoodlePin } from "@/components/doodles";
+import { InkIcon } from "@/components/ui/InkIcon";
 import { TravelDoodlePost } from "@/components/app/CreatePostModal";
 import Link from "next/link";
 
 export function SectionD({
   posts = [],
   onCreateClick,
+  onViewProfile,
 }: {
   posts?: TravelDoodlePost[];
   onCreateClick?: () => void;
+  onViewProfile?: (username: string) => void;
 }) {
   const [selectedPost, setSelectedPost] = useState<TravelDoodlePost | null>(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -120,8 +123,8 @@ export function SectionD({
       ) : (
         /* Clean Database State: Empty Gallery Notice */
         <div className="w-full max-w-2xl bg-[var(--bg-secondary)] border-2 border-[var(--border-color)] rounded-3xl p-8 sm:p-12 text-center flex flex-col items-center shadow-sm">
-          <div className="w-16 h-16 rounded-full border-2 border-dashed border-[var(--ink-primary)] flex items-center justify-center text-2xl mb-4">
-            📷
+          <div className="w-16 h-16 rounded-full border-2 border-dashed border-[var(--ink-primary)] flex items-center justify-center mb-4 text-[var(--ink-primary)]">
+            <InkIcon name="photo" size={26} />
           </div>
           <h3 className="font-hand text-3xl font-bold text-[var(--ink-primary)]">
             The photo gallery is a clean canvas
@@ -135,7 +138,7 @@ export function SectionD({
               className="px-5 py-2.5 rounded-xl bg-[var(--ink-primary)] text-[var(--bg-primary)] font-semibold text-xs hover:opacity-90 transition-opacity shadow-md cursor-pointer flex items-center gap-2"
             >
               <span>Pin a Photograph</span>
-              <span>📷</span>
+              <InkIcon name="photo" size={14} />
             </button>
           )}
         </div>
@@ -153,9 +156,10 @@ export function SectionD({
           >
             <button
               onClick={() => setSelectedPost(null)}
-              className="absolute top-4 right-4 w-8 h-8 rounded-full border border-[var(--border-color)] flex items-center justify-center text-xs font-bold hover:bg-[var(--bg-secondary)]"
+              aria-label="Close details"
+              className="absolute top-4 right-4 w-8 h-8 rounded-full border border-[var(--border-color)] flex items-center justify-center text-xs font-bold hover:bg-[var(--bg-secondary)] text-[var(--ink-primary)] cursor-pointer"
             >
-              ✕
+              <InkIcon name="close" size={14} />
             </button>
 
             <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-neutral-200 border border-[var(--border-color)] mb-4">
@@ -175,7 +179,22 @@ export function SectionD({
               &ldquo;{selectedPost.caption}&rdquo;
             </h3>
             <p className="text-xs text-[var(--ink-secondary)] mt-2">
-              Doodled by {selectedPost.author}
+              Doodled by{" "}
+              {onViewProfile ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const author = selectedPost.author;
+                    setSelectedPost(null);
+                    onViewProfile(author);
+                  }}
+                  className="font-bold text-[var(--ink-primary)] hover:underline cursor-pointer"
+                >
+                  {selectedPost.author}
+                </button>
+              ) : (
+                <span className="font-bold text-[var(--ink-primary)]">{selectedPost.author}</span>
+              )}
             </p>
 
             <div className="mt-5 pt-4 border-t border-[var(--border-color)] flex items-center justify-between">
@@ -185,7 +204,8 @@ export function SectionD({
                 )}`}
                 className="text-xs font-semibold text-[var(--ink-primary)] hover:underline flex items-center gap-1"
               >
-                View in Explore Atlas 🗺️ →
+                <span>View in Explore Atlas</span>
+                <span>&rarr;</span>
               </Link>
             </div>
           </div>

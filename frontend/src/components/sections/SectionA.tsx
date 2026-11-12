@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { DoodlePin, DoodleUnderline } from "@/components/doodles";
+import { InkIcon } from "@/components/ui/InkIcon";
 import {
   WORLD_VIEWBOX,
   WORLD_LAND_PATH,
@@ -207,7 +208,8 @@ export function SectionA({
                     )}`}
                     className="text-xs font-semibold text-[var(--ink-primary)] hover:underline flex items-center gap-1"
                   >
-                    Explore on World Map 🗺️ →
+                    <span>Explore on World Map</span>
+                    <span>&rarr;</span>
                   </Link>
                 </div>
               </div>
@@ -231,7 +233,7 @@ export function SectionA({
                 className="px-5 py-2.5 rounded-xl bg-[var(--ink-primary)] text-[var(--bg-primary)] font-semibold text-xs hover:opacity-90 transition-opacity shadow-md cursor-pointer flex items-center justify-center gap-2"
               >
                 <span>Pin the First Story</span>
-                <span>📌</span>
+                <InkIcon name="pin" size={14} />
               </button>
             )}
             <Link
@@ -239,7 +241,7 @@ export function SectionA({
               className="px-5 py-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] hover:bg-[var(--bg-elevated)] font-semibold text-xs text-[var(--ink-primary)] transition-colors flex items-center justify-center gap-1.5"
             >
               <span>Explore the Atlas</span>
-              <span>🗺️</span>
+              <InkIcon name="map" size={14} />
             </Link>
           </div>
         </div>

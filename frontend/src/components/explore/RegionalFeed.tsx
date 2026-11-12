@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ExplorePost } from "@/lib/explore/mockPosts";
 import { InkIcon } from "@/components/ui/InkIcon";
+import { AnonymousAvatar } from "@/components/ui/AnonymousAvatar";
 import { DoodlePin } from "@/components/doodles";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/authContext";
@@ -224,8 +225,12 @@ export function RegionalFeed({
           return (
             <article key={post.id} ref={isSelected ? selectedPostRef : null} className={`feed-story ${isSelected ? "is-selected" : ""}`} aria-label={`Story by ${post.author} in ${post.location}`}>
               <div className="feed-story-header">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={post.avatar} alt={post.author} loading="lazy" width={36} height={36} />
+                <AnonymousAvatar
+                  avatarUrl={post.avatar}
+                  name={post.author}
+                  size={36}
+                  className="border border-[var(--border-color)] shrink-0"
+                />
                 <div><p className="feed-story-author">{post.author}</p><p className="feed-story-date"><time dateTime={post.date}>{new Date(`${post.date}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</time></p></div>
                 <span className="story-visibility">{post.visibility === "friends" ? "Friends" : "Everyone"}</span>
               </div>

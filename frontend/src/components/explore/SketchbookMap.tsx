@@ -14,6 +14,7 @@ import { getSketchbookMapStyle, LIGHT_TOKENS, DARK_TOKENS } from "@/lib/explore/
 import { ExplorePost } from "@/lib/explore/mockPosts";
 import { PhotoPeek } from "./PhotoPeek";
 import { InventoryItem } from "./ExploreToolbar";
+import { InkIcon } from "@/components/ui/InkIcon";
 
 if (typeof window !== "undefined") {
   setWorkerUrl("/maplibre-gl-worker.mjs");
@@ -889,7 +890,9 @@ export function SketchbookMap({
       {mapError && (
         <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-[var(--bg-primary)] z-20">
           <div className="max-w-md p-6 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)]/80 backdrop-blur-md shadow-xl space-y-3">
-            <span className="text-3xl">🗺️</span>
+            <div className="flex justify-center text-[var(--ink-primary)]">
+              <InkIcon name="globe" size={36} />
+            </div>
             <h3 className="font-hand text-2xl font-bold text-[var(--ink-primary)]">
               Travel Atlas Sketchbook
             </h3>

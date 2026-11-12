@@ -1,40 +1,177 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DoodlePin } from "@/components/doodles";
 import { TravelDoodlePost } from "./CreatePostModal";
 import { WORLD_LAND_PATH, ACCURATE_CITIES } from "@/lib/worldMapData";
 import { useAuth } from "@/lib/authContext";
+import { api, AuthUser } from "@/lib/api";
+import { AnonymousAvatar } from "@/components/ui/AnonymousAvatar";
+import { InkIcon } from "@/components/ui/InkIcon";
 
 export function ProfileModal({
   isOpen,
   onClose,
   userPosts = [],
+  viewUsername = null,
 }: {
   isOpen: boolean;
   onClose: () => void;
   userPosts?: TravelDoodlePost[];
+  viewUsername?: string | null;
 }) {
-  const [tab, setTab] = useState<"board" | "photos" | "routes">("board");
-  const { user, isAuthenticated, openAuthModal, logout } = useAuth();
+  const [tab, setTab] = useState<"board" | "photos" | "routes" | "friends">("board");
+  const { user, isAuthenticated, openAuthModal, logout, requireAuth } = useAuth();
+
+  // Handle Editing State
+  const [isEditingHandle, setIsEditingHandle] = useState(false);
+  const [newHandle, setNewHandle] = useState("");
+  const [handleError, setHandleError] = useState<string | null>(null);
+  const [handleSuccess, setHandleSuccess] = useState<string | null>(null);
+
+  // Other Traveler Profile View State
+  const [otherUser, setOtherUser] = useState<any | null>(null);
+  const [loadingOther, setLoadingOther] = useState(false);
+
+  // Friends System State
+  const [friendsList, setFriendsList] = useState<AuthUser[]>([]);
+  const [addFriendInput, setAddFriendInput] = useState("");
+  const [friendActionMsg, setFriendActionMsg] = useState<string | null>(null);
+  const [isFriendWithOther, setIsFriendWithOther] = useState(false);
+
+  const isViewingSelf = !viewUsername || (user && (viewUsername === user.custom_id || viewUsername === user.username));
+
+  // Load other user's profile if viewUsername is specified
+  useEffect(() => {
+    if (isOpen && viewUsername && !isViewingSelf) {
+      setLoadingOther(true);
+      api.getUserProfile(viewUsername)
+        .then((profile) => {
+          setOtherUser(profile);
+        })
+        .catch(() => {
+          setOtherUser(null);
+        })
+        .finally(() => setLoadingOther(false));
+    } else {
+      setOtherUser(null);
+    }
+  }, [isOpen, viewUsername, isViewingSelf]);
+
+  // Load friends list when user is authenticated
+  useEffect(() => {
+    if (isOpen && isAuthenticated) {
+      api.getFriends()
+        .then((list) => {
+          setFriendsList(list);
+          if (otherUser) {
+            setIsFriendWithOther(list.some((f) => f.id === otherUser.id || f.custom_id === otherUser.username));
+          }
+        })
+        .catch(() => setFriendsList([]));
+    }
+  }, [isOpen, isAuthenticated, otherUser]);
 
   if (!isOpen) return null;
 
-  // Filter posts created by the current user
-  const myPosts = user
+  // Active traveler profile being viewed
+  const activeProfile = isViewingSelf
+    ? user
+    : otherUser
+    ? {
+        id: otherUser.id,
+        custom_id: otherUser.username || otherUser.custom_id,
+        username: otherUser.username || otherUser.custom_id,
+        display_name: otherUser.name || otherUser.display_name || otherUser.username,
+        bio: otherUser.bio || "Traveler on the digital whiteboard.",
+        avatar_url: otherUser.avatar || otherUser.avatar_url || "",
+      }
+    : null;
+
+  // Filter posts created by this profile
+  const displayedPosts = activeProfile
     ? userPosts.filter(
         (p) =>
-          p.author === user.display_name ||
-          p.author === user.username ||
-          p.author === user.custom_id
+          p.author === activeProfile.display_name ||
+          p.author === activeProfile.username ||
+          p.author === activeProfile.custom_id
       )
     : [];
 
-  const userPhotos = myPosts
+  const userPhotos = displayedPosts
     .filter((p) => Boolean(p.image))
     .map((p) => ({ src: p.image, loc: p.location || `${p.city}, ${p.country}` }));
 
-  const uniqueCountries = new Set(myPosts.map((p) => p.country).filter(Boolean)).size;
+  const uniqueCountries = new Set(displayedPosts.map((p) => p.country).filter(Boolean)).size;
+
+  const handleSaveNewHandle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setHandleError(null);
+    setHandleSuccess(null);
+
+    const clean = newHandle.trim().replace(/^@/, "").toLowerCase();
+    if (!clean) return;
+
+    try {
+      const res = await api.updateCustomId(clean);
+      if (user) {
+        user.custom_id = res.custom_id;
+        user.username = res.custom_id;
+      }
+      setHandleSuccess(`Handle updated to @${res.custom_id}`);
+      setIsEditingHandle(false);
+      setNewHandle("");
+    } catch (err: unknown) {
+      setHandleError(err instanceof Error ? err.message : "Failed to update handle.");
+    }
+  };
+
+  const handleAddFriendSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFriendActionMsg(null);
+    const target = addFriendInput.trim().replace(/^@/, "");
+    if (!target) return;
+
+    requireAuth("add friends", async () => {
+      try {
+        const added = await api.addFriend(target);
+        setFriendsList((prev) => [added, ...prev.filter((f) => f.id !== added.id)]);
+        setFriendActionMsg(`Added @${added.custom_id} as friend!`);
+        setAddFriendInput("");
+      } catch (err: unknown) {
+        setFriendActionMsg(err instanceof Error ? err.message : "Could not add friend.");
+      }
+    });
+  };
+
+  const handleToggleFriendOther = async () => {
+    if (!activeProfile) return;
+
+    requireAuth("add friends", async () => {
+      try {
+        if (isFriendWithOther) {
+          await api.removeFriend(activeProfile.id);
+          setIsFriendWithOther(false);
+          setFriendsList((prev) => prev.filter((f) => f.id !== activeProfile.id));
+        } else {
+          const added = await api.addFriend(activeProfile.custom_id);
+          setIsFriendWithOther(true);
+          setFriendsList((prev) => [added, ...prev]);
+        }
+      } catch (err: unknown) {
+        setFriendActionMsg(err instanceof Error ? err.message : "Friend action failed.");
+      }
+    });
+  };
+
+  const handleRemoveFriend = async (friendId: string) => {
+    try {
+      await api.removeFriend(friendId);
+      setFriendsList((prev) => prev.filter((f) => f.id !== friendId));
+    } catch {
+      // ignore
+    }
+  };
 
   return (
     <div
@@ -48,49 +185,131 @@ export function ProfileModal({
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-color)] flex items-center justify-center text-sm font-bold text-[var(--ink-primary)] hover:bg-[var(--border-color)] cursor-pointer"
+          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-color)] flex items-center justify-center text-xs font-bold text-[var(--ink-primary)] hover:bg-[var(--border-color)] cursor-pointer"
+          aria-label="Close"
         >
-          ✕
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="1" y1="1" x2="11" y2="11" />
+            <line x1="11" y1="1" x2="1" y2="11" />
+          </svg>
         </button>
 
-        {isAuthenticated && user ? (
+        {loadingOther ? (
+          <div className="py-20 text-center flex flex-col items-center">
+            <div className="w-8 h-8 rounded-full border-2 border-[var(--ink-primary)] border-t-transparent animate-spin mb-3" />
+            <p className="text-xs text-[var(--ink-secondary)] font-mono">Loading traveler profile...</p>
+          </div>
+        ) : activeProfile ? (
           <>
             {/* Profile Board Header */}
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pb-6 border-b border-[var(--border-color)]">
+              {/* Anonymous / Profile Avatar */}
               <div className="relative">
-                <img
-                  src={user.avatar_url}
-                  alt={user.display_name}
-                  className="w-24 h-24 rounded-full object-cover border-2 border-[var(--ink-primary)] shadow-md"
+                <AnonymousAvatar
+                  src={activeProfile.avatar_url}
+                  alt={activeProfile.display_name}
+                  size={96}
+                  className="shadow-md"
                 />
-                <span className="absolute -bottom-1 -right-1 text-sm bg-[var(--bg-primary)] rounded-full p-1 border border-[var(--border-color)] shadow-xs">
-                  🎨
-                </span>
               </div>
 
               <div className="flex-1 text-center sm:text-left">
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3">
                   <h2 className="font-hand text-3xl font-bold text-[var(--ink-primary)]">
-                    {user.display_name}
+                    {activeProfile.display_name}
                   </h2>
-                  <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--ink-secondary)]">
-                    @{user.custom_id}
-                  </span>
+
+                  {/* Handle & Edit Action */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--ink-secondary)]">
+                      @{activeProfile.custom_id}
+                    </span>
+                    {isViewingSelf && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditingHandle(!isEditingHandle);
+                          setNewHandle(activeProfile.custom_id);
+                          setHandleError(null);
+                        }}
+                        className="text-[11px] text-[var(--ink-primary)] hover:underline cursor-pointer font-mono"
+                        title="Change your randomized @handle"
+                      >
+                        [Edit]
+                      </button>
+                    )}
+                  </div>
                 </div>
+
+                {/* Handle Edit Form */}
+                {isEditingHandle && isViewingSelf && (
+                  <form onSubmit={handleSaveNewHandle} className="mt-3 flex flex-wrap items-center gap-2">
+                    <div className="relative flex items-center">
+                      <span className="absolute left-2.5 text-xs text-[var(--ink-secondary)] font-mono">@</span>
+                      <input
+                        type="text"
+                        value={newHandle}
+                        onChange={(e) => setNewHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                        placeholder="new_handle"
+                        className="pl-6 pr-2 py-1 text-xs rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] focus:outline-none focus:border-[var(--ink-primary)] font-mono w-40"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="px-3 py-1 bg-[var(--ink-primary)] text-[var(--bg-primary)] rounded-lg text-xs font-semibold cursor-pointer"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingHandle(false)}
+                      className="px-2 py-1 text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]"
+                    >
+                      Cancel
+                    </button>
+                  </form>
+                )}
+
+                {handleError && <p className="text-[11px] text-red-500 mt-1">{handleError}</p>}
+                {handleSuccess && <p className="text-[11px] text-green-600 mt-1">{handleSuccess}</p>}
+
                 <p className="text-xs sm:text-sm text-[var(--ink-secondary)] mt-2 max-w-lg leading-relaxed">
-                  {user.bio}
+                  {activeProfile.bio}
                 </p>
               </div>
 
-              <button
-                onClick={() => {
-                  logout();
-                  onClose();
-                }}
-                className="px-4 py-2 text-xs font-semibold rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]"
-              >
-                Log Out
-              </button>
+              {/* Action Buttons: Log Out (Self) or Add Friend (Other) */}
+              <div className="flex items-center gap-2">
+                {isViewingSelf ? (
+                  <button
+                    onClick={() => {
+                      logout();
+                      onClose();
+                    }}
+                    className="px-4 py-2 text-xs font-semibold rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]"
+                  >
+                    Log Out
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleToggleFriendOther}
+                    className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+                      isFriendWithOther
+                        ? "border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--ink-primary)]"
+                        : "bg-[var(--ink-primary)] text-[var(--bg-primary)] shadow-sm hover:opacity-90"
+                    }`}
+                  >
+                    {isFriendWithOther ? (
+                      <>
+                        <InkIcon name="check" size={14} />
+                        <span>Friends</span>
+                      </>
+                    ) : (
+                      <span>+ Add Friend</span>
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Live Stats */}
@@ -105,7 +324,7 @@ export function ProfileModal({
               </div>
               <div className="p-3 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] text-center">
                 <span className="font-hand text-2xl font-bold text-[var(--ink-primary)] block">
-                  {myPosts.length}
+                  {displayedPosts.length}
                 </span>
                 <span className="text-[10px] text-[var(--ink-secondary)] uppercase font-mono">
                   Memories
@@ -121,17 +340,20 @@ export function ProfileModal({
               </div>
               <div className="p-3 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] text-center">
                 <span className="font-hand text-2xl font-bold text-[var(--ink-primary)] block">
-                  {uniqueCountries > 1 ? 1 : 0}
+                  {isViewingSelf ? friendsList.length : uniqueCountries > 1 ? 1 : 0}
                 </span>
                 <span className="text-[10px] text-[var(--ink-secondary)] uppercase font-mono">
-                  Journeys
+                  {isViewingSelf ? "Friends" : "Journeys"}
                 </span>
               </div>
             </div>
 
             {/* Tab switch */}
             <div className="flex gap-2 border-b border-[var(--border-color)] pb-3 mb-6">
-              {(["board", "photos", "routes"] as const).map((t) => (
+              {(isViewingSelf
+                ? (["board", "photos", "routes", "friends"] as const)
+                : (["board", "photos", "routes"] as const)
+              ).map((t) => (
                 <button
                   key={t}
                   onClick={() => setTab(t)}
@@ -145,7 +367,9 @@ export function ProfileModal({
                     ? "Doodle Board Map"
                     : t === "photos"
                     ? "Pinned Polaroids"
-                    : "Journey Log"}
+                    : t === "routes"
+                    ? "Journey Log"
+                    : "Friends List"}
                 </button>
               ))}
             </div>
@@ -162,7 +386,7 @@ export function ProfileModal({
                     fill="var(--bg-elevated)"
                     opacity="0.7"
                   />
-                  {myPosts.map((post) => {
+                  {displayedPosts.map((post) => {
                     let cx = 500;
                     let cy = 280;
                     const cityKey = (post.city || "").toLowerCase().trim();
@@ -184,7 +408,7 @@ export function ProfileModal({
                   })}
                 </svg>
                 <div className="absolute bottom-4 left-4 font-hand text-xs text-[var(--ink-secondary)] bg-[var(--bg-primary)] px-2.5 py-1 rounded-md border border-[var(--border-color)]">
-                  📍 {myPosts.length} pinned memories on your board
+                  {displayedPosts.length} pinned memories on this board
                 </div>
               </div>
             )}
@@ -192,7 +416,6 @@ export function ProfileModal({
             {tab === "photos" && (
               userPhotos.length === 0 ? (
                 <div className="py-12 flex flex-col items-center justify-center text-center bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6">
-                  <span className="text-3xl mb-2">📷</span>
                   <h4 className="font-hand text-lg font-bold text-[var(--ink-primary)]">
                     No Polaroids Pinned Yet
                   </h4>
@@ -219,7 +442,7 @@ export function ProfileModal({
             )}
 
             {tab === "routes" && (
-              myPosts.length === 0 ? (
+              displayedPosts.length === 0 ? (
                 <div className="py-12 text-center bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6">
                   <p className="text-xs text-[var(--ink-secondary)]">No journeys recorded yet.</p>
                 </div>
@@ -228,31 +451,100 @@ export function ProfileModal({
                   <div className="p-4 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] flex items-center justify-between">
                     <div>
                       <h4 className="font-hand text-lg font-bold text-[var(--ink-primary)]">
-                        Your Personal Route
+                        Connected Travel Path
                       </h4>
                       <p className="text-xs text-[var(--ink-secondary)] font-mono mt-0.5">
-                        {myPosts.map((p) => p.city).join(" → ")}
+                        {displayedPosts.map((p) => p.city).join(" → ")}
                       </p>
                     </div>
                     <span className="font-hand text-xs text-[var(--ink-secondary)]">
-                      {myPosts.length} stops
+                      {displayedPosts.length} stops
                     </span>
                   </div>
                 </div>
               )
             )}
+
+            {/* Friends Tab */}
+            {tab === "friends" && isViewingSelf && (
+              <div className="space-y-6">
+                {/* Add Friend Form */}
+                <form onSubmit={handleAddFriendSubmit} className="flex gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[var(--ink-secondary)] font-mono">@</span>
+                    <input
+                      type="text"
+                      value={addFriendInput}
+                      onChange={(e) => setAddFriendInput(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                      placeholder="friend_travel_tag"
+                      className="w-full pl-7 pr-3 py-2 text-xs rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] focus:outline-none focus:border-[var(--ink-primary)] font-mono"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-[var(--ink-primary)] text-[var(--bg-primary)] rounded-xl text-xs font-semibold cursor-pointer"
+                  >
+                    Add Friend
+                  </button>
+                </form>
+
+                {friendActionMsg && (
+                  <p className="text-xs text-[var(--ink-primary)] bg-[var(--bg-secondary)] p-2 rounded-lg border border-[var(--border-color)]">
+                    {friendActionMsg}
+                  </p>
+                )}
+
+                {/* Friends List */}
+                {friendsList.length === 0 ? (
+                  <div className="py-12 text-center bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6">
+                    <h4 className="font-hand text-lg font-bold text-[var(--ink-primary)]">
+                      No friends connected yet
+                    </h4>
+                    <p className="text-xs text-[var(--ink-secondary)] max-w-xs mx-auto mt-1 font-mono">
+                      Type another traveler&apos;s @handle above to follow their journeys and see their stories in the Friends feed!
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {friendsList.map((f) => (
+                      <div
+                        key={f.id}
+                        className="p-3 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between gap-3"
+                      >
+                        <div className="flex items-center gap-3">
+                          <AnonymousAvatar src={f.avatar_url} alt={f.display_name} size={40} />
+                          <div>
+                            <h5 className="text-xs font-bold text-[var(--ink-primary)]">
+                              {f.display_name}
+                            </h5>
+                            <span className="text-[10px] text-[var(--ink-secondary)] font-mono">
+                              @{f.custom_id}
+                            </span>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => handleRemoveFriend(f.id)}
+                          className="text-[11px] text-[var(--ink-secondary)] hover:text-red-500 cursor-pointer"
+                          title="Remove friend"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         ) : (
           /* Guest State: Prompt Account Creation / Login */
           <div className="py-12 px-6 text-center flex flex-col items-center">
-            <div className="w-16 h-16 rounded-full border-2 border-dashed border-[var(--ink-primary)] flex items-center justify-center text-3xl mb-4">
-              🎒
-            </div>
             <h3 className="font-hand text-3xl font-bold text-[var(--ink-primary)]">
               Your personal travel board
             </h3>
             <p className="text-xs text-[var(--ink-secondary)] max-w-sm mt-2 mb-6 leading-relaxed font-sans">
-              Sign in or create a traveler account to view your pinned memories, recorded countries, and personal sketchbook.
+              Sign in or create a traveler account to view your pinned memories, record countries you visit, and connect with travel friends.
             </p>
             <div className="flex gap-3">
               <button
@@ -262,7 +554,7 @@ export function ProfileModal({
                 }}
                 className="px-5 py-2.5 rounded-xl bg-[var(--ink-primary)] text-[var(--bg-primary)] font-semibold text-xs hover:opacity-90 transition-opacity shadow-md cursor-pointer"
               >
-                Log In or Join 🎒
+                Log In or Join
               </button>
             </div>
           </div>

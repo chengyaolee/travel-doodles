@@ -3,6 +3,8 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { DoodlePin, DoodleGlobe, DoodleCompass } from "@/components/doodles";
+import { InkIcon } from "@/components/ui/InkIcon";
+import { AnonymousAvatar } from "@/components/ui/AnonymousAvatar";
 import { TravelDoodlePost } from "./CreatePostModal";
 import {
   WORLD_VIEWBOX,
@@ -45,10 +47,12 @@ export function ExploreMapModal({
   isOpen,
   onClose,
   extraPosts = [],
+  onViewProfile,
 }: {
   isOpen: boolean;
   onClose: () => void;
   extraPosts?: TravelDoodlePost[];
+  onViewProfile?: (username: string) => void;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterAudience, setFilterAudience] = useState<"all" | "friends" | "everyone">("all");
@@ -116,7 +120,9 @@ export function ExploreMapModal({
 
           {/* Search bar */}
           <div className="relative flex-1 max-w-xs min-w-[200px]">
-            <span className="absolute left-3 top-2.5 text-xs text-[var(--ink-secondary)]">🔍</span>
+            <span className="absolute left-3 top-2.5 text-[var(--ink-secondary)]">
+              <InkIcon name="search" size={14} />
+            </span>
             <input
               type="text"
               value={searchQuery}
@@ -149,14 +155,15 @@ export function ExploreMapModal({
               className="px-3 py-1.5 rounded-xl bg-[var(--ink-primary)] text-[var(--bg-primary)] text-xs font-medium hover:opacity-90 transition-opacity flex items-center gap-1.5 shadow-xs whitespace-nowrap"
             >
               <span>Full Atlas</span>
-              <span>🗺️ →</span>
+              <span className="flex items-center gap-1 font-mono text-[11px]">&rarr;</span>
             </Link>
 
             <button
               onClick={onClose}
+              aria-label="Close"
               className="w-9 h-9 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-color)] flex items-center justify-center text-sm font-bold text-[var(--ink-primary)] hover:bg-[var(--border-color)] transition-colors cursor-pointer"
             >
-              ✕
+              <InkIcon name="close" size={16} />
             </button>
           </div>
         </div>
@@ -318,8 +325,8 @@ export function ExploreMapModal({
                           />
                         </div>
                       ) : (
-                        <div className="w-10 h-10 bg-[var(--bg-elevated)] p-1 rounded-full shadow-md border border-[var(--border-color)] flex items-center justify-center text-xs mb-1">
-                          📝
+                        <div className="w-10 h-10 bg-[var(--bg-elevated)] p-1 rounded-full shadow-md border border-[var(--border-color)] flex items-center justify-center text-xs mb-1 text-[var(--ink-secondary)]">
+                          <InkIcon name="pen" size={14} />
                         </div>
                       )}
 
@@ -352,8 +359,8 @@ export function ExploreMapModal({
             {/* Empty State Overlay */}
             {filteredPosts.length === 0 && (
               <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center pointer-events-none z-30">
-                <div className="w-14 h-14 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-color)] flex items-center justify-center text-2xl mb-3 shadow-md pointer-events-auto">
-                  📍
+                <div className="w-14 h-14 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-color)] flex items-center justify-center text-[var(--ink-primary)] mb-3 shadow-md pointer-events-auto">
+                  <InkIcon name="pin" size={24} />
                 </div>
                 <h3 className="font-hand text-xl font-bold text-[var(--ink-primary)]">
                   No Doodles on the Whiteboard Yet
@@ -371,26 +378,32 @@ export function ExploreMapModal({
               className="absolute bottom-6 right-6 w-80 sm:w-92 bg-[var(--bg-primary)] rounded-3xl border-2 border-[var(--border-color)] shadow-2xl p-5 z-40 animate-fade-in-up"
             >
               <div className="flex items-center justify-between pb-3 mb-3 border-b border-[var(--border-color)]">
-                <div className="flex items-center gap-2">
-                  <img
-                    src={activePost.avatar}
-                    alt={activePost.author}
-                    className="w-8 h-8 rounded-full object-cover border border-[var(--border-color)]"
+                <button
+                  type="button"
+                  onClick={() => onViewProfile?.(activePost.author)}
+                  className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity cursor-pointer group"
+                >
+                  <AnonymousAvatar
+                    avatarUrl={activePost.avatar}
+                    name={activePost.author}
+                    size={32}
+                    className="border border-[var(--border-color)]"
                   />
                   <div>
-                    <span className="text-xs font-bold text-[var(--ink-primary)] block leading-none">
+                    <span className="text-xs font-bold text-[var(--ink-primary)] block leading-none group-hover:underline">
                       {activePost.author}
                     </span>
                     <span className="text-[10px] font-mono text-[var(--ink-secondary)] mt-0.5 block">
                       {activePost.date}
                     </span>
                   </div>
-                </div>
+                </button>
                 <button
                   onClick={() => setActivePinId(null)}
-                  className="w-7 h-7 rounded-full bg-[var(--bg-elevated)] flex items-center justify-center text-xs font-bold hover:bg-[var(--border-color)] cursor-pointer"
+                  aria-label="Close pin preview"
+                  className="w-7 h-7 rounded-full bg-[var(--bg-elevated)] flex items-center justify-center text-xs font-bold hover:bg-[var(--border-color)] cursor-pointer text-[var(--ink-primary)]"
                 >
-                  ✕
+                  <InkIcon name="close" size={14} />
                 </button>
               </div>
 
@@ -416,8 +429,9 @@ export function ExploreMapModal({
               </p>
 
               <div className="mt-4 pt-3 border-t border-[var(--border-color)] flex items-center justify-between">
-                <span className="text-xs font-hand text-[var(--ink-secondary)]">
-                  ❤️ {activePost.likes} smiles
+                <span className="text-xs font-hand text-[var(--ink-secondary)] flex items-center gap-1.5">
+                  <InkIcon name="heart" size={14} />
+                  <span>{activePost.likes} smiles</span>
                 </span>
                 <span className="text-[11px] font-mono uppercase text-[var(--ink-secondary)]">
                   #{activePost.visibility}

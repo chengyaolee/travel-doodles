@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { DoodlePin } from "@/components/doodles";
+import { InkIcon } from "@/components/ui/InkIcon";
+import { AnonymousAvatar } from "@/components/ui/AnonymousAvatar";
 import { TravelDoodlePost } from "./CreatePostModal";
 import { useAuth } from "@/lib/authContext";
 import { api } from "@/lib/api";
@@ -14,10 +16,12 @@ export function SocialFeedModal({
   isOpen,
   onClose,
   extraPosts = [],
+  onViewProfile,
 }: {
   isOpen: boolean;
   onClose: () => void;
   extraPosts?: TravelDoodlePost[];
+  onViewProfile?: (username: string) => void;
 }) {
   const [feed, setFeed] = useState<FeedPost[]>(() =>
     extraPosts.map((p) => ({ ...p, commentsList: [] }))
@@ -77,7 +81,7 @@ export function SocialFeedModal({
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url);
     }
-    setShareToast("Story link copied to clipboard! 📋");
+    setShareToast("Story link copied to clipboard!");
     setTimeout(() => setShareToast(null), 3000);
   };
 
@@ -100,7 +104,9 @@ export function SocialFeedModal({
         {/* Header */}
         <div className="p-5 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--bg-primary)] z-10">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">📸</span>
+            <span className="text-[var(--accent)]">
+              <InkIcon name="photo" size={24} />
+            </span>
             <div>
               <h2 className="font-hand text-2xl font-bold text-[var(--ink-primary)]">
                 Travel Community Stories
@@ -113,9 +119,10 @@ export function SocialFeedModal({
 
           <button
             onClick={onClose}
+            aria-label="Close"
             className="w-8 h-8 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-color)] flex items-center justify-center text-sm font-bold text-[var(--ink-primary)] hover:bg-[var(--border-color)] cursor-pointer"
           >
-            ✕
+            <InkIcon name="close" size={16} />
           </button>
         </div>
 
@@ -142,21 +149,26 @@ export function SocialFeedModal({
                 >
                   {/* Author Header */}
                   <div className="p-4 flex items-center justify-between border-b border-[var(--border-color)]">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={post.avatar}
-                        alt={post.author}
-                        className="w-10 h-10 rounded-full object-cover border border-[var(--border-color)]"
+                    <button
+                      type="button"
+                      onClick={() => onViewProfile?.(post.author)}
+                      className="flex items-center gap-3 text-left hover:opacity-80 transition-opacity cursor-pointer group"
+                    >
+                      <AnonymousAvatar
+                        avatarUrl={post.avatar}
+                        name={post.author}
+                        size={40}
+                        className="border border-[var(--border-color)]"
                       />
                       <div>
-                        <h4 className="font-bold text-sm text-[var(--ink-primary)]">
+                        <h4 className="font-bold text-sm text-[var(--ink-primary)] group-hover:underline">
                           {post.author}
                         </h4>
                         <p className="text-xs text-[var(--ink-secondary)] font-mono">
                           {post.date} · #{post.visibility}
                         </p>
                       </div>
-                    </div>
+                    </button>
                   </div>
 
                   {/* Main Photo (Photo-first) or Location tag */}
@@ -193,8 +205,12 @@ export function SocialFeedModal({
                           onClick={() => handleLike(post.id)}
                           className="flex items-center gap-1.5 text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] transition-colors cursor-pointer"
                         >
-                          <span className={isLiked ? "scale-125 transition-transform" : ""}>
-                            {isLiked ? "❤️" : "🤍"}
+                          <span className={isLiked ? "text-red-500" : ""}>
+                            <InkIcon
+                              name="heart"
+                              size={15}
+                              fill={isLiked ? "currentColor" : "none"}
+                            />
                           </span>
                           <span className="font-bold">{post.likes}</span>
                         </button>
@@ -204,7 +220,9 @@ export function SocialFeedModal({
                           }}
                           className="flex items-center gap-1.5 text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] transition-colors cursor-pointer"
                         >
-                          <span>💬</span>
+                          <span>
+                            <InkIcon name="comment" size={15} />
+                          </span>
                           <span>{post.commentsList.length}</span>
                         </button>
                         <button

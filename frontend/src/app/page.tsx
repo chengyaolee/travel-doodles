@@ -28,6 +28,7 @@ export default function Home() {
   const [isExploreOpen, setIsExploreOpen] = useState(false);
   const [isFeedOpen, setIsFeedOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [viewingProfileUsername, setViewingProfileUsername] = useState<string | null>(null);
 
   // User-created and real backend database posts (Zero mock data defaults)
   const [userPosts, setUserPosts] = useState<TravelDoodlePost[]>([]);
@@ -66,13 +67,18 @@ export default function Home() {
 
   const handlePublishPost = (newPost: TravelDoodlePost) => {
     setUserPosts((prev) => [newPost, ...prev]);
-    setToastMessage(`Pinned "${newPost.city}" to the travel whiteboard! 📌`);
+    setToastMessage(`Pinned "${newPost.city}" to the travel whiteboard!`);
     setTimeout(() => setToastMessage(null), 4000);
   };
 
   const handleHeroSelectPin = (city: string) => {
-    setToastMessage(`Explored "${city}" on the map 🗺️`);
+    setToastMessage(`Explored "${city}" on the map`);
     setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleViewProfile = (username: string) => {
+    setViewingProfileUsername(username);
+    setIsProfileOpen(true);
   };
 
   const handleStartDoodling = () => {
@@ -89,7 +95,7 @@ export default function Home() {
             href="/explore"
             className="px-2.5 py-0.5 rounded-lg bg-[var(--bg-primary)] text-[var(--ink-primary)] font-sans text-xs font-semibold hover:opacity-90 transition-opacity"
           >
-            View in Explore Atlas 🗺️
+            View in Explore Atlas →
           </Link>
         </div>
       )}
@@ -99,7 +105,10 @@ export default function Home() {
         onStartDoodling={handleStartDoodling}
         onExploreClick={() => setIsExploreOpen(true)}
         onStoriesClick={() => setIsFeedOpen(true)}
-        onProfileClick={() => setIsProfileOpen(true)}
+        onProfileClick={() => {
+          setViewingProfileUsername(null);
+          setIsProfileOpen(true);
+        }}
       />
 
       {/* Main Page Canvas Sections */}
@@ -126,12 +135,14 @@ export default function Home() {
         <SectionC
           posts={userPosts}
           onCreateClick={handleStartDoodling}
+          onViewProfile={handleViewProfile}
         />
 
         {/* Section D — A World Full of Doodles (Curated travel photograph gallery) */}
         <SectionD
           posts={userPosts}
           onCreateClick={handleStartDoodling}
+          onViewProfile={handleViewProfile}
         />
 
         {/* Section E — Your Own Little Corner of the World (Personal travel board) */}
@@ -158,17 +169,23 @@ export default function Home() {
         isOpen={isExploreOpen}
         onClose={() => setIsExploreOpen(false)}
         extraPosts={userPosts}
+        onViewProfile={handleViewProfile}
       />
 
       <SocialFeedModal
         isOpen={isFeedOpen}
         onClose={() => setIsFeedOpen(false)}
         extraPosts={userPosts}
+        onViewProfile={handleViewProfile}
       />
 
       <ProfileModal
         isOpen={isProfileOpen}
-        onClose={() => setIsProfileOpen(false)}
+        onClose={() => {
+          setIsProfileOpen(false);
+          setViewingProfileUsername(null);
+        }}
+        viewUsername={viewingProfileUsername}
         userPosts={userPosts}
       />
     </div>

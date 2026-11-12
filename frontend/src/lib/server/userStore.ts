@@ -18,6 +18,8 @@ export interface UserRecord {
   display_name: string;
   bio: string;
   avatar_url: string;
+  auth_provider?: string;
+  auth_provider_id?: string;
   password_hash?: string;
   created_at: string;
   updated_at: string;
@@ -37,8 +39,15 @@ export interface SafeUser {
   display_name: string;
   bio: string;
   avatar_url: string;
+  auth_provider?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface FriendRelation {
+  user_id: string;
+  friend_id: string;
+  created_at: string;
 }
 
 function resolveDataDir(): string {
@@ -60,9 +69,11 @@ function resolveDataDir(): string {
 const DATA_DIR = resolveDataDir();
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
+const FRIENDS_FILE = path.join(DATA_DIR, "friends.json");
 
 let cachedUsers: UserRecord[] | null = null;
 let cachedSessions: Record<string, SessionRecord> | null = null;
+let cachedFriends: FriendRelation[] | null = null;
 
 function loadUsers(): UserRecord[] {
   if (cachedUsers) return cachedUsers;
@@ -112,8 +123,37 @@ function saveSessions(sessions: Record<string, SessionRecord>) {
   }
 }
 
+function loadFriends(): FriendRelation[] {
+  if (cachedFriends) return cachedFriends;
+  if (fs.existsSync(FRIENDS_FILE)) {
+    try {
+      const data = fs.readFileSync(FRIENDS_FILE, "utf-8");
+      cachedFriends = JSON.parse(data);
+      return cachedFriends!;
+    } catch {
+      // ignore
+    }
+  }
+  cachedFriends = [];
+  return cachedFriends;
+}
+
+function saveFriends(friends: FriendRelation[]) {
+  cachedFriends = friends;
+  try {
+    fs.writeFileSync(FRIENDS_FILE, JSON.stringify(friends, null, 2), "utf-8");
+  } catch {
+    // ignore
+  }
+}
+
 function hashPassword(password: string): string {
   return crypto.createHash("sha256").update(password + ":travel_salt_2026").digest("hex");
+}
+
+export function generateRandomCustomId(prefix = "traveler"): string {
+  const randomSuffix = crypto.randomBytes(3).toString("hex");
+  return `${prefix}_${randomSuffix}`;
 }
 
 export function toSafeUser(user: UserRecord): SafeUser {
@@ -123,7 +163,8 @@ export function toSafeUser(user: UserRecord): SafeUser {
     username: user.username,
     display_name: user.display_name,
     bio: user.bio,
-    avatar_url: user.avatar_url,
+    avatar_url: user.avatar_url || "",
+    auth_provider: user.auth_provider,
     created_at: user.created_at,
     updated_at: user.updated_at,
   };
@@ -151,27 +192,39 @@ export const userStore = {
     );
   },
 
+  findByOAuth(provider: string, providerId: string): UserRecord | null {
+    const users = loadUsers();
+    return (
+      users.find(
+        (u) => u.auth_provider === provider && u.auth_provider_id === providerId
+      ) || null
+    );
+  },
+
   createUser(params: {
-    custom_id: string;
+    custom_id?: string;
     display_name?: string;
     bio?: string;
     password?: string;
     avatar_url?: string;
+    auth_provider?: string;
+    auth_provider_id?: string;
   }): SafeUser {
     const users = loadUsers();
-    const cleanCustomId = params.custom_id.trim();
 
-    if (this.findByCustomId(cleanCustomId)) {
-      throw new Error(`The custom ID '${cleanCustomId}' is already taken.`);
+    // The @ id can be randomised first if not provided
+    let cleanCustomId = (params.custom_id || "").trim();
+    if (!cleanCustomId) {
+      let candidate = generateRandomCustomId();
+      while (this.findByCustomId(candidate)) {
+        candidate = generateRandomCustomId();
+      }
+      cleanCustomId = candidate;
+    } else {
+      if (this.findByCustomId(cleanCustomId)) {
+        throw new Error(`The custom ID '${cleanCustomId}' is already taken.`);
+      }
     }
-
-    const defaultAvatars = [
-      "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=160&h=160&fit=crop&crop=face",
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=160&h=160&fit=crop&crop=face",
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=160&h=160&fit=crop&crop=face",
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&h=160&fit=crop&crop=face",
-    ];
-    const randomAvatar = defaultAvatars[Math.floor(Math.random() * defaultAvatars.length)];
 
     const now = new Date().toISOString();
     const newUser: UserRecord = {
@@ -180,7 +233,9 @@ export const userStore = {
       username: cleanCustomId,
       display_name: params.display_name?.trim() || cleanCustomId,
       bio: params.bio?.trim() || "Wandering the world one doodle at a time.",
-      avatar_url: params.avatar_url || randomAvatar,
+      avatar_url: params.avatar_url || "", // Anonymous by default (zero placeholder images)
+      auth_provider: params.auth_provider,
+      auth_provider_id: params.auth_provider_id,
       password_hash: params.password ? hashPassword(params.password) : undefined,
       created_at: now,
       updated_at: now,
@@ -189,6 +244,29 @@ export const userStore = {
     users.push(newUser);
     saveUsers(users);
     return toSafeUser(newUser);
+  },
+
+  updateCustomId(userId: string, newCustomId: string): SafeUser {
+    const clean = newCustomId.trim().toLowerCase();
+    if (!/^[a-zA-Z0-9_]{3,30}$/.test(clean)) {
+      throw new Error("Handle must be 3-30 characters (letters, numbers, underscores only).");
+    }
+
+    const users = loadUsers();
+    const existing = this.findByCustomId(clean);
+    if (existing && existing.id !== userId) {
+      throw new Error(`The handle '@${clean}' is already taken.`);
+    }
+
+    const user = this.findById(userId);
+    if (!user) throw new Error("User not found.");
+
+    user.custom_id = clean;
+    user.username = clean;
+    user.updated_at = new Date().toISOString();
+
+    saveUsers(users);
+    return toSafeUser(user);
   },
 
   verifyCredentials(customId: string, password?: string): SafeUser | null {
@@ -259,5 +337,48 @@ export const userStore = {
     }
 
     return null;
+  },
+
+  // Friends System
+  listFriends(userId: string): SafeUser[] {
+    const friends = loadFriends();
+    const friendIds = friends
+      .filter((f) => f.user_id === userId)
+      .map((f) => f.friend_id);
+
+    const users = loadUsers();
+    return users.filter((u) => friendIds.includes(u.id)).map(toSafeUser);
+  },
+
+  addFriend(userId: string, friendCustomIdOrId: string): SafeUser {
+    const friend = this.findByCustomId(friendCustomIdOrId) || this.findById(friendCustomIdOrId);
+    if (!friend) throw new Error(`Traveler '@${friendCustomIdOrId}' was not found.`);
+    if (friend.id === userId) throw new Error("You cannot add yourself as a friend.");
+
+    const friends = loadFriends();
+    const exists = friends.some((f) => f.user_id === userId && f.friend_id === friend.id);
+    if (exists) throw new Error(`You are already friends with '@${friend.custom_id}'.`);
+
+    // Mutual friendship
+    const now = new Date().toISOString();
+    friends.push({ user_id: userId, friend_id: friend.id, created_at: now });
+    friends.push({ user_id: friend.id, friend_id: userId, created_at: now });
+    saveFriends(friends);
+
+    return toSafeUser(friend);
+  },
+
+  removeFriend(userId: string, friendId: string) {
+    let friends = loadFriends();
+    friends = friends.filter(
+      (f) => !(f.user_id === userId && f.friend_id === friendId) &&
+             !(f.user_id === friendId && f.friend_id === userId)
+    );
+    saveFriends(friends);
+  },
+
+  isFriend(userId: string, targetId: string): boolean {
+    const friends = loadFriends();
+    return friends.some((f) => f.user_id === userId && f.friend_id === targetId);
   },
 };

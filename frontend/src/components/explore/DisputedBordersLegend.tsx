@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { InkIcon } from "@/components/ui/InkIcon";
 
 export function DisputedBordersLegend() {
   const [isOpen, setIsOpen] = useState(false);
@@ -30,7 +31,7 @@ export function DisputedBordersLegend() {
               className="text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] cursor-pointer"
               aria-label="Close legend"
             >
-              ✕
+              <InkIcon name="close" size={14} />
             </button>
           </div>
           <p className="text-[var(--ink-secondary)] leading-relaxed mb-2">

@@ -60,7 +60,7 @@ export function normalizePost(p: any): ExplorePost {
 
   // Extract author name and avatar
   let authorName = "Traveler";
-  let avatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop";
+  let avatarUrl = "";
   if (typeof p.author === "string") {
     authorName = p.author;
   } else if (p.author && typeof p.author === "object") {
@@ -324,5 +324,90 @@ export const api = {
     }
 
     return data.comment || data;
+  },
+
+  /**
+   * Update current user's @handle / custom ID in profile settings
+   */
+  async updateCustomId(custom_id: string): Promise<{ custom_id: string; message: string }> {
+    const res = await fetch("/api/v1/users/custom-id", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ custom_id }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || `Failed to update handle: ${res.statusText}`);
+    }
+
+    return data;
+  },
+
+  /**
+   * Fetch public traveler profile and their posts
+   */
+  async getUserProfile(username: string): Promise<any> {
+    const res = await fetch(`/api/v1/users/${encodeURIComponent(username)}`, {
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || `Traveler not found`);
+    }
+
+    return data.user || data.profile || data;
+  },
+
+  /**
+   * Fetch current user's friends list
+   */
+  async getFriends(): Promise<AuthUser[]> {
+    const res = await fetch("/api/v1/friends", {
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+
+    if (!res.ok) return [];
+    const data = await res.json().catch(() => ({}));
+    return data.friends || [];
+  },
+
+  /**
+   * Add a traveler as friend by their @handle
+   */
+  async addFriend(custom_id: string): Promise<AuthUser> {
+    const res = await fetch("/api/v1/friends/add", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ custom_id }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || `Failed to add friend`);
+    }
+
+    return data.friend || data;
+  },
+
+  /**
+   * Remove a friend
+   */
+  async removeFriend(friendId: string): Promise<void> {
+    const res = await fetch(`/api/v1/friends/${friendId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `Failed to remove friend`);
+    }
   },
 };

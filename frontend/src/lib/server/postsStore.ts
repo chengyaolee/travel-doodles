@@ -203,10 +203,8 @@ export const postsStore = {
       region: newPostData.region || "",
       city: newPostData.city || "Kyoto",
       location: newPostData.location || `${newPostData.city}, ${newPostData.country}`,
-      author: newPostData.author || "You (Explorer)",
-      avatar:
-        newPostData.avatar ||
-        "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop",
+      author: newPostData.author || "Traveler",
+      avatar: newPostData.avatar || "",
       date: newPostData.date || new Date().toISOString().split("T")[0],
       visibility: (newPostData.visibility as "everyone" | "friends") || "everyone",
       image: newPostData.image || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=600&h=420&fit=crop",
@@ -254,8 +252,8 @@ export const postsStore = {
     const newComment: CommentItem = {
       id: "c-" + Date.now(),
       postId,
-      author: author || "You (Explorer)",
-      avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop",
+      author: author || "Traveler",
+      avatar: "",
       text,
       createdAt: new Date().toISOString(),
     };

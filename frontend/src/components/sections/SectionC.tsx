@@ -2,15 +2,19 @@
 
 import { useRef, useState, useEffect, useMemo } from "react";
 import { DoodleUnderline, DoodlePin } from "@/components/doodles";
+import { InkIcon } from "@/components/ui/InkIcon";
+import { AnonymousAvatar } from "@/components/ui/AnonymousAvatar";
 import { TravelDoodlePost } from "@/components/app/CreatePostModal";
 import { useAuth } from "@/lib/authContext";
 
 export function SectionC({
   posts = [],
   onCreateClick,
+  onViewProfile,
 }: {
   posts?: TravelDoodlePost[];
   onCreateClick?: () => void;
+  onViewProfile?: (username: string) => void;
 }) {
   const [isFollowing, setIsFollowing] = useState(false);
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
@@ -111,31 +115,43 @@ export function SectionC({
         <div className="w-full flex flex-col items-center gap-10">
           {/* Traveler Header */}
           <div className="w-full max-w-4xl flex flex-col sm:flex-row items-center justify-between p-5 sm:p-6 rounded-3xl bg-[var(--bg-secondary)] border-2 border-[var(--border-color)] gap-4 shadow-sm">
-            <div className="flex items-center gap-4">
-              <img
-                src={travelerProfile.avatar}
-                alt={travelerProfile.name}
-                className="w-14 h-14 rounded-full object-cover border-2 border-[var(--ink-primary)]"
+            <button
+              type="button"
+              onClick={() => onViewProfile?.(travelerProfile.name)}
+              className="flex items-center gap-4 text-left hover:opacity-85 transition-opacity cursor-pointer group"
+            >
+              <AnonymousAvatar
+                avatarUrl={travelerProfile.avatar}
+                name={travelerProfile.name}
+                size={56}
+                className="border-2 border-[var(--ink-primary)]"
               />
               <div>
-                <h3 className="text-lg font-bold text-[var(--ink-primary)]">
+                <h3 className="text-lg font-bold text-[var(--ink-primary)] group-hover:underline">
                   {travelerProfile.name}
                 </h3>
                 <p className="text-xs text-[var(--ink-secondary)] font-mono">
                   {travelerProfile.handle} · {travelerProfile.countries} countries · {travelerProfile.memories} memories
                 </p>
               </div>
-            </div>
+            </button>
 
             <button
               onClick={handleFollow}
-              className={`px-5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              className={`px-5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
                 isFollowing
                   ? "bg-[var(--bg-elevated)] text-[var(--ink-primary)] border border-[var(--border-color)]"
                   : "bg-[var(--ink-primary)] text-[var(--bg-primary)] shadow-sm hover:opacity-90"
               }`}
             >
-              {isFollowing ? "Following ✓" : "+ Follow"}
+              {isFollowing ? (
+                <>
+                  <InkIcon name="check" size={13} />
+                  <span>Following</span>
+                </>
+              ) : (
+                <span>+ Follow</span>
+              )}
             </button>
           </div>
 
@@ -170,7 +186,13 @@ export function SectionC({
                       onClick={() => toggleLike(step.id)}
                       className="text-xs flex items-center gap-1.5 text-[var(--ink-primary)] hover:opacity-80 transition-opacity cursor-pointer"
                     >
-                      <span>{isLiked ? "❤️" : "🤍"}</span>
+                      <span className={isLiked ? "text-red-500" : ""}>
+                        <InkIcon
+                          name="heart"
+                          size={14}
+                          fill={isLiked ? "currentColor" : "none"}
+                        />
+                      </span>
                       <span>{step.likes + (isLiked ? 1 : 0)}</span>
                     </button>
                   </div>
@@ -182,8 +204,8 @@ export function SectionC({
       ) : (
         /* Clean Database State: Empty Journey Notice */
         <div className="w-full max-w-2xl bg-[var(--bg-secondary)] border-2 border-[var(--border-color)] rounded-3xl p-8 sm:p-12 text-center flex flex-col items-center shadow-sm">
-          <div className="w-16 h-16 rounded-full border-2 border-dashed border-[var(--ink-primary)] flex items-center justify-center text-2xl mb-4">
-            ✈️
+          <div className="w-16 h-16 rounded-full border-2 border-dashed border-[var(--ink-primary)] flex items-center justify-center mb-4 text-[var(--ink-primary)]">
+            <InkIcon name="plane" size={26} />
           </div>
           <h3 className="font-hand text-3xl font-bold text-[var(--ink-primary)]">
             No travel routes connected yet
@@ -197,7 +219,7 @@ export function SectionC({
               className="px-5 py-2.5 rounded-xl bg-[var(--ink-primary)] text-[var(--bg-primary)] font-semibold text-xs hover:opacity-90 transition-opacity shadow-md cursor-pointer flex items-center gap-2"
             >
               <span>Start a Travel Route</span>
-              <span>✍️</span>
+              <InkIcon name="pen" size={14} />
             </button>
           )}
         </div>

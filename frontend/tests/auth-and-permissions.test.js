@@ -1,12 +1,14 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert');
-const { userStore } = require('../src/lib/server/userStore.ts');
+const fs = require('node:fs');
+const path = require('node:path');
+const { userStore, generateRandomCustomId } = require('../src/lib/server/userStore.ts');
 const { postsStore } = require('../src/lib/server/postsStore.ts');
 
 describe('Auth, Permissions & Clean Database Synchronization', () => {
   const testCustomId = 'wanderer_' + Date.now();
 
-  test('userStore allows account creation with unique custom_id', () => {
+  test('userStore allows account creation with unique custom_id and anonymous avatar default', () => {
     const user = userStore.createUser({
       custom_id: testCustomId,
       display_name: 'Wanderer Sam',
@@ -18,8 +20,110 @@ describe('Auth, Permissions & Clean Database Synchronization', () => {
     assert.strictEqual(user.custom_id, testCustomId);
     assert.strictEqual(user.display_name, 'Wanderer Sam');
     assert.strictEqual(user.username, testCustomId);
-    assert.ok(user.avatar_url, 'Must assign an avatar');
+    assert.strictEqual(user.avatar_url, '', 'Default avatar must be empty for anonymous silhouette fallback');
     assert.strictEqual(user.password_hash, undefined, 'SafeUser must not expose password_hash');
+  });
+
+  test('userStore supports randomized custom_id generation', () => {
+    const randomId1 = generateRandomCustomId();
+    const randomId2 = generateRandomCustomId();
+    assert.ok(randomId1.startsWith('traveler_'), 'Random ID must start with traveler_ prefix');
+    assert.notStrictEqual(randomId1, randomId2, 'Subsequent random IDs must be unique');
+
+    // Auto-assign random handle when custom_id is omitted
+    const autoUser = userStore.createUser({
+      display_name: 'Anonymous Traveler',
+    });
+    assert.ok(autoUser.custom_id.startsWith('traveler_'), 'User created without custom_id gets random handle');
+  });
+
+  test('userStore allows updating custom_id with uniqueness and format validation', () => {
+    const initialUser = userStore.createUser({
+      display_name: 'Handle Changer',
+    });
+
+    const newHandle = 'globetrotter_' + Math.floor(Math.random() * 10000);
+    const updated = userStore.updateCustomId(initialUser.id, newHandle);
+    assert.strictEqual(updated.custom_id, newHandle);
+    assert.strictEqual(updated.username, newHandle);
+
+    // Rejects invalid format (e.g. spaces or special chars)
+    assert.throws(
+      () => userStore.updateCustomId(initialUser.id, 'invalid handle!'),
+      /must be 3-30 characters/,
+      'Must reject invalid handle format'
+    );
+
+    // Rejects duplicate handle
+    assert.throws(
+      () => userStore.updateCustomId(initialUser.id, testCustomId),
+      /already taken/,
+      'Must reject duplicate handle'
+    );
+  });
+
+  test('userStore manages mutual friends list', () => {
+    const userA = userStore.createUser({ display_name: 'Alice Traveler' });
+    const userB = userStore.createUser({ display_name: 'Bob Traveler' });
+
+    assert.strictEqual(userStore.isFriend(userA.id, userB.id), false);
+
+    // Add friend
+    userStore.addFriend(userA.id, userB.id);
+    assert.strictEqual(userStore.isFriend(userA.id, userB.id), true);
+    assert.strictEqual(userStore.isFriend(userB.id, userA.id), true, 'Friendship is mutual');
+
+    // List friends
+    const friendsOfA = userStore.listFriends(userA.id);
+    assert.ok(friendsOfA.some((f) => f.id === userB.id));
+
+    // Remove friend
+    userStore.removeFriend(userA.id, userB.id);
+    assert.strictEqual(userStore.isFriend(userA.id, userB.id), false);
+  });
+
+  test('userStore supports passwordless OAuth user lookup and registration', () => {
+    const oauthProviderId = 'google_sub_' + Date.now();
+    const existing = userStore.findByOAuth('google', oauthProviderId);
+    assert.strictEqual(existing, null);
+
+    const createdOAuthUser = userStore.createUser({
+      display_name: 'Google Explorer',
+      auth_provider: 'google',
+      auth_provider_id: oauthProviderId,
+    });
+
+    assert.ok(createdOAuthUser.custom_id.startsWith('traveler_'));
+    const resolved = userStore.findByOAuth('google', oauthProviderId);
+    assert.ok(resolved);
+    assert.strictEqual(resolved.id, createdOAuthUser.id);
+  });
+
+  test('Zero emoji policy is strictly maintained across frontend source files', () => {
+    const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}]/u;
+    const violations = [];
+
+    function scan(dir) {
+      const files = fs.readdirSync(dir);
+      for (const file of files) {
+        const full = path.join(dir, file);
+        const stat = fs.statSync(full);
+        if (stat.isDirectory()) {
+          scan(full);
+        } else if (/\.(tsx|ts|js|jsx)$/.test(file)) {
+          const content = fs.readFileSync(full, 'utf-8');
+          const lines = content.split('\n');
+          lines.forEach((line, idx) => {
+            if (emojiRegex.test(line)) {
+              violations.push(`${full}:${idx + 1}: ${line.trim()}`);
+            }
+          });
+        }
+      }
+    }
+
+    scan(path.join(__dirname, '../src'));
+    assert.deepStrictEqual(violations, [], `No emojis allowed in frontend code. Violations: ${violations.join(', ')}`);
   });
 
   test('userStore rejects duplicate custom_id', () => {
