@@ -238,9 +238,9 @@ export function RegionalFeed({
                 <button className="story-photo" onClick={() => onSelectPost(post.id)} aria-label={`View ${post.author}’s story in ${post.city}`} aria-pressed={isSelected}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={post.image} alt={post.caption} loading="lazy" width={480} height={320} />
-                  <span className="story-location"><span>{post.city}, {countryName}</span><InkIcon name="arrow" size={18} /></span>
+                  <span className="story-location"><span>{post.location || `${post.city}, ${countryName}`}</span><InkIcon name="arrow" size={18} /></span>
                 </button>
-              ) : <button className="story-location" onClick={() => onSelectPost(post.id)} aria-pressed={isSelected}>{post.city}<InkIcon name="arrow" size={18} /></button>}
+              ) : <button className="story-location" onClick={() => onSelectPost(post.id)} aria-pressed={isSelected}>{post.location || post.city}<InkIcon name="arrow" size={18} /></button>}
               <p className="story-caption">{post.caption}</p>
               <div className="story-actions">
                 <button onClick={() => handleToggleLike(post.id)} aria-pressed={isLiked} aria-label={`${isLiked ? "Unlike" : "Like"} post by ${post.author}`}><InkIcon name="heart" size={18} fill={isLiked ? "currentColor" : "none"} /><span>{post.likes + (isLiked ? 1 : 0)}</span></button>

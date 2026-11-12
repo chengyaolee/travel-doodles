@@ -234,11 +234,15 @@ export async function GET(request: NextRequest) {
           );
           if (!exists) {
             const englishCountry = toEnglishCountry(c.country, c.country);
+            const matchedRegion = cachedRegions?.find((reg) => reg.id === c.region);
+            const stateName = matchedRegion ? matchedRegion.name : undefined;
+            const displayName = [c.name, stateName, englishCountry].filter(Boolean).join(", ");
             results.push({
               id: `local-city-${c.id}`,
               name: c.name,
-              displayName: `${c.name}, ${englishCountry}`,
+              displayName,
               city: c.name,
+              state: stateName,
               country: englishCountry,
               countryCode: c.country,
               regionId: c.region,
@@ -265,6 +269,7 @@ export async function GET(request: NextRequest) {
               name: r.name,
               displayName: `${r.name}${r.shortName ? ` (${r.shortName})` : ""}, ${englishCountry}`,
               city: r.name,
+              state: r.name,
               country: englishCountry,
               countryCode: r.country,
               regionId: r.id,

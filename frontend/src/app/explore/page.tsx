@@ -111,15 +111,21 @@ function ExploreContent() {
   };
 
   // Region selection handler: centers region on the map taking up ~70% of available window
-  const handleSelectRegion = (regionId: string) => {
+  const handleSelectRegion = (regionId: string, countryCode?: string) => {
+    if (countryCode && selectedCountry !== countryCode) {
+      setSelectedCountry(countryCode);
+    }
     setSelectedRegion(regionId);
     setSelectedPostId(null);
     setSelectedCity(null);
     setIsSidebarOpen(true);
-    updateUrl(selectedCountry, regionId, null);
+    updateUrl(countryCode || selectedCountry, regionId, null);
 
     // Smoothly center and fit the selected state/region chunk filling 70% of the visible window
-    const allRegions = selectedCountry ? (regionsInventory[selectedCountry] || []) : Object.values(regionsInventory).flat();
+    const targetCountry = countryCode || selectedCountry;
+    const allRegions = targetCountry
+      ? (regionsInventory[targetCountry] || [])
+      : Object.values(regionsInventory).flat();
     const found = allRegions.find((r) => r.id === regionId);
     if (found && mapInstanceRef.current && found.bounds) {
       const map = mapInstanceRef.current;
@@ -139,6 +145,42 @@ function ExploreContent() {
         padding: { top: padTop, bottom: padBottom, left: padX, right: padX },
         maxZoom: 15,
         duration: 850,
+      });
+    }
+  };
+
+  // Granular place/landmark selection handler from sticky search bar
+  const handleSelectPlace = (place: {
+    name: string;
+    displayName: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    countryCode?: string;
+    regionId?: string;
+    coordinates: [number, number];
+  }) => {
+    if (place.countryCode) {
+      setSelectedCountry(place.countryCode);
+    }
+    if (place.regionId) {
+      setSelectedRegion(place.regionId);
+    }
+    if (place.city) {
+      setSelectedCity(place.city);
+    }
+    setSelectedPostId(null);
+    setIsSidebarOpen(true);
+    updateUrl(place.countryCode || selectedCountry, place.regionId || selectedRegion, null);
+
+    if (mapInstanceRef.current && place.coordinates) {
+      const map = mapInstanceRef.current;
+      map.resize();
+      map.flyTo({
+        center: place.coordinates,
+        zoom: 13,
+        duration: 1000,
+        essential: true,
       });
     }
   };
@@ -318,15 +360,17 @@ function ExploreContent() {
 
     setRealPosts((prev) => [postItem, ...prev]);
     setAllMapPosts((prev) => [postItem, ...prev]);
-    setToastMessage(`Pinned "${newPost.city}" to the atlas!`);
+    const pinLabel = newPost.location.split(",")[0].trim() || newPost.city;
+    setToastMessage(`Pinned "${pinLabel}" to the atlas!`);
     setTimeout(() => setToastMessage(null), 4000);
 
     // Smoothly fly to the new post's exact coordinates on the map
     if (mapInstanceRef.current && newPost.coordinates) {
       mapInstanceRef.current.flyTo({
         center: newPost.coordinates,
-        zoom: 6,
-        duration: 900,
+        zoom: 12,
+        duration: 1000,
+        essential: true,
       });
     }
   };
@@ -344,10 +388,13 @@ function ExploreContent() {
       {/* Top Slim Sketchbook Toolbar */}
       <ExploreToolbar
         inventory={inventory}
+        regionsInventory={regionsInventory}
         selectedCountry={selectedCountry}
         visibilityFilter={visibilityFilter}
         onVisibilityChange={setVisibilityFilter}
         onSelectCountry={handleSelectCountry}
+        onSelectRegion={handleSelectRegion}
+        onSelectPlace={handleSelectPlace}
         onResetWorld={handleResetWorld}
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
