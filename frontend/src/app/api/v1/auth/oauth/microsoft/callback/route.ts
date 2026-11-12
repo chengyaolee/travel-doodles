@@ -24,8 +24,9 @@ export async function GET(req: NextRequest) {
   try {
     const redirectUri = `${appUrl}/api/v1/auth/oauth/microsoft/callback`;
 
+    const tenant = config.microsoftTenantId || "common";
     // 1. Exchange authorization code for Microsoft access token
-    const tokenRes = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
+    const tokenRes = await fetch(`https://login.microsoftonline.com/${encodeURIComponent(tenant)}/oauth2/v2.0/token`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({

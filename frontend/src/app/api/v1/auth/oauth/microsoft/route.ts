@@ -7,11 +7,11 @@ export async function GET(req: NextRequest) {
   const redirectUri = `${appUrl}/api/v1/auth/oauth/microsoft/callback`;
 
   if (!config.microsoftClientId) {
-    // Real OAuth: credentials must be provided in backend .env
     return NextResponse.redirect(`${appUrl}?auth_error=microsoft_oauth_not_configured`);
   }
 
-  const msAuthUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${encodeURIComponent(
+  const tenant = config.microsoftTenantId || "common";
+  const msAuthUrl = `https://login.microsoftonline.com/${encodeURIComponent(tenant)}/oauth2/v2.0/authorize?client_id=${encodeURIComponent(
     config.microsoftClientId
   )}&redirect_uri=${encodeURIComponent(
     redirectUri

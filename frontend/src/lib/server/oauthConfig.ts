@@ -3,10 +3,23 @@ import path from "path";
 
 let backendEnvLoaded = false;
 
+function cleanEnvValue(val: string | undefined): string {
+  if (!val) return "";
+  let v = val.trim();
+  // Strip surrounding double quotes, single quotes, or backticks commonly introduced in copy-pasting
+  if (
+    (v.startsWith('"') && v.endsWith('"')) ||
+    (v.startsWith("'") && v.endsWith("'")) ||
+    (v.startsWith("`") && v.endsWith("`"))
+  ) {
+    v = v.slice(1, -1).trim();
+  }
+  return v;
+}
+
 /**
- * Loads environment variables from backend/.env or root .env into process.env if not already set.
- * This guarantees Next.js server route handlers have access to GOOGLE_CLIENT_ID,
- * GOOGLE_CLIENT_SECRET, MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET, etc.
+ * Loads environment variables from local .env files into process.env if not already set.
+ * On Vercel, process.env is provided directly by the platform runtime.
  */
 export function loadBackendEnv(): void {
   if (backendEnvLoaded) return;
@@ -33,13 +46,7 @@ export function loadBackendEnv(): void {
           const eqIdx = trimmed.indexOf("=");
           if (eqIdx > 0) {
             const key = trimmed.slice(0, eqIdx).trim();
-            let val = trimmed.slice(eqIdx + 1).trim();
-            if (
-              (val.startsWith('"') && val.endsWith('"')) ||
-              (val.startsWith("'") && val.endsWith("'"))
-            ) {
-              val = val.slice(1, -1);
-            }
+            const val = cleanEnvValue(trimmed.slice(eqIdx + 1));
             if (!process.env[key] && val) {
               process.env[key] = val;
             }
@@ -57,6 +64,7 @@ export interface OAuthConfig {
   googleClientSecret: string;
   microsoftClientId: string;
   microsoftClientSecret: string;
+  microsoftTenantId: string;
   backendUrl: string;
   appUrl: string;
 }
@@ -65,11 +73,12 @@ export function getOAuthConfig(): OAuthConfig {
   loadBackendEnv();
 
   return {
-    googleClientId: process.env.GOOGLE_CLIENT_ID || "",
-    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-    microsoftClientId: process.env.MICROSOFT_CLIENT_ID || "",
-    microsoftClientSecret: process.env.MICROSOFT_CLIENT_SECRET || "",
-    backendUrl: process.env.BACKEND_URL || "",
-    appUrl: process.env.NEXT_PUBLIC_APP_URL || "",
+    googleClientId: cleanEnvValue(process.env.GOOGLE_CLIENT_ID),
+    googleClientSecret: cleanEnvValue(process.env.GOOGLE_CLIENT_SECRET),
+    microsoftClientId: cleanEnvValue(process.env.MICROSOFT_CLIENT_ID),
+    microsoftClientSecret: cleanEnvValue(process.env.MICROSOFT_CLIENT_SECRET),
+    microsoftTenantId: cleanEnvValue(process.env.MICROSOFT_TENANT_ID) || "common",
+    backendUrl: cleanEnvValue(process.env.BACKEND_URL).replace(/\/+$/, ""),
+    appUrl: cleanEnvValue(process.env.NEXT_PUBLIC_APP_URL).replace(/\/+$/, ""),
   };
 }
