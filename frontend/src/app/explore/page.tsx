@@ -11,6 +11,7 @@ import { PaperGrainOverlay } from "@/components/explore/PaperGrainOverlay";
 import type { ExplorePost } from "@/lib/explore/mockPosts";
 import { CreatePostModal, TravelDoodlePost } from "@/components/app/CreatePostModal";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/authContext";
 
 function ExploreContent() {
   const searchParams = useSearchParams();
@@ -33,6 +34,7 @@ function ExploreContent() {
   const [isMobile, setIsMobile] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const { requireAuth } = useAuth();
 
   const mapInstanceRef = useRef<MapLibreMap | null>(null);
 
@@ -333,7 +335,7 @@ function ExploreContent() {
         onResetWorld={handleResetWorld}
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
-        onCreateDoodle={() => setIsCreateOpen(true)}
+        onCreateDoodle={() => requireAuth("create a travel doodle", () => setIsCreateOpen(true))}
       />
 
       {/* Main Map Viewport & Sliding Sidebar Container */}

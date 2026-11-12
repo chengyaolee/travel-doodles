@@ -2,8 +2,23 @@ import fs from "fs";
 import path from "path";
 import { type ExplorePost } from "../explore/mockPosts.ts";
 
-// File path for persistence in development
-const DATA_DIR = path.join(process.cwd(), ".data");
+function resolveDataDir(): string {
+  const cwd = process.cwd();
+  const directPath = path.join(cwd, ".data");
+  const nestedPath = path.join(cwd, "frontend", ".data");
+
+  if (fs.existsSync(nestedPath)) return nestedPath;
+  if (!fs.existsSync(directPath)) {
+    try {
+      fs.mkdirSync(directPath, { recursive: true });
+    } catch {
+      // ignore
+    }
+  }
+  return directPath;
+}
+
+const DATA_DIR = resolveDataDir();
 const DATA_FILE = path.join(DATA_DIR, "posts.json");
 const COMMENTS_FILE = path.join(DATA_DIR, "comments.json");
 

@@ -21,6 +21,7 @@ import { ExploreMapModal } from "@/components/app/ExploreMapModal";
 import { SocialFeedModal } from "@/components/app/SocialFeedModal";
 import { ProfileModal } from "@/components/app/ProfileModal";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/authContext";
 
 export default function Home() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -28,12 +29,13 @@ export default function Home() {
   const [isFeedOpen, setIsFeedOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
-  // User-created and backend posts stored in React state (zero mock data default)
+  // User-created and real backend database posts (Zero mock data defaults)
   const [userPosts, setUserPosts] = useState<TravelDoodlePost[]>([]);
-
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Connect to real backend API to load live posts
+  const { requireAuth } = useAuth();
+
+  // Connect to real backend API to load database posts
   useEffect(() => {
     api.getPosts({ limit: 40 })
       .then((serverPosts) => {
@@ -43,6 +45,7 @@ export default function Home() {
             location: p.location || `${p.city}, ${p.country}`,
             city: p.city,
             country: p.country,
+            region: p.region,
             caption: p.caption,
             date: p.date,
             visibility: p.visibility,
@@ -54,6 +57,8 @@ export default function Home() {
             coordinates: p.coordinates || [0, 0],
           }));
           setUserPosts(mapped);
+        } else {
+          setUserPosts([]);
         }
       })
       .catch((e) => console.warn("Live backend posts notice:", e));
@@ -68,6 +73,10 @@ export default function Home() {
   const handleHeroSelectPin = (city: string) => {
     setToastMessage(`Explored "${city}" on the map 🗺️`);
     setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleStartDoodling = () => {
+    requireAuth("create a travel doodle", () => setIsCreateOpen(true));
   };
 
   return (
@@ -87,7 +96,7 @@ export default function Home() {
 
       {/* Top Navbar */}
       <Navbar
-        onStartDoodling={() => setIsCreateOpen(true)}
+        onStartDoodling={handleStartDoodling}
         onExploreClick={() => setIsExploreOpen(true)}
         onStoriesClick={() => setIsFeedOpen(true)}
         onProfileClick={() => setIsProfileOpen(true)}
@@ -95,30 +104,44 @@ export default function Home() {
 
       {/* Main Page Canvas Sections */}
       <main id="main-content" tabIndex={-1} className="flex-1">
-        {/* Landing Page Hero with Hand-drawn World Map & Parallax */}
+        {/* Landing Page Hero with Hand-drawn World Map */}
         <HeroSection
-          onStartDoodling={() => setIsCreateOpen(true)}
+          posts={userPosts}
+          onStartDoodling={handleStartDoodling}
           onExploreWorld={() => setIsExploreOpen(true)}
           onSelectPin={handleHeroSelectPin}
         />
 
         {/* Section A — Your World, Your Stories ("Every pin has a story.") */}
-        <SectionA onExploreClick={() => setIsExploreOpen(true)} />
+        <SectionA
+          posts={userPosts}
+          onExploreClick={() => setIsExploreOpen(true)}
+          onCreateClick={handleStartDoodling}
+        />
 
         {/* Section B — Leave Your Mark (3-step creation flow with doodle connectors) */}
-        <SectionB onCreateClick={() => setIsCreateOpen(true)} />
+        <SectionB onCreateClick={handleStartDoodling} />
 
         {/* Section C — Follow the Dotted Lines ("See where your friends wander.") */}
-        <SectionC />
+        <SectionC
+          posts={userPosts}
+          onCreateClick={handleStartDoodling}
+        />
 
-        {/* Section D — A World Full of Doodles (Irregular masonry travel photo gallery) */}
-        <SectionD />
+        {/* Section D — A World Full of Doodles (Curated travel photograph gallery) */}
+        <SectionD
+          posts={userPosts}
+          onCreateClick={handleStartDoodling}
+        />
 
         {/* Section E — Your Own Little Corner of the World (Personal travel board) */}
-        <SectionE />
+        <SectionE
+          posts={userPosts}
+          onCreateClick={handleStartDoodling}
+        />
 
         {/* Section F — Final CTA ("Got a story? Put it on the map." with hand-drawn arrow) */}
-        <SectionF onCreateClick={() => setIsCreateOpen(true)} />
+        <SectionF onCreateClick={handleStartDoodling} />
       </main>
 
       {/* Footer */}

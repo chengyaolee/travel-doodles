@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { ThemeScript } from "@/components/theme/ThemeScript";
+import { AuthProvider } from "@/lib/authContext";
+import { AuthModal } from "@/components/auth/AuthModal";
 import { geist, caveat } from "@/lib/fonts";
 import "./globals.css";
 
@@ -23,7 +25,12 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         <a href="#main-content" className="skip-link">Skip to content</a>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            {children}
+            <AuthModal />
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

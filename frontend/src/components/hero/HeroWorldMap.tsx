@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { DoodlePin } from "@/components/doodles";
 import {
@@ -9,6 +9,7 @@ import {
   WORLD_GRATICULE_PATH,
   ACCURATE_CITIES,
 } from "@/lib/worldMapData";
+import { TravelDoodlePost } from "@/components/app/CreatePostModal";
 
 export interface HeroPin {
   id: string;
@@ -24,75 +25,15 @@ export interface HeroPin {
   date: string;
 }
 
-export const HERO_PINS: HeroPin[] = [
-  {
-    id: "nyc",
-    x: ACCURATE_CITIES.nyc.x,
-    y: ACCURATE_CITIES.nyc.y,
-    city: "New York",
-    country: "USA",
-    countryCode: "US",
-    label: "NYC",
-    note: "Watching twilight settle over the Manhattan skyline from Brooklyn Bridge.",
-    src: "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=400&h=300&fit=crop",
-    rotation: -3,
-    date: "April 2026",
-  },
-  {
-    id: "paris",
-    x: ACCURATE_CITIES.paris.x,
-    y: ACCURATE_CITIES.paris.y,
-    city: "Paris",
-    country: "France",
-    countryCode: "FR",
-    label: "Paris",
-    note: "Fresh croissants by the Seine while sketching the bridges.",
-    src: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=400&h=300&fit=crop",
-    rotation: 2.5,
-    date: "May 2026",
-  },
-  {
-    id: "tokyo",
-    x: ACCURATE_CITIES.tokyo.x,
-    y: ACCURATE_CITIES.tokyo.y,
-    city: "Tokyo",
-    country: "Japan",
-    countryCode: "JP",
-    label: "Tokyo",
-    note: "Electric alleys of Akihabara and steaming ramen in Shinjuku.",
-    src: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&h=300&fit=crop",
-    rotation: -2,
-    date: "May 2026",
-  },
-  {
-    id: "capetown",
-    x: ACCURATE_CITIES.capetown.x,
-    y: ACCURATE_CITIES.capetown.y,
-    city: "Cape Town",
-    country: "South Africa",
-    countryCode: "ZA",
-    label: "Cape Town",
-    note: "Table Mountain bathed in golden Atlantic mist at dusk.",
-    src: "https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=400&h=300&fit=crop",
-    rotation: 3.5,
-    date: "March 2026",
-  },
-  {
-    id: "sydney",
-    x: ACCURATE_CITIES.sydney.x,
-    y: ACCURATE_CITIES.sydney.y,
-    city: "Sydney",
-    country: "Australia",
-    countryCode: "AU",
-    label: "Sydney",
-    note: "Sunrise coastal walk from Coogee to Bondi. Ocean spray everywhere.",
-    src: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=400&h=300&fit=crop",
-    rotation: -2.5,
-    date: "February 2026",
-  },
-];
-
-export function HeroWorldMap({ onSelectPin }: { onSelectPin?: (city: string) => void }) {
+export function HeroWorldMap({
+  onSelectPin,
+  posts = [],
+  onCreatePin,
+}: {
+  onSelectPin?: (city: string) => void;
+  posts?: TravelDoodlePost[];
+  onCreatePin?: () => void;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isVisible, setIsVisible] = useState(false);
@@ -115,6 +56,45 @@ export function HeroWorldMap({ onSelectPin }: { onSelectPin?: (city: string) => 
     transform: `translate(${mousePos.x * depth}px, ${mousePos.y * depth}px)`,
     transition: "transform 0.25s ease-out",
   });
+
+  // Map real database posts to SVG coordinate pins (Zero hardcoded placeholders)
+  const heroPins: HeroPin[] = useMemo(() => {
+    if (!posts || posts.length === 0) return [];
+
+    return posts.map((p, index) => {
+      let x = 500;
+      let y = 280;
+      const cityKey = (p.city || "").toLowerCase().trim();
+      const matchCity = Object.entries(ACCURATE_CITIES).find(
+        ([k, c]) => k === cityKey || c.name.toLowerCase() === cityKey
+      );
+
+      if (matchCity) {
+        x = matchCity[1].x;
+        y = matchCity[1].y;
+      } else if (p.coordinates && p.coordinates.length >= 2 && (p.coordinates[0] !== 0 || p.coordinates[1] !== 0)) {
+        const lng = p.coordinates[0];
+        const lat = Math.max(-80, Math.min(84, p.coordinates[1]));
+        x = ((lng + 180) / 360) * 1000;
+        y = 280 - (lat / 90) * 230;
+      }
+
+      const rotations = [-2.5, 2, -1.5, 3, -3, 1.5];
+      return {
+        id: p.id,
+        x,
+        y,
+        city: p.city || "Destination",
+        country: p.country || "World",
+        countryCode: p.country || "",
+        label: p.city || "Destination",
+        note: p.caption || `Travel doodle in ${p.city}`,
+        src: p.image || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=400&h=300&fit=crop",
+        rotation: rotations[index % rotations.length],
+        date: p.date,
+      };
+    });
+  }, [posts]);
 
   const handlePinClick = (pin: HeroPin) => {
     setActivePreview(activePreview?.id === pin.id ? null : pin);
@@ -139,125 +119,36 @@ export function HeroWorldMap({ onSelectPin }: { onSelectPin?: (city: string) => 
 
       {/* Cartographically Accurate World Map SVG Layer */}
       <svg
-        className="absolute inset-0 w-full h-full pointer-events-none"
         viewBox={WORLD_VIEWBOX}
-        preserveAspectRatio="none"
+        className="absolute inset-0 w-full h-full pointer-events-none"
+        preserveAspectRatio="xMidYMid meet"
         style={parallax(2)}
-        aria-label="Accurate World Whiteboard Map"
       >
-        {/* Subtle Latitude / Longitude Graticule Grid */}
+        {/* Subtle graticule lines */}
         <path
           d={WORLD_GRATICULE_PATH}
+          fill="none"
           stroke="var(--stroke-color)"
           strokeWidth="0.5"
-          strokeDasharray="2 4"
-          fill="none"
-          opacity="0.12"
+          strokeDasharray="2,5"
+          opacity="0.25"
         />
 
-        {/* Real Coastline Outline with Hand-Drawn Doodle Aesthetic */}
+        {/* Continents & Landmasses */}
         <path
           d={WORLD_LAND_PATH}
+          fill="var(--bg-primary)"
           stroke="var(--stroke-color)"
           strokeWidth="1.2"
-          strokeLinecap="round"
           strokeLinejoin="round"
-          fill="var(--stroke-color)"
-          fillOpacity="0.03"
-          className={isVisible ? "animate-stroke-draw" : ""}
+          strokeLinecap="round"
+          opacity={isVisible ? 0.95 : 0}
           style={{
-            strokeDasharray: 2500,
-            strokeDashoffset: isVisible ? 0 : 2500,
-            transition: "stroke-dashoffset 2.6s cubic-bezier(0.16, 1, 0.3, 1)",
+            transition: "opacity 1s ease-out, stroke-dashoffset 2s ease-out",
           }}
         />
 
-        {/* Transatlantic Corridor: NYC -> Paris */}
-        <path
-          d={`M ${ACCURATE_CITIES.nyc.x} ${ACCURATE_CITIES.nyc.y} Q 400 130, ${ACCURATE_CITIES.paris.x} ${ACCURATE_CITIES.paris.y}`}
-          stroke="var(--stroke-color)"
-          strokeWidth="1.6"
-          strokeDasharray="6 4"
-          fill="none"
-          opacity="0.5"
-        />
-        {/* Eurasian Route: Paris -> Tokyo */}
-        <path
-          d={`M ${ACCURATE_CITIES.paris.x} ${ACCURATE_CITIES.paris.y} Q 680 120, ${ACCURATE_CITIES.tokyo.x} ${ACCURATE_CITIES.tokyo.y}`}
-          stroke="var(--stroke-color)"
-          strokeWidth="1.6"
-          strokeDasharray="6 4"
-          fill="none"
-          opacity="0.5"
-        />
-        {/* Pacific Journey: Tokyo -> Sydney */}
-        <path
-          d={`M ${ACCURATE_CITIES.tokyo.x} ${ACCURATE_CITIES.tokyo.y} Q 920 330, ${ACCURATE_CITIES.sydney.x} ${ACCURATE_CITIES.sydney.y}`}
-          stroke="var(--stroke-color)"
-          strokeWidth="1.6"
-          strokeDasharray="6 4"
-          fill="none"
-          opacity="0.5"
-        />
-        {/* North-South Route: Paris -> Cape Town */}
-        <path
-          d={`M ${ACCURATE_CITIES.paris.x} ${ACCURATE_CITIES.paris.y} Q 490 320, ${ACCURATE_CITIES.capetown.x} ${ACCURATE_CITIES.capetown.y}`}
-          stroke="var(--stroke-color)"
-          strokeWidth="1.6"
-          strokeDasharray="6 4"
-          fill="none"
-          opacity="0.4"
-        />
-
-        {/* Animated Sketched Airplanes on Routes */}
-        <g transform="translate(400, 150) rotate(-14)">
-          <text fontSize="12" fill="var(--stroke-color)" opacity="0.8">✈</text>
-        </g>
-        <g transform="translate(680, 160) rotate(12)">
-          <text fontSize="12" fill="var(--stroke-color)" opacity="0.8">✈</text>
-        </g>
-        <g transform="translate(900, 340) rotate(96)">
-          <text fontSize="12" fill="var(--stroke-color)" opacity="0.8">✈</text>
-        </g>
-
-        {/* Handwritten Geographic Annotations */}
-        <text
-          x="350"
-          y="145"
-          fontSize="13"
-          fontFamily="var(--font-hand)"
-          fill="var(--stroke-color)"
-          opacity="0.6"
-          transform="rotate(-5 350 145)"
-        >
-          transatlantic hop ✈️
-        </text>
-
-        <text
-          x="660"
-          y="140"
-          fontSize="13"
-          fontFamily="var(--font-hand)"
-          fill="var(--stroke-color)"
-          opacity="0.6"
-          transform="rotate(3 660 140)"
-        >
-          silk skies to Tokyo ✦
-        </text>
-
-        <text
-          x="750"
-          y="390"
-          fontSize="13"
-          fontFamily="var(--font-hand)"
-          fill="var(--stroke-color)"
-          opacity="0.6"
-          transform="rotate(-6 750 390)"
-        >
-          Pacific crossing 🌊
-        </text>
-
-        {/* Equator & Meridian subtle doodle markers */}
+        {/* Minimal oceanic latitude notes */}
         <text
           x="20"
           y="342"
@@ -286,68 +177,86 @@ export function HeroWorldMap({ onSelectPin }: { onSelectPin?: (city: string) => 
         </g>
       </svg>
 
-      {/* Floating Pinned Polaroid Photographs (Placed at Exact Geographic Coordinates) */}
-      {/* Kept stable without parallax movement to prevent hover flickering */}
-      <div className="absolute inset-0 pointer-events-auto">
-        {HERO_PINS.map((pin) => {
-          const isActive = activePreview?.id === pin.id;
+      {/* Pinned Photographs from Real Database Posts */}
+      {heroPins.length > 0 ? (
+        <div className="absolute inset-0 pointer-events-auto">
+          {heroPins.map((pin) => {
+            const isActive = activePreview?.id === pin.id;
 
-          return (
-            <button
-              type="button"
-              key={pin.id}
-              aria-label={`View memory in ${pin.city}`}
-              aria-pressed={isActive}
-              className={`absolute group cursor-pointer p-2 -m-2 select-none ${
-                pin.id === "capetown" || pin.id === "sydney" ? "hidden sm:block" : ""
-              }`}
-              style={{
-                left: `${(pin.x / 1000) * 100}%`,
-                top: `${(pin.y / 560) * 100}%`,
-                transform: `translate(-50%, -105%) rotate(${pin.rotation}deg)`,
-                zIndex: isActive ? 45 : 20,
-              }}
-              onClick={() => handlePinClick(pin)}
-            >
-              {/* Polaroid Frame */}
-              <div
-                className={`w-16 sm:w-24 md:w-28 bg-white p-1 sm:p-1.5 pb-2 sm:pb-3.5 rounded-xs shadow-md border border-neutral-300 transition-all duration-200 group-hover:shadow-2xl group-hover:border-[var(--ink-primary)] ${
-                  isActive
-                    ? "ring-2 ring-[var(--ink-primary)] shadow-2xl scale-105"
-                    : "group-hover:scale-[1.03]"
-                }`}
+            return (
+              <button
+                type="button"
+                key={pin.id}
+                aria-label={`View memory in ${pin.city}`}
+                aria-pressed={isActive}
+                className="absolute group cursor-pointer p-2 -m-2 select-none"
+                style={{
+                  left: `${(pin.x / 1000) * 100}%`,
+                  top: `${(pin.y / 560) * 100}%`,
+                  transform: `translate(-50%, -105%) rotate(${pin.rotation}deg)`,
+                  zIndex: isActive ? 45 : 20,
+                }}
+                onClick={() => handlePinClick(pin)}
               >
-                {/* Photo image */}
-                <div className="aspect-[4/3] overflow-hidden bg-neutral-200 rounded-3xs">
-                  <img
-                    src={pin.src}
-                    alt={pin.label}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
+                {/* Polaroid Frame */}
+                <div
+                  className={`w-16 sm:w-24 md:w-28 bg-white p-1 sm:p-1.5 pb-2 sm:pb-3.5 rounded-xs shadow-md border border-neutral-300 transition-all duration-200 group-hover:shadow-2xl group-hover:border-[var(--ink-primary)] ${
+                    isActive
+                      ? "ring-2 ring-[var(--ink-primary)] shadow-2xl scale-105"
+                      : "group-hover:scale-[1.03]"
+                  }`}
+                >
+                  <div className="aspect-[4/3] overflow-hidden bg-neutral-200 rounded-3xs">
+                    <img
+                      src={pin.src}
+                      alt={pin.label}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                  <p className="font-sans text-[11px] sm:text-xs text-neutral-900 font-bold mt-1 sm:mt-1.5 text-center truncate px-0.5 leading-none">
+                    {pin.label}
+                  </p>
                 </div>
 
-                {/* City name - bolded without red dot/background */}
-                <p className="font-sans text-[11px] sm:text-xs text-neutral-900 font-bold mt-1 sm:mt-1.5 text-center truncate px-0.5 leading-none">
-                  {pin.label}
-                </p>
-              </div>
-
-              {/* Physical illustrated needle pin & tape holding the Polaroid to the canvas */}
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-10">
-                <DoodlePin size={22} filled color="var(--ink-primary)" />
-                <div className="w-7 h-2 bg-neutral-300/80 rounded-3xs shadow-2xs rotate-[-3deg] -mt-1.5" />
-              </div>
-            </button>
-          );
-        })}
-      </div>
+                {/* Illustrated needle pin holding Polaroid to canvas */}
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-10">
+                  <DoodlePin size={22} filled color="var(--ink-primary)" />
+                  <div className="w-7 h-2 bg-neutral-300/80 rounded-3xs shadow-2xs rotate-[-3deg] -mt-1.5" />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        /* Clean Database State: Living Whiteboard Canvas Invitation */
+        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center pointer-events-none z-20">
+          <div className="pointer-events-auto flex flex-col items-center bg-[var(--bg-primary)]/90 backdrop-blur-xs p-6 sm:p-8 rounded-3xl border-2 border-[var(--border-color)] shadow-xl max-w-sm animate-fade-in">
+            <div className="relative mb-3 animate-bounce">
+              <DoodlePin size={40} filled color="var(--ink-primary)" />
+            </div>
+            <h3 className="font-hand text-2xl font-bold text-[var(--ink-primary)]">
+              The world is a blank whiteboard.
+            </h3>
+            <p className="text-xs text-[var(--ink-secondary)] mt-1.5 mb-5 leading-relaxed font-sans">
+              No travel stories have been pinned yet. Be the very first explorer to drop a pin and leave a mark on the canvas.
+            </p>
+            {onCreatePin && (
+              <button
+                onClick={onCreatePin}
+                className="px-4 py-2.5 rounded-xl bg-[var(--ink-primary)] text-[var(--bg-primary)] font-sans text-xs font-semibold hover:opacity-90 transition-opacity shadow-md cursor-pointer flex items-center gap-2"
+              >
+                <span>Drop the First Pin</span>
+                <span>📌</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Floating Travel Memory Preview Modal (When a Pin is Selected) */}
       {activePreview && (
-        <div
-          className="absolute bottom-3 left-3 right-3 sm:right-auto sm:bottom-6 sm:left-6 sm:w-80 bg-[var(--bg-primary)] rounded-2xl border-2 border-[var(--border-color)] shadow-2xl p-4 z-50 animate-fade-in-up"
-        >
+        <div className="absolute bottom-3 left-3 right-3 sm:right-auto sm:bottom-6 sm:left-6 sm:w-80 bg-[var(--bg-primary)] rounded-2xl border-2 border-[var(--border-color)] shadow-2xl p-4 z-50 animate-fade-in-up">
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-[var(--border-color)]">
             <div className="flex items-center gap-1.5">
               <DoodlePin size={16} filled />
@@ -358,52 +267,29 @@ export function HeroWorldMap({ onSelectPin }: { onSelectPin?: (city: string) => 
             <button
               onClick={() => setActivePreview(null)}
               aria-label="Close memory preview"
-              className="w-6 h-6 rounded-full bg-[var(--bg-elevated)] flex items-center justify-center text-xs font-bold hover:bg-[var(--border-color)] cursor-pointer"
+              className="text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] px-2 py-0.5 rounded-full border border-[var(--border-color)] cursor-pointer"
             >
               ✕
             </button>
           </div>
-
-          <div className="aspect-[3/1] sm:aspect-[16/10] rounded-lg overflow-hidden bg-neutral-100 mb-2.5">
-            <img
-              src={activePreview.src}
-              alt={activePreview.city}
-              className="w-full h-full object-cover"
-            />
-          </div>
-
-          <p className="text-xs sm:text-sm text-[var(--ink-secondary)] leading-relaxed font-normal">
+          <p className="text-xs text-[var(--ink-secondary)] font-hand text-base mb-3 leading-relaxed">
             &ldquo;{activePreview.note}&rdquo;
           </p>
-
-          <div className="mt-2.5 pt-2 border-t border-[var(--border-color)] flex items-center justify-between text-[11px] font-mono text-[var(--ink-secondary)]">
-            <span>{activePreview.date}</span>
-            <span className="font-hand text-xs text-[var(--ink-primary)]">#pinned</span>
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-[11px] text-[var(--ink-secondary)] font-mono">
+              {activePreview.date}
+            </span>
+            <Link
+              href={`/explore?country=${activePreview.countryCode}&city=${encodeURIComponent(
+                activePreview.city
+              )}`}
+              className="text-xs font-semibold text-[var(--ink-primary)] hover:underline flex items-center gap-1"
+            >
+              Explore on World Map 🗺️ →
+            </Link>
           </div>
-
-          {/* Action button: Direct connection to Explore Page Map */}
-          <Link
-            href={`/explore?country=${activePreview.countryCode}&city=${encodeURIComponent(activePreview.city)}`}
-            className="mt-3 w-full py-2 px-3 rounded-xl bg-[var(--ink-primary)] text-[var(--bg-primary)] text-xs font-sans font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer select-none"
-          >
-            <span>Explore {activePreview.city} on World Map</span>
-            <span>🗺️ →</span>
-          </Link>
         </div>
       )}
-
-      {/* Sketched Compass Rose in Bottom-Right Corner */}
-      <div
-        className="absolute bottom-3 right-3 opacity-25 pointer-events-none hidden sm:block"
-        style={parallax(3)}
-        aria-hidden="true"
-      >
-        <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
-          <circle cx="22" cy="22" r="18" stroke="var(--stroke-color)" strokeWidth="1" strokeDasharray="3 3" />
-          <path d="M 22 6 L 25 22 L 22 38 L 19 22 Z" stroke="var(--stroke-color)" strokeWidth="1" />
-          <path d="M 22 6 L 25 22 L 22 20 Z" fill="var(--stroke-color)" opacity="0.6" />
-        </svg>
-      </div>
     </div>
   );
 }

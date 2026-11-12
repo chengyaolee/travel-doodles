@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { postsStore } from "@/lib/server/postsStore";
+import { userStore } from "@/lib/server/userStore";
 
-// Optional proxy to Go backend if active
 const BACKEND_URL = process.env.BACKEND_URL || "";
 
+// GET /api/v1/posts - Free browsing for everyone (no account required)
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const country = searchParams.get("country") || undefined;
@@ -36,13 +37,15 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(result);
 }
 
+// POST /api/v1/posts - Only interactions require an account
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const authUser = userStore.getAuthUser(request);
 
-    // If a live Go backend URL is configured, adapt & forward to Go backend
+    // If live Go backend configured, proxy to Go backend
     if (BACKEND_URL) {
       try {
+        const body = await request.clone().json();
         const lat = body.latitude ?? (body.coordinates ? body.coordinates[1] : 0);
         const lon = body.longitude ?? (body.coordinates ? body.coordinates[0] : 0);
         const goPayload = {
@@ -67,13 +70,32 @@ export async function POST(request: NextRequest) {
         if (res.ok) {
           const data = await res.json();
           return NextResponse.json(data, { status: 201 });
+        } else if (res.status === 401) {
+          return NextResponse.json(
+            { error: "Authentication required to create a post. Please log in or create an account." },
+            { status: 401 }
+          );
         }
       } catch {
         // Fallback to local server store
       }
     }
 
-    const post = postsStore.createPost(body);
+    if (!authUser) {
+      return NextResponse.json(
+        { error: "Authentication required to create a post. Please log in or create an account." },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const postPayload = {
+      ...body,
+      author: authUser.display_name || authUser.username,
+      avatar: authUser.avatar_url,
+    };
+
+    const post = postsStore.createPost(postPayload);
     return NextResponse.json({ post }, { status: 201 });
   } catch (error) {
     return NextResponse.json(

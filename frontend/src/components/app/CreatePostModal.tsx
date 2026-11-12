@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { DoodlePin } from "@/components/doodles";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/authContext";
 
 export interface TravelDoodlePost {
   id: string;
@@ -49,6 +50,8 @@ export function CreatePostModal({
   onClose: () => void;
   onPublish: (post: TravelDoodlePost) => void;
 }) {
+  const { user } = useAuth();
+
   // Address autocomplete state
   const [searchQuery, setSearchQuery] = useState("Kyoto, Japan");
   const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
@@ -146,6 +149,11 @@ export function CreatePostModal({
     e.preventDefault();
     setIsSubmitting(true);
 
+    const authorName = user?.display_name || user?.username || "Traveler";
+    const authorAvatar =
+      user?.avatar_url ||
+      "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop";
+
     const postPayload = {
       city,
       country: countryCode || country,
@@ -156,7 +164,8 @@ export function CreatePostModal({
       visibility,
       image: currentPhoto,
       coordinates,
-      author: "You (Explorer)",
+      author: authorName,
+      avatar: authorAvatar,
     };
 
     try {
@@ -191,9 +200,8 @@ export function CreatePostModal({
         date,
         visibility,
         image: currentPhoto,
-        author: "You (Explorer)",
-        avatar:
-          "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop",
+        author: authorName,
+        avatar: authorAvatar,
         likes: 1,
         coordinates,
       };

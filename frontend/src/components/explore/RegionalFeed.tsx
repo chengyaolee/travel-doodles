@@ -5,6 +5,7 @@ import { ExplorePost } from "@/lib/explore/mockPosts";
 import { InkIcon } from "@/components/ui/InkIcon";
 import { DoodlePin } from "@/components/doodles";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/authContext";
 
 export interface RegionItem {
   id: string;
@@ -73,6 +74,7 @@ export function RegionalFeed({
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const { requireAuth } = useAuth();
 
   const selectedPostRef = useRef<HTMLDivElement>(null);
 
@@ -127,12 +129,14 @@ export function RegionalFeed({
   const hasMore = visibleCount < filteredPosts.length;
 
   const handleToggleLike = (postId: string) => {
-    setLikedPosts((prev) => ({
-      ...prev,
-      [postId]: !prev[postId],
-    }));
-    // Sync to backend real API
-    api.toggleLike(postId).catch((e) => console.warn("Like sync notice:", e));
+    requireAuth("like this memory", () => {
+      setLikedPosts((prev) => ({
+        ...prev,
+        [postId]: !prev[postId],
+      }));
+      // Sync to backend real API
+      api.toggleLike(postId).catch((e) => console.warn("Like sync notice:", e));
+    });
   };
 
   const handleShare = (post: ExplorePost) => {
@@ -150,11 +154,13 @@ export function RegionalFeed({
   const handleAddComment = (postId: string) => {
     if (!commentText.trim()) return;
     const text = commentText.trim();
-    // Sync to backend real API
-    api.addComment(postId, text).catch((e) => console.warn("Comment sync notice:", e));
-    setToastMessage(`Comment added: "${text}"`);
-    setCommentText("");
-    setActiveCommentPostId(null);
+    requireAuth("leave a comment", () => {
+      // Sync to backend real API
+      api.addComment(postId, text).catch((e) => console.warn("Comment sync notice:", e));
+      setToastMessage(`Comment added: "${text}"`);
+      setCommentText("");
+      setActiveCommentPostId(null);
+    });
   };
 
   // Label for administrative division type
@@ -233,7 +239,17 @@ export function RegionalFeed({
               <p className="story-caption">{post.caption}</p>
               <div className="story-actions">
                 <button onClick={() => handleToggleLike(post.id)} aria-pressed={isLiked} aria-label={`${isLiked ? "Unlike" : "Like"} post by ${post.author}`}><InkIcon name="heart" size={18} fill={isLiked ? "currentColor" : "none"} /><span>{post.likes + (isLiked ? 1 : 0)}</span></button>
-                <button onClick={() => setActiveCommentPostId(activeCommentPostId === post.id ? null : post.id)} aria-label="Comment on post" aria-expanded={activeCommentPostId === post.id}><InkIcon name="comment" size={17} /><span>{post.comments}</span></button>
+                <button
+                  onClick={() => {
+                    requireAuth("leave a comment", () => {
+                      setActiveCommentPostId(activeCommentPostId === post.id ? null : post.id);
+                    });
+                  }}
+                  aria-label="Comment on post"
+                  aria-expanded={activeCommentPostId === post.id}
+                >
+                  <InkIcon name="comment" size={17} /><span>{post.comments}</span>
+                </button>
                 <button onClick={() => handleShare(post)} aria-label="Share story deep link"><InkIcon name="share" size={16} />Share</button>
               </div>
               {activeCommentPostId === post.id && <form className="story-comment" onSubmit={(e) => { e.preventDefault(); handleAddComment(post.id); }}><input type="text" aria-label="Your comment" placeholder="Leave a little note…" value={commentText} onChange={(e) => setCommentText(e.target.value)} /><button type="submit">Post</button></form>}

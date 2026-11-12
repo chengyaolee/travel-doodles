@@ -5,15 +5,18 @@ import Link from "next/link";
 import { HeroWorldMap } from "./HeroWorldMap";
 import { DoodleUnderline } from "@/components/doodles";
 import { InkIcon } from "@/components/ui/InkIcon";
+import { TravelDoodlePost } from "@/components/app/CreatePostModal";
 
 export function HeroSection({
   onStartDoodling,
   onExploreWorld,
   onSelectPin,
+  posts = [],
 }: {
   onStartDoodling?: () => void;
   onExploreWorld?: () => void;
   onSelectPin?: (city: string) => void;
+  posts?: TravelDoodlePost[];
 }) {
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
@@ -99,7 +102,11 @@ export function HeroSection({
           transition: "opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.3s",
         }}
       >
-        <HeroWorldMap onSelectPin={onSelectPin} />
+        <HeroWorldMap
+          onSelectPin={onSelectPin}
+          posts={posts}
+          onCreatePin={onStartDoodling}
+        />
       </div>
 
       {/* Subtle Scroll Indicator */}

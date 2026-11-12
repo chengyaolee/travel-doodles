@@ -1,3 +1,2 @@
--- Revert seeded initial traveler account and travel posts
-DELETE FROM posts WHERE author_id = '00000000-0000-0000-0000-000000000001';
-DELETE FROM users WHERE id = '00000000-0000-0000-0000-000000000001';
+-- Revert 000003 clean migration
+-- No action required for clean baseline

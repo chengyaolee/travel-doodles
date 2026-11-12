@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { DoodlePin, DoodleStar, DoodleUnderline } from "@/components/doodles";
+import { DoodlePin } from "@/components/doodles";
 import { TravelDoodlePost } from "./CreatePostModal";
+import { useAuth } from "@/lib/authContext";
+import { api } from "@/lib/api";
 
 interface FeedPost extends TravelDoodlePost {
   commentsList: { user: string; text: string; time: string }[];
@@ -22,6 +24,8 @@ export function SocialFeedModal({
   );
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
+  const [shareToast, setShareToast] = useState<string | null>(null);
+  const { user, requireAuth } = useAuth();
 
   useEffect(() => {
     setFeed(extraPosts.map((p) => ({ ...p, commentsList: [] })));
@@ -30,33 +34,51 @@ export function SocialFeedModal({
   if (!isOpen) return null;
 
   const handleLike = (id: string) => {
-    const isLiked = !!likedPosts[id];
-    setLikedPosts((prev) => ({ ...prev, [id]: !isLiked }));
-    setFeed((prev) =>
-      prev.map((post) =>
-        post.id === id ? { ...post, likes: isLiked ? post.likes - 1 : post.likes + 1 } : post
-      )
-    );
+    requireAuth("like this memory", () => {
+      const isLiked = !!likedPosts[id];
+      setLikedPosts((prev) => ({ ...prev, [id]: !isLiked }));
+      setFeed((prev) =>
+        prev.map((post) =>
+          post.id === id ? { ...post, likes: isLiked ? post.likes - 1 : post.likes + 1 } : post
+        )
+      );
+      api.toggleLike(id).catch((e) => console.warn("Like sync notice:", e));
+    });
   };
 
   const handleAddComment = (id: string) => {
     const text = commentInputs[id]?.trim();
     if (!text) return;
 
-    setFeed((prev) =>
-      prev.map((post) =>
-        post.id === id
-          ? {
-              ...post,
-              commentsList: [
-                ...post.commentsList,
-                { user: "You", text, time: "Just now" },
-              ],
-            }
-          : post
-      )
-    );
-    setCommentInputs((prev) => ({ ...prev, [id]: "" }));
+    requireAuth("leave a comment", () => {
+      const author = user?.display_name || user?.username || "You";
+      setFeed((prev) =>
+        prev.map((post) =>
+          post.id === id
+            ? {
+                ...post,
+                commentsList: [
+                  ...post.commentsList,
+                  { user: author, text, time: "Just now" },
+                ],
+              }
+            : post
+        )
+      );
+      setCommentInputs((prev) => ({ ...prev, [id]: "" }));
+      api.addComment(id, text).catch((e) => console.warn("Comment sync notice:", e));
+    });
+  };
+
+  const handleShare = (post: FeedPost) => {
+    const url = `${window.location.origin}/explore?country=${post.country}&city=${encodeURIComponent(
+      post.city
+    )}&post=${post.id}`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url);
+    }
+    setShareToast("Story link copied to clipboard! 📋");
+    setTimeout(() => setShareToast(null), 3000);
   };
 
   return (
@@ -68,6 +90,13 @@ export function SocialFeedModal({
         className="relative w-full max-w-2xl bg-[var(--bg-primary)] border-2 border-[var(--border-color)] rounded-3xl shadow-2xl my-8 flex flex-col max-h-[90vh] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Share Toast */}
+        {shareToast && (
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl bg-[var(--ink-primary)] text-[var(--bg-primary)] text-xs font-semibold shadow-xl border border-[var(--border-color)]">
+            {shareToast}
+          </div>
+        )}
+
         {/* Header */}
         <div className="p-5 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--bg-primary)] z-10">
           <div className="flex items-center gap-3">
@@ -81,6 +110,7 @@ export function SocialFeedModal({
               </p>
             </div>
           </div>
+
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-color)] flex items-center justify-center text-sm font-bold text-[var(--ink-primary)] hover:bg-[var(--border-color)] cursor-pointer"
@@ -89,30 +119,29 @@ export function SocialFeedModal({
           </button>
         </div>
 
-        {/* Scrollable Feed List */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-8 bg-[var(--bg-secondary)]">
+        {/* Feed List */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
           {feed.length === 0 ? (
-            <div className="py-16 px-4 flex flex-col items-center justify-center text-center">
-              <div className="w-16 h-16 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-color)] flex items-center justify-center text-3xl mb-4 shadow-sm">
-                📬
-              </div>
+            <div className="py-16 text-center flex flex-col items-center">
+              <DoodlePin size={40} filled className="mb-3 text-[var(--ink-primary)] animate-bounce" />
               <h3 className="font-hand text-2xl font-bold text-[var(--ink-primary)]">
-                The Travel Wire is Quiet
+                The community feed is clean
               </h3>
               <p className="text-xs text-[var(--ink-secondary)] max-w-sm mt-1.5 font-sans leading-relaxed">
-                No stories shared yet. Pin your memories from the homepage or Explore Atlas to start the conversation!
+                No travel memories have been shared yet. Start doodling your memories to pin the first story!
               </p>
             </div>
           ) : (
             feed.map((post) => {
-              const isLiked = likedPosts[post.id];
+              const isLiked = !!likedPosts[post.id];
+
               return (
-                <article
+                <div
                   key={post.id}
-                  className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] shadow-sm overflow-hidden"
+                  className="bg-[var(--bg-secondary)] border-2 border-[var(--border-color)] rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
                 >
-                  {/* Author Bar */}
-                  <div className="p-4 flex items-center justify-between">
+                  {/* Author Header */}
+                  <div className="p-4 flex items-center justify-between border-b border-[var(--border-color)]">
                     <div className="flex items-center gap-3">
                       <img
                         src={post.avatar}
@@ -128,9 +157,6 @@ export function SocialFeedModal({
                         </p>
                       </div>
                     </div>
-                    <button className="text-xs font-hand px-3 py-1 rounded-full border border-[var(--border-color)] hover:border-[var(--ink-primary)] text-[var(--ink-secondary)]">
-                      + Follow
-                    </button>
                   </div>
 
                   {/* Main Photo (Photo-first) or Location tag */}
@@ -154,81 +180,93 @@ export function SocialFeedModal({
                     </div>
                   )}
 
-                {/* Post Body & Hand-drawn Caption */}
-                <div className="p-5">
-                  <p className="font-hand text-base sm:text-lg text-[var(--ink-primary)] leading-relaxed mb-4">
-                    &ldquo;{post.caption}&rdquo;
-                  </p>
+                  {/* Post Body & Caption */}
+                  <div className="p-5">
+                    <p className="font-hand text-base sm:text-lg text-[var(--ink-primary)] leading-relaxed mb-4">
+                      &ldquo;{post.caption}&rdquo;
+                    </p>
 
-                  {/* Actions Bar */}
-                  <div className="flex items-center justify-between pt-3 border-t border-[var(--border-color)]">
-                    <div className="flex items-center gap-4">
+                    {/* Actions Bar */}
+                    <div className="flex items-center justify-between pt-3 border-t border-[var(--border-color)]">
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={() => handleLike(post.id)}
+                          className="flex items-center gap-1.5 text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] transition-colors cursor-pointer"
+                        >
+                          <span className={isLiked ? "scale-125 transition-transform" : ""}>
+                            {isLiked ? "❤️" : "🤍"}
+                          </span>
+                          <span className="font-bold">{post.likes}</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            requireAuth("leave a comment");
+                          }}
+                          className="flex items-center gap-1.5 text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] transition-colors cursor-pointer"
+                        >
+                          <span>💬</span>
+                          <span>{post.commentsList.length}</span>
+                        </button>
+                        <button
+                          onClick={() => handleShare(post)}
+                          className="flex items-center gap-1.5 text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] transition-colors cursor-pointer"
+                        >
+                          <span>↗</span>
+                          <span>Share</span>
+                        </button>
+                      </div>
+
+                      <span className="text-[10px] font-hand text-[var(--ink-secondary)]">
+                        Doodled memory
+                      </span>
+                    </div>
+
+                    {/* Comments List */}
+                    {post.commentsList.length > 0 && (
+                      <div className="mt-4 pt-3 border-t border-[var(--border-color)] space-y-2">
+                        {post.commentsList.map((c, idx) => (
+                          <div
+                            key={idx}
+                            className="text-xs flex items-start gap-2 bg-[var(--bg-primary)] p-2 rounded-lg border border-[var(--border-color)]"
+                          >
+                            <span className="font-bold text-[var(--ink-primary)] shrink-0">
+                              {c.user}:
+                            </span>
+                            <span className="text-[var(--ink-secondary)] flex-1">{c.text}</span>
+                            <span className="text-[10px] text-[var(--ink-secondary)] font-mono shrink-0">
+                              {c.time}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Comment Input */}
+                    <div className="mt-4 flex gap-2">
+                      <input
+                        type="text"
+                        value={commentInputs[post.id] || ""}
+                        onChange={(e) =>
+                          setCommentInputs((prev) => ({ ...prev, [post.id]: e.target.value }))
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleAddComment(post.id);
+                        }}
+                        placeholder="Write a little note or reflection..."
+                        className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-[var(--ink-primary)]"
+                      />
                       <button
-                        onClick={() => handleLike(post.id)}
-                        className="flex items-center gap-1.5 text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] transition-colors cursor-pointer"
+                        onClick={() => handleAddComment(post.id)}
+                        className="px-3 py-1.5 bg-[var(--ink-primary)] text-[var(--bg-primary)] rounded-xl text-xs font-bold hover:opacity-90 cursor-pointer"
                       >
-                        <span className={isLiked ? "scale-125 transition-transform" : ""}>
-                          {isLiked ? "❤️" : "🤍"}
-                        </span>
-                        <span className="font-bold">{post.likes}</span>
-                      </button>
-                      <button className="flex items-center gap-1.5 text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] transition-colors cursor-pointer">
-                        <span>💬</span>
-                        <span>{post.commentsList.length}</span>
-                      </button>
-                      <button className="flex items-center gap-1.5 text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] transition-colors cursor-pointer">
-                        <span>↗</span>
-                        <span>Share</span>
+                        Send
                       </button>
                     </div>
-
-                    <span className="text-[10px] font-hand text-[var(--ink-secondary)]">
-                      Doodled memory
-                    </span>
-                  </div>
-
-                  {/* Comments Section */}
-                  {post.commentsList.length > 0 && (
-                    <div className="mt-4 pt-3 border-t border-[var(--border-color)] space-y-2">
-                      {post.commentsList.map((c, idx) => (
-                        <div key={idx} className="text-xs flex items-start gap-2 bg-[var(--bg-secondary)] p-2 rounded-lg">
-                          <span className="font-bold text-[var(--ink-primary)] shrink-0">
-                            {c.user}:
-                          </span>
-                          <span className="text-[var(--ink-secondary)] flex-1">{c.text}</span>
-                          <span className="text-[10px] text-[var(--ink-secondary)] font-mono shrink-0">
-                            {c.time}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Add Comment Input */}
-                  <div className="mt-4 flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Add a travel note or question..."
-                      value={commentInputs[post.id] || ""}
-                      onChange={(e) =>
-                        setCommentInputs((prev) => ({ ...prev, [post.id]: e.target.value }))
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleAddComment(post.id);
-                      }}
-                      className="flex-1 px-3 py-1.5 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[var(--ink-primary)] focus:outline-hidden focus:border-[var(--ink-primary)]"
-                    />
-                    <button
-                      onClick={() => handleAddComment(post.id)}
-                      className="px-3 py-1.5 text-xs font-hand font-bold bg-[var(--ink-primary)] text-[var(--bg-primary)] rounded-xl hover:opacity-90"
-                    >
-                      Post
-                    </button>
                   </div>
                 </div>
-              </article>
-            );
-          }))}
+              );
+            })
+          )}
         </div>
       </div>
     </div>

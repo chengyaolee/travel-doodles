@@ -1,32 +1,19 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
 import { DoodlePin, DoodleStar, DoodleCompass, DoodleGlobe } from "@/components/doodles";
 import { WORLD_LAND_PATH } from "@/lib/worldMapData";
+import { TravelDoodlePost } from "@/components/app/CreatePostModal";
+import { useAuth } from "@/lib/authContext";
 
-const PROFILE_DATA = {
-  name: "Jordan Rivera",
-  username: "@jordanwanders",
-  avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=face",
-  bio: "Architect by day, wanderer by heartbeat. Collecting ferry tickets, mountain sunsets, and hand-drawn maps across 4 continents.",
-  countries: 23,
-  memories: 89,
-  followers: 1240,
-  photos: [
-    { src: "https://images.unsplash.com/photo-1488085061387-422e29b40080?w=300&h=300&fit=crop", loc: "Venice canals", rot: -2 },
-    { src: "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=300&h=300&fit=crop", loc: "Route 66 desert", rot: 3 },
-    { src: "https://images.unsplash.com/photo-1530789253388-582c481c54b0?w=300&h=300&fit=crop", loc: "Santorini caldera", rot: -1.5 },
-    { src: "https://images.unsplash.com/photo-1503220317375-aaad61436b1b?w=300&h=300&fit=crop", loc: "Norwegian fjords", rot: 2 },
-  ],
-  timeline: [
-    { year: "2026", places: ["Cusco & Machu Picchu", "Monteverde Cloud Forest", "Atacama Stargazing"] },
-    { year: "2025", places: ["Chefchaouen Blue City", "Porto Douro Valley", "Snæfellsnes Peninsula"] },
-    { year: "2024", places: ["Kyoto Gion District", "Seoul Bukchon Hanok", "Hạ Long Bay Cruise"] },
-  ],
-};
-
-export function SectionE() {
-  const [isFollowing, setIsFollowing] = useState(false);
+export function SectionE({
+  posts = [],
+  onCreateClick,
+}: {
+  posts?: TravelDoodlePost[];
+  onCreateClick?: () => void;
+}) {
+  const { user, isAuthenticated, openAuthModal, requireAuth } = useAuth();
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
 
@@ -41,8 +28,50 @@ export function SectionE() {
     return () => observer.disconnect();
   }, []);
 
+  // Compute live user stats from database posts
+  const userStats = useMemo(() => {
+    if (!isAuthenticated || !user) return null;
+
+    const myPosts = posts.filter(
+      (p) =>
+        p.author === user.display_name ||
+        p.author === user.username ||
+        p.author === user.custom_id
+    );
+
+    const countries = new Set(myPosts.map((p) => p.country).filter(Boolean));
+    const photos = myPosts.filter((p) => Boolean(p.image));
+
+    // Group timeline by year
+    const timelineMap: Record<string, string[]> = {};
+    for (const post of myPosts) {
+      const year = post.date ? post.date.split("-")[0] : new Date().getFullYear().toString();
+      if (!timelineMap[year]) timelineMap[year] = [];
+      const place = `${post.city}, ${post.country}`;
+      if (!timelineMap[year].includes(place)) {
+        timelineMap[year].push(place);
+      }
+    }
+
+    const timeline = Object.entries(timelineMap).map(([year, places]) => ({
+      year,
+      places,
+    }));
+
+    return {
+      countriesCount: countries.size,
+      memoriesCount: myPosts.length,
+      photos,
+      timeline,
+      myPosts,
+    };
+  }, [posts, isAuthenticated, user]);
+
   return (
-    <section ref={sectionRef} className="py-24 md:py-32 px-4 sm:px-6 max-w-6xl mx-auto w-full flex flex-col items-center">
+    <section
+      ref={sectionRef}
+      className="py-24 md:py-32 px-4 sm:px-6 max-w-6xl mx-auto w-full flex flex-col items-center"
+    >
       {/* Header */}
       <div className="text-center mb-16 flex flex-col items-center">
         <div className="section-kicker mb-5">
@@ -59,239 +88,122 @@ export function SectionE() {
           Your own little corner of the world
         </h2>
         <p
-          className="text-[var(--ink-secondary)] text-base sm:text-lg mt-4 max-w-lg mx-auto font-normal"
-          style={{ opacity: isVisible ? 1 : 0, transition: "opacity 0.8s ease 0.3s" }}
+          className="text-[var(--ink-secondary)] text-base sm:text-lg max-w-lg mx-auto mt-4 font-normal"
+          style={{
+            opacity: isVisible ? 1 : 0,
+            transition: "opacity 0.8s ease 0.3s",
+          }}
         >
-          A little space for everywhere you’ve been. Collect your photographs, trace your journeys, and make it your own.
+          Every journey begins with a clean slate. Personal maps, pinned photographs, and your living travel sketchbook.
         </p>
       </div>
 
-      {/* Main Profile Doodle Board Container */}
-      <div
-        className="bg-[var(--bg-secondary)] rounded-3xl border-2 border-[var(--border-color)] p-6 sm:p-10 relative overflow-hidden shadow-sm"
-        style={{
-          opacity: isVisible ? 1 : 0,
-          transform: isVisible ? "translateY(0)" : "translateY(24px)",
-          transition: "all 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s",
-        }}
-      >
-        {/* Whiteboard grid texture */}
-        <svg className="absolute inset-0 w-full h-full opacity-[0.03] pointer-events-none" aria-hidden="true">
-          <defs>
-            <pattern id="grid-e-whiteboard" width="22" height="22" patternUnits="userSpaceOnUse">
-              <circle cx="11" cy="11" r="0.8" fill="var(--ink-primary)" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid-e-whiteboard)" />
-        </svg>
-
-        {/* Decorative Compass */}
-        <div className="absolute top-6 right-6 opacity-20 pointer-events-none hidden sm:block">
-          <DoodleCompass size={56} />
-        </div>
-
-        {/* Profile Header */}
-        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pb-8 border-b border-[var(--border-color)] relative z-10">
-          <div className="relative">
-            <img
-              src={PROFILE_DATA.avatar}
-              alt={PROFILE_DATA.name}
-              className="w-24 h-24 rounded-full object-cover border-2 border-[var(--ink-primary)] p-0.5 bg-[var(--bg-primary)] shadow-md"
-            />
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[var(--ink-primary)] text-[var(--bg-primary)] flex items-center justify-center text-xs">
-              ✓
+      {isAuthenticated && user && userStats ? (
+        /* Authenticated Traveler Board */
+        <div className="w-full bg-[var(--bg-secondary)] border-2 border-[var(--border-color)] rounded-3xl p-6 sm:p-10 shadow-sm flex flex-col gap-8">
+          {/* Traveler Header */}
+          <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6 pb-8 border-b border-[var(--border-color)]">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 text-center sm:text-left">
+              <img
+                src={user.avatar_url}
+                alt={user.display_name}
+                className="w-20 h-20 rounded-full object-cover border-2 border-[var(--ink-primary)] shadow-md"
+              />
+              <div>
+                <h3 className="text-2xl font-bold text-[var(--ink-primary)]">
+                  {user.display_name}
+                </h3>
+                <p className="text-xs text-[var(--ink-secondary)] font-mono mt-0.5">
+                  @{user.custom_id}
+                </p>
+                <p className="text-xs text-[var(--ink-secondary)] mt-2 max-w-md font-sans">
+                  {user.bio}
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div className="text-center sm:text-left flex-1">
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 mb-1.5">
-              <h3 className="font-hand text-3xl font-bold text-[var(--ink-primary)] leading-none">
-                {PROFILE_DATA.name}
-              </h3>
-              <span className="font-mono text-xs text-[var(--ink-secondary)] bg-[var(--bg-elevated)] px-2.5 py-0.5 rounded-full border border-[var(--border-color)]">
-                {PROFILE_DATA.username}
-              </span>
-            </div>
-            <p className="text-sm text-[var(--ink-secondary)] max-w-xl leading-relaxed mt-2 font-normal">
-              {PROFILE_DATA.bio}
-            </p>
-          </div>
-
-          <button
-            onClick={() => setIsFollowing(!isFollowing)}
-            className={`px-6 py-2.5 text-sm font-medium rounded-2xl border transition-all cursor-pointer shadow-xs ${
-              isFollowing
-                ? "bg-[var(--bg-elevated)] text-[var(--ink-primary)] border-[var(--border-color)]"
-                : "bg-[var(--ink-primary)] text-[var(--bg-primary)] border-transparent hover:opacity-90"
-            }`}
-          >
-            {isFollowing ? "Following Board ✓" : "Follow Board"}
-          </button>
-        </div>
-
-        {/* Minimalist Visually Integrated Metrics */}
-        <div className="grid grid-cols-3 gap-3 sm:gap-6 my-8 relative z-10">
-          <div className="bg-[var(--bg-primary)] p-4 rounded-2xl border border-[var(--border-color)] text-center shadow-2xs">
-            <div className="flex items-center justify-center gap-1.5 text-[var(--ink-primary)] mb-1">
-              <DoodleGlobe size={20} />
-              <span className="font-hand text-3xl font-bold leading-none">{PROFILE_DATA.countries}</span>
-            </div>
-            <span className="text-[11px] text-[var(--ink-secondary)] uppercase tracking-wider font-mono">Countries Visited</span>
-          </div>
-
-          <div className="bg-[var(--bg-primary)] p-4 rounded-2xl border border-[var(--border-color)] text-center shadow-2xs">
-            <div className="flex items-center justify-center gap-1.5 text-[var(--ink-primary)] mb-1">
-              <DoodlePin size={20} filled />
-              <span className="font-hand text-3xl font-bold leading-none">{PROFILE_DATA.memories}</span>
-            </div>
-            <span className="text-[11px] text-[var(--ink-secondary)] uppercase tracking-wider font-mono">Pins Stamped</span>
-          </div>
-
-          <div className="bg-[var(--bg-primary)] p-4 rounded-2xl border border-[var(--border-color)] text-center shadow-2xs">
-            <div className="flex items-center justify-center gap-1.5 text-[var(--ink-primary)] mb-1">
-              <DoodleStar size={20} filled />
-              <span className="font-hand text-3xl font-bold leading-none">{(PROFILE_DATA.followers / 1000).toFixed(1)}k</span>
-            </div>
-            <span className="text-[11px] text-[var(--ink-secondary)] uppercase tracking-wider font-mono">Board Admirers</span>
-          </div>
-        </div>
-
-        {/* Cohesive 2-Column Whiteboard Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-10">
-          {/* Left Column: Personal Map + Pinned Photographs */}
-          <div className="lg:col-span-7 space-y-6">
-            {/* Personal Map Silhouette */}
-            <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-4 shadow-2xs">
-              <div className="flex items-center justify-between mb-3 px-1">
-                <span className="font-hand text-lg font-bold text-[var(--ink-primary)]">
-                  Personal Travel Map
+            <div className="flex gap-4">
+              <div className="px-4 py-2 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] text-center">
+                <span className="text-xl font-bold font-mono text-[var(--ink-primary)] block">
+                  {userStats.countriesCount}
                 </span>
-                <span className="font-mono text-xs text-[var(--ink-secondary)]">
-                  23 countries · 4 active routes
+                <span className="text-[10px] text-[var(--ink-secondary)] uppercase tracking-wider">
+                  Countries
                 </span>
               </div>
-              <div className="relative aspect-[1000/560] bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] flex items-center justify-center overflow-hidden">
-                <svg className="w-full h-full" viewBox="0 0 1000 560" fill="none">
-                  {/* Cartographically accurate landmass */}
-                  <path
-                    d={WORLD_LAND_PATH}
-                    stroke="var(--stroke-color)"
-                    strokeWidth="1.2"
-                    strokeDasharray="4 3"
-                    fill="var(--bg-elevated)"
-                    opacity="0.7"
-                  />
-                  {/* Accurate flight paths between visited destinations */}
-                  {/* NYC (312.7, 222) -> Venice (518, 198) */}
-                  <path
-                    d="M 312.7 222 Q 410 160 518 198"
-                    stroke="var(--ink-primary)"
-                    strokeWidth="1.5"
-                    strokeDasharray="4 4"
-                    opacity="0.8"
-                  />
-                  {/* Venice (518, 198) -> Santorini (535, 218) */}
-                  <path
-                    d="M 518 198 Q 528 206 535 218"
-                    stroke="var(--ink-primary)"
-                    strokeWidth="1.5"
-                    strokeDasharray="4 4"
-                    opacity="0.8"
-                  />
-                  {/* Santorini (535, 218) -> Tokyo/Kyoto (853.5, 238.2) */}
-                  <path
-                    d="M 535 218 Q 700 130 853.5 238.2"
-                    stroke="var(--ink-primary)"
-                    strokeWidth="1.5"
-                    strokeDasharray="4 4"
-                    opacity="0.8"
-                  />
-                  {/* NYC (312.7, 222) -> Cusco (324, 380) */}
-                  <path
-                    d="M 312.7 222 Q 330 300 324 380"
-                    stroke="var(--ink-primary)"
-                    strokeWidth="1.5"
-                    strokeDasharray="4 4"
-                    opacity="0.8"
-                  />
-                  {/* Waypoint pins with subtle pulse */}
-                  <g>
-                    <circle cx="312.7" cy="222" r="5" fill="var(--ink-primary)" />
-                    <circle cx="312.7" cy="222" r="9" stroke="var(--ink-primary)" strokeWidth="1" opacity="0.3" />
-                  </g>
-                  <g>
-                    <circle cx="518" cy="198" r="5" fill="var(--ink-primary)" />
-                    <circle cx="518" cy="198" r="9" stroke="var(--ink-primary)" strokeWidth="1" opacity="0.3" />
-                  </g>
-                  <g>
-                    <circle cx="535" cy="218" r="4.5" fill="var(--ink-primary)" />
-                  </g>
-                  <g>
-                    <circle cx="853.5" cy="238.2" r="5" fill="var(--ink-primary)" />
-                    <circle cx="853.5" cy="238.2" r="9" stroke="var(--ink-primary)" strokeWidth="1" opacity="0.3" />
-                  </g>
-                  <g>
-                    <circle cx="324" cy="380" r="5" fill="var(--ink-primary)" />
-                    <circle cx="324" cy="380" r="9" stroke="var(--ink-primary)" strokeWidth="1" opacity="0.3" />
-                  </g>
-                </svg>
-              </div>
-            </div>
-
-            {/* Pinned Photographs Grid */}
-            <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-4 shadow-2xs">
-              <span className="font-hand text-lg font-bold text-[var(--ink-primary)] block mb-3 px-1">
-                Pinned Memories
-              </span>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {PROFILE_DATA.photos.map((item, i) => (
-                  <div
-                    key={i}
-                    className="relative bg-white p-2 pb-6 rounded-xs shadow-xs border border-neutral-200 transition-all duration-200 hover:shadow-lg hover:border-neutral-400 cursor-pointer select-none"
-                    style={{ transform: `rotate(${item.rot}deg)` }}
-                  >
-                    <div className="aspect-square overflow-hidden bg-neutral-100 rounded-2xs mb-1.5">
-                      <img src={item.src} alt={item.loc} className="w-full h-full object-cover" />
-                    </div>
-                    <p className="font-hand text-[11px] text-neutral-800 text-center truncate font-bold px-0.5">
-                      {item.loc}
-                    </p>
-                  </div>
-                ))}
+              <div className="px-4 py-2 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] text-center">
+                <span className="text-xl font-bold font-mono text-[var(--ink-primary)] block">
+                  {userStats.memoriesCount}
+                </span>
+                <span className="text-[10px] text-[var(--ink-secondary)] uppercase tracking-wider">
+                  Memories
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Right Column: Travel Timeline */}
-          <div className="lg:col-span-5 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-6 shadow-2xs flex flex-col">
-            <span className="font-hand text-2xl font-bold text-[var(--ink-primary)] mb-6 block">
-              Travel Timeline Log
-            </span>
-            <div className="space-y-6 flex-1">
-              {PROFILE_DATA.timeline.map((item) => (
-                <div key={item.year} className="relative pl-6 border-l-2 border-dashed border-[var(--border-color)]">
-                  {/* Timeline bullet dot */}
-                  <div className="absolute -left-2 top-0.5 w-3.5 h-3.5 rounded-full bg-[var(--ink-primary)] border-2 border-[var(--bg-primary)]" />
-                  <span className="font-hand text-2xl font-bold text-[var(--ink-primary)] block mb-2 leading-none">
-                    {item.year}
-                  </span>
-                  <div className="flex flex-col gap-2">
-                    {item.places.map((place) => (
-                      <div
-                        key={place}
-                        className="p-2.5 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] flex items-center gap-2 text-xs text-[var(--ink-primary)] font-medium"
-                      >
-                        <DoodlePin size={14} filled />
-                        <span>{place}</span>
-                      </div>
-                    ))}
-                  </div>
+          {/* Traveler Photos & Sketches */}
+          {userStats.photos.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {userStats.photos.slice(0, 4).map((photo, i) => (
+                <div
+                  key={photo.id || i}
+                  className="aspect-square rounded-2xl overflow-hidden bg-neutral-200 border-2 border-[var(--border-color)] shadow-xs"
+                >
+                  <img
+                    src={photo.image}
+                    alt={photo.location}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
               ))}
             </div>
+          ) : (
+            <div className="p-8 rounded-2xl border-2 border-dashed border-[var(--border-color)] text-center flex flex-col items-center">
+              <DoodlePin size={32} filled className="mb-2 text-[var(--ink-primary)]" />
+              <p className="text-xs text-[var(--ink-secondary)] max-w-xs font-sans">
+                You haven&apos;t pinned any travel memories to your board yet. Drop a pin on the map to start your collection!
+              </p>
+              {onCreateClick && (
+                <button
+                  onClick={onCreateClick}
+                  className="mt-4 px-4 py-2 rounded-xl bg-[var(--ink-primary)] text-[var(--bg-primary)] text-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer"
+                >
+                  Create Your First Memory ✏️
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Guest Invitation Board (Zero Fake Profiles) */
+        <div className="w-full max-w-2xl bg-[var(--bg-secondary)] border-2 border-[var(--border-color)] rounded-3xl p-8 sm:p-12 text-center flex flex-col items-center shadow-sm">
+          <div className="w-16 h-16 rounded-full border-2 border-dashed border-[var(--ink-primary)] flex items-center justify-center text-2xl mb-4">
+            🎒
+          </div>
+          <h3 className="font-hand text-3xl font-bold text-[var(--ink-primary)]">
+            Claim your personal travel board
+          </h3>
+          <p className="text-sm text-[var(--ink-secondary)] max-w-md mt-2 mb-6 leading-relaxed font-sans">
+            Browsing the world atlas is free for everyone. Create a traveler passport to save pinned memories, record countries you visit, and share your sketchbook.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={() => openAuthModal("claim your personal travel board")}
+              className="px-5 py-2.5 rounded-xl bg-[var(--ink-primary)] text-[var(--bg-primary)] font-semibold text-xs hover:opacity-90 transition-opacity shadow-md cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>Create Free Account</span>
+              <span>✨</span>
+            </button>
+            <button
+              onClick={() => openAuthModal("log into your existing travel board")}
+              className="px-5 py-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] hover:bg-[var(--bg-elevated)] font-semibold text-xs text-[var(--ink-primary)] transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span>Log In</span>
+            </button>
           </div>
         </div>
-      </div>
+      )}
     </section>
   );
 }

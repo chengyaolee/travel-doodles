@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { DoodlePin, DoodleUnderline } from "@/components/doodles";
 import {
@@ -8,80 +8,31 @@ import {
   WORLD_LAND_PATH,
   ACCURATE_CITIES,
 } from "@/lib/worldMapData";
+import { TravelDoodlePost } from "@/components/app/CreatePostModal";
 
-const PINS = [
-  {
-    id: 1,
-    x: (ACCURATE_CITIES.nyc.x / 1000) * 100,
-    y: (ACCURATE_CITIES.nyc.y / 560) * 100,
-    region: "Americas",
-    city: "New York",
-    country: "USA",
-    countryCode: "US",
-    image: "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=500&h=350&fit=crop",
-    story: "First time seeing the skyline from Brooklyn Bridge at dusk. Pure magic in the city that never sleeps.",
-  },
-  {
-    id: 2,
-    x: (ACCURATE_CITIES.paris.x / 1000) * 100,
-    y: (ACCURATE_CITIES.paris.y / 560) * 100,
-    region: "Europe",
-    city: "Paris",
-    country: "France",
-    countryCode: "FR",
-    image: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=500&h=350&fit=crop",
-    story: "Fresh croissants by the Seine while sketching the bridges. Living inside a digital notebook.",
-  },
-  {
-    id: 3,
-    x: (ACCURATE_CITIES.capetown.x / 1000) * 100,
-    y: (ACCURATE_CITIES.capetown.y / 560) * 100,
-    region: "Africa",
-    city: "Cape Town",
-    country: "South Africa",
-    countryCode: "ZA",
-    image: "https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=500&h=350&fit=crop",
-    story: "Table Mountain bathed in golden hour mist. Coastal winds carrying sea salt through the streets.",
-  },
-  {
-    id: 4,
-    x: (ACCURATE_CITIES.tokyo.x / 1000) * 100,
-    y: (ACCURATE_CITIES.tokyo.y / 560) * 100,
-    region: "Asia",
-    city: "Tokyo",
-    country: "Japan",
-    countryCode: "JP",
-    image: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=500&h=350&fit=crop",
-    story: "Lost in the labyrinth of Omoide Yokocho. Found the best handmade tonkotsu ramen of my life.",
-  },
-  {
-    id: 5,
-    x: (ACCURATE_CITIES.sydney.x / 1000) * 100,
-    y: (ACCURATE_CITIES.sydney.y / 560) * 100,
-    region: "Oceania",
-    city: "Sydney",
-    country: "Australia",
-    countryCode: "AU",
-    image: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=500&h=350&fit=crop",
-    story: "Bondi Beach sunrise surf session. Golden water reflecting pink clouds.",
-  },
-  {
-    id: 6,
-    x: (ACCURATE_CITIES.rio.x / 1000) * 100,
-    y: (ACCURATE_CITIES.rio.y / 560) * 100,
-    region: "Americas",
-    city: "Rio de Janeiro",
-    country: "Brazil",
-    countryCode: "BR",
-    image: "https://images.unsplash.com/photo-1483729558449-99ef09a8c325?w=500&h=350&fit=crop",
-    story: "Christ the Redeemer soaring above the morning clouds. Breathtaking panoramas of the bay.",
-  },
-];
+interface PinItem {
+  id: string;
+  x: number;
+  y: number;
+  region: string;
+  city: string;
+  country: string;
+  countryCode: string;
+  image: string;
+  story: string;
+}
 
-export function SectionA({ onExploreClick }: { onExploreClick?: () => void }) {
-  const [activePin, setActivePin] = useState<number | null>(1);
+export function SectionA({
+  onExploreClick,
+  posts = [],
+  onCreateClick,
+}: {
+  onExploreClick?: () => void;
+  posts?: TravelDoodlePost[];
+  onCreateClick?: () => void;
+}) {
   const [selectedRegion, setSelectedRegion] = useState("all");
-  const [zoomLevel, setZoomLevel] = useState(1);
+  const [activePin, setActivePin] = useState<string | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
 
@@ -90,17 +41,59 @@ export function SectionA({ onExploreClick }: { onExploreClick?: () => void }) {
       ([entry]) => {
         if (entry.isIntersecting) setIsVisible(true);
       },
-      { threshold: 0.15 }
+      { threshold: 0.2 }
     );
     if (sectionRef.current) observer.observe(sectionRef.current);
     return () => observer.disconnect();
   }, []);
 
-  const filteredPins = selectedRegion === "all"
-    ? PINS
-    : PINS.filter((p) => p.region.toLowerCase() === selectedRegion.toLowerCase());
+  // Map real database posts to geographic pins (Zero hardcoded placeholders)
+  const livePins: PinItem[] = useMemo(() => {
+    if (!posts || posts.length === 0) return [];
 
-  const active = PINS.find((p) => p.id === activePin);
+    return posts.map((p, index) => {
+      let x = 50;
+      let y = 50;
+      const cityKey = (p.city || "").toLowerCase().trim();
+      const matchCity = Object.entries(ACCURATE_CITIES).find(
+        ([k, c]) => k === cityKey || c.name.toLowerCase() === cityKey
+      );
+
+      if (matchCity) {
+        x = (matchCity[1].x / 1000) * 100;
+        y = (matchCity[1].y / 560) * 100;
+      } else if (p.coordinates && p.coordinates.length >= 2 && (p.coordinates[0] !== 0 || p.coordinates[1] !== 0)) {
+        const lng = p.coordinates[0];
+        const lat = Math.max(-80, Math.min(84, p.coordinates[1]));
+        x = ((lng + 180) / 360) * 100;
+        y = ((280 - (lat / 90) * 230) / 560) * 100;
+      }
+
+      return {
+        id: p.id || String(index + 1),
+        x,
+        y,
+        region: p.region || "World",
+        city: p.city || "Destination",
+        country: p.country || "World",
+        countryCode: p.country || "",
+        image: p.image || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=500&h=350&fit=crop",
+        story: p.caption || `Travel story in ${p.city}`,
+      };
+    });
+  }, [posts]);
+
+  useEffect(() => {
+    if (livePins.length > 0 && !activePin) {
+      setActivePin(livePins[0].id);
+    }
+  }, [livePins, activePin]);
+
+  const filteredPins = selectedRegion === "all"
+    ? livePins
+    : livePins.filter((p) => p.region.toLowerCase() === selectedRegion.toLowerCase());
+
+  const active = livePins.find((p) => p.id === activePin) || livePins[0];
 
   return (
     <section
@@ -137,202 +130,120 @@ export function SectionA({ onExploreClick }: { onExploreClick?: () => void }) {
             transition: "opacity 0.8s ease 0.3s",
           }}
         >
-          Select any hand-drawn pin to uncover authentic travel memories, photos, and personal reflections left on the canvas.
+          Explore authentic travel memories, photos, and personal reflections pulled straight from travelers worldwide.
         </p>
-
-        {/* Region Discovery Clustering Pills */}
-        <div className="flex flex-wrap items-center justify-center gap-2 mt-6">
-          {["all", "Americas", "Europe", "Africa", "Asia", "Oceania"].map((reg) => (
-            <button
-              key={reg}
-              onClick={() => setSelectedRegion(reg)}
-              className={`px-3.5 py-1 rounded-full text-xs font-medium capitalize transition-colors cursor-pointer border ${
-                selectedRegion.toLowerCase() === reg.toLowerCase()
-                  ? "bg-[var(--ink-primary)] text-[var(--bg-primary)] border-[var(--ink-primary)] font-bold"
-                  : "bg-[var(--bg-secondary)] text-[var(--ink-secondary)] border-[var(--border-color)] hover:border-[var(--ink-primary)]"
-              }`}
-            >
-              #{reg}
-            </button>
-          ))}
-        </div>
       </div>
 
-      {/* Interactive Map Board Container */}
-      <div
-        className="relative w-full max-w-5xl bg-[var(--bg-secondary)] rounded-3xl border-2 border-[var(--border-color)] aspect-[1000/560] overflow-hidden shadow-sm flex items-center justify-center"
-        style={{
-          opacity: isVisible ? 1 : 0,
-          transform: isVisible ? "translateY(0)" : "translateY(20px)",
-          transition: "all 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s",
-        }}
-      >
-        {/* Subtle grid pattern */}
-        <svg className="absolute inset-0 w-full h-full opacity-[0.04] pointer-events-none" aria-hidden="true">
-          <defs>
-            <pattern id="grid-sec-a" width="24" height="24" patternUnits="userSpaceOnUse">
-              <circle cx="12" cy="12" r="0.9" fill="var(--ink-primary)" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid-sec-a)" />
-        </svg>
+      {livePins.length > 0 ? (
+        <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Map canvas */}
+          <div className="lg:col-span-8 bg-[var(--bg-secondary)] border-2 border-[var(--border-color)] rounded-3xl p-4 sm:p-6 shadow-sm relative overflow-hidden">
+            <div className="relative aspect-[16/9] w-full rounded-2xl overflow-hidden bg-[var(--bg-primary)] border border-[var(--border-color)]">
+              {/* Accurate SVG world map */}
+              <svg viewBox={WORLD_VIEWBOX} className="w-full h-full">
+                <path
+                  d={WORLD_LAND_PATH}
+                  fill="var(--bg-elevated)"
+                  stroke="var(--stroke-color)"
+                  strokeWidth="1"
+                  strokeLinejoin="round"
+                />
+              </svg>
 
-        {/* Floating Top Controls */}
-        <div className="absolute top-4 left-4 z-20 flex items-center gap-2 bg-[var(--bg-primary)]/90 backdrop-blur-md p-1.5 rounded-xl border border-[var(--border-color)] shadow-xs text-xs">
-          <button
-            onClick={() => setZoomLevel((z) => Math.min(z + 0.2, 1.6))}
-            className="w-7 h-7 rounded-lg flex items-center justify-center font-bold hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
-            title="Zoom in"
-          >
-            +
-          </button>
-          <span className="font-mono px-1 text-[var(--ink-secondary)]">{Math.round(zoomLevel * 100)}%</span>
-          <button
-            onClick={() => setZoomLevel((z) => Math.max(z - 0.2, 0.8))}
-            className="w-7 h-7 rounded-lg flex items-center justify-center font-bold hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
-            title="Zoom out"
-          >
-            -
-          </button>
-          <button
-            onClick={() => setZoomLevel(1)}
-            className="px-2 py-1 text-[11px] font-hand rounded-md hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
-          >
-            Reset
-          </button>
-        </div>
-
-        {/* Open Full Map Button */}
-        <div className="absolute top-4 right-4 z-20 flex gap-2">
-          <Link
-            href="/explore"
-            className="px-3.5 py-1.5 text-xs font-bold text-[var(--bg-primary)] bg-[var(--ink-primary)] rounded-xl hover:opacity-90 transition-opacity flex items-center gap-1.5 shadow-xs cursor-pointer select-none"
-          >
-            <span>Open Infinite Map</span>
-            <span>🗺️</span>
-          </Link>
-        </div>
-
-        {/* Scalable Canvas Layer with Real Coastlines */}
-        <div
-          className="w-full h-full relative transition-transform duration-300 ease-out origin-center"
-          style={{ transform: `scale(${zoomLevel})` }}
-        >
-          {/* Cartographically Accurate Coastline SVG */}
-          <svg
-            className="absolute inset-0 w-full h-full pointer-events-none"
-            viewBox={WORLD_VIEWBOX}
-            preserveAspectRatio="none"
-            aria-hidden="true"
-          >
-            <path
-              d={WORLD_LAND_PATH}
-              fill="var(--stroke-color)"
-              fillOpacity="0.03"
-              stroke="var(--stroke-color)"
-              strokeWidth="1.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeDasharray="4 2"
-              opacity="0.8"
-            />
-          </svg>
-
-          {/* Interactive Needle Pins Located Accurately on Real Landmasses */}
-          {filteredPins.map((pin) => {
-            const isSelected = activePin === pin.id;
-            return (
-              <button
-                key={pin.id}
-                className="absolute group cursor-pointer z-10 select-none p-2 -m-2"
-                style={{
-                  left: `${pin.x}%`,
-                  top: `${pin.y}%`,
-                  transform: "translate(-50%, -100%)",
-                }}
-                onClick={() => setActivePin(isSelected ? null : pin.id)}
-                aria-label={`View story in ${pin.city}`}
-              >
-                <div
-                  className={`transition-all duration-200 flex flex-col items-center origin-bottom ${
-                    isSelected
-                      ? "scale-115 filter drop-shadow-lg"
-                      : "group-hover:scale-110"
-                  }`}
-                >
-                  <DoodlePin
-                    size={28}
-                    filled={isSelected}
-                    color={isSelected ? "var(--ink-primary)" : "var(--ink-secondary)"}
-                  />
-                  {/* Big city label: bolded text without white badge or red dot */}
-                  <span
-                    className={`font-sans text-xs tracking-tight whitespace-nowrap mt-0.5 transition-all select-none ${
-                      isSelected
-                        ? "font-bold text-[var(--ink-primary)] underline underline-offset-4 decoration-2"
-                        : "font-bold text-[var(--ink-primary)] group-hover:text-[var(--ink-primary)]"
-                    }`}
+              {/* Real Pins from Database */}
+              {filteredPins.map((pin) => {
+                const isActive = active?.id === pin.id;
+                return (
+                  <button
+                    key={pin.id}
+                    onClick={() => setActivePin(pin.id)}
+                    className="absolute cursor-pointer p-2 -m-2 z-20 group"
                     style={{
-                      textShadow:
-                        "0 1px 3px var(--bg-primary), 0 0 6px var(--bg-primary), 0 0 10px var(--bg-primary)",
+                      left: `${pin.x}%`,
+                      top: `${pin.y}%`,
+                      transform: "translate(-50%, -100%)",
                     }}
+                    title={`${pin.city}, ${pin.country}`}
                   >
-                    {pin.city}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Selected Pin Story Preview Card */}
-        {active && (
-          <div
-            className="absolute bottom-4 left-4 sm:bottom-6 sm:left-6 w-72 sm:w-84 bg-[var(--bg-primary)] rounded-2xl border-2 border-[var(--border-color)] shadow-2xl overflow-hidden animate-fade-in-up z-30"
-          >
-            <div className="relative aspect-[16/10] overflow-hidden bg-[var(--bg-elevated)]">
-              <img
-                src={active.image}
-                alt={active.city}
-                className="w-full h-full object-cover"
-                loading="lazy"
-              />
-              <button
-                onClick={() => setActivePin(null)}
-                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center text-xs hover:bg-black/80 transition-colors cursor-pointer"
-                aria-label="Close preview"
-              >
-                ✕
-              </button>
-              <div className="absolute bottom-2 left-2 px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-xs text-white font-hand text-xs">
-                Pinned Memory · {active.region}
-              </div>
-            </div>
-            <div className="p-4">
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-1.5">
-                  <DoodlePin size={16} filled />
-                  <h3 className="font-hand text-xl font-bold text-[var(--ink-primary)] leading-none">
-                    {active.city}, {active.country}
-                  </h3>
-                </div>
-                <span className="font-mono text-[10px] text-[var(--ink-secondary)]">May 2026</span>
-              </div>
-              <p className="text-xs text-[var(--ink-secondary)] leading-relaxed font-sans line-clamp-3 font-normal">
-                {active.story}
-              </p>
-
-              <Link
-                href={`/explore?country=${active.countryCode}&city=${encodeURIComponent(active.city)}`}
-                className="mt-3 w-full py-1.5 px-3 rounded-xl bg-[var(--ink-primary)] text-[var(--bg-primary)] text-xs font-sans font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer select-none"
-              >
-                <span>Explore {active.city} on World Map</span>
-                <span>🗺️ →</span>
-              </Link>
+                    <div className="relative flex flex-col items-center">
+                      <DoodlePin
+                        size={isActive ? 30 : 22}
+                        filled={isActive}
+                        color={isActive ? "var(--ink-primary)" : "var(--stroke-color)"}
+                      />
+                      <span className="mt-0.5 px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-[var(--bg-primary)]/90 text-[var(--ink-primary)] border border-[var(--border-color)] shadow-xs whitespace-nowrap">
+                        {pin.city}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
-        )}
-      </div>
+
+          {/* Active Story Card */}
+          <div className="lg:col-span-4 flex flex-col">
+            {active ? (
+              <div className="bg-[var(--bg-secondary)] border-2 border-[var(--border-color)] rounded-3xl p-6 shadow-sm flex flex-col gap-4">
+                <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-neutral-200 border border-[var(--border-color)]">
+                  <img
+                    src={active.image}
+                    alt={active.city}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div>
+                  <h3 className="font-hand text-2xl font-bold text-[var(--ink-primary)]">
+                    {active.city}, {active.country}
+                  </h3>
+                  <p className="text-xs text-[var(--ink-secondary)] mt-2 leading-relaxed">
+                    &ldquo;{active.story}&rdquo;
+                  </p>
+                </div>
+                <div className="pt-2 border-t border-[var(--border-color)] flex items-center justify-between">
+                  <Link
+                    href={`/explore?country=${active.countryCode}&city=${encodeURIComponent(
+                      active.city
+                    )}`}
+                    className="text-xs font-semibold text-[var(--ink-primary)] hover:underline flex items-center gap-1"
+                  >
+                    Explore on World Map 🗺️ →
+                  </Link>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : (
+        /* Clean Database State: Empty Whiteboard Notice */
+        <div className="w-full max-w-2xl bg-[var(--bg-secondary)] border-2 border-[var(--border-color)] rounded-3xl p-8 sm:p-12 text-center flex flex-col items-center shadow-sm">
+          <DoodlePin size={44} filled className="mb-4 text-[var(--ink-primary)] animate-bounce" />
+          <h3 className="font-hand text-3xl font-bold text-[var(--ink-primary)]">
+            No memories pinned yet
+          </h3>
+          <p className="text-sm text-[var(--ink-secondary)] max-w-md mt-2 mb-6 leading-relaxed">
+            The world board is completely clean right now. Be the first explorer to record an adventure and drop a pin on the digital whiteboard!
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            {onCreateClick && (
+              <button
+                onClick={onCreateClick}
+                className="px-5 py-2.5 rounded-xl bg-[var(--ink-primary)] text-[var(--bg-primary)] font-semibold text-xs hover:opacity-90 transition-opacity shadow-md cursor-pointer flex items-center justify-center gap-2"
+              >
+                <span>Pin the First Story</span>
+                <span>📌</span>
+              </button>
+            )}
+            <Link
+              href="/explore"
+              className="px-5 py-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] hover:bg-[var(--bg-elevated)] font-semibold text-xs text-[var(--ink-primary)] transition-colors flex items-center justify-center gap-1.5"
+            >
+              <span>Explore the Atlas</span>
+              <span>🗺️</span>
+            </Link>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

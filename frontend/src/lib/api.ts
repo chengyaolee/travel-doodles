@@ -31,6 +31,17 @@ export interface CreatePostData {
   author?: string;
 }
 
+export interface AuthUser {
+  id: string;
+  custom_id: string;
+  username: string;
+  display_name: string;
+  bio: string;
+  avatar_url: string;
+  created_at: string;
+  updated_at?: string;
+}
+
 /**
  * Normalizes raw posts from either the Go backend REST API (Post / PostMarker schema)
  * or the local development posts store into the unified ExplorePost format.
@@ -108,6 +119,80 @@ export function normalizePost(p: any): ExplorePost {
 
 export const api = {
   /**
+   * Fetch current authenticated user session
+   */
+  async getMe(): Promise<AuthUser | null> {
+    try {
+      const res = await fetch("/api/v1/auth/me", {
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.user || null;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Register a new traveler account
+   */
+  async register(params: {
+    custom_id: string;
+    display_name?: string;
+    bio?: string;
+    password?: string;
+  }): Promise<AuthUser> {
+    const res = await fetch("/api/v1/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(params),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || `Registration failed: ${res.statusText}`);
+    }
+
+    return data.user;
+  },
+
+  /**
+   * Log into an existing traveler account
+   */
+  async login(params: {
+    custom_id: string;
+    password?: string;
+  }): Promise<AuthUser> {
+    const res = await fetch("/api/v1/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(params),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || `Login failed: ${res.statusText}`);
+    }
+
+    return data.user;
+  },
+
+  /**
+   * Log out of current traveler account
+   */
+  async logout(): Promise<void> {
+    await fetch("/api/v1/auth/logout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+  },
+
+  /**
    * Fetch real posts from backend with optional geographic and visibility filters
    */
   async getPosts(filter?: PostsFilter): Promise<ExplorePost[]> {
@@ -120,6 +205,7 @@ export const api = {
 
     const res = await fetch(`/api/v1/posts?${params.toString()}`, {
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
     });
 
     if (!res.ok) {
@@ -141,6 +227,7 @@ export const api = {
 
     const res = await fetch(`/api/v1/posts/map?${params.toString()}`, {
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
     });
 
     if (!res.ok) {
@@ -154,13 +241,12 @@ export const api = {
   },
 
   /**
-   * Publish a new travel post to the backend
+   * Publish a new travel post to the backend (requires auth)
    */
   async createPost(post: CreatePostData): Promise<ExplorePost> {
     const lat = post.coordinates ? post.coordinates[1] : 0;
     const lon = post.coordinates ? post.coordinates[0] : 0;
 
-    // Build payload compatible with both Go backend & local store
     const payload = {
       ...post,
       latitude: lat,
@@ -174,39 +260,43 @@ export const api = {
     const res = await fetch("/api/v1/posts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify(payload),
     });
 
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new Error(`Failed to create post: ${res.statusText}`);
+      throw new Error(data.error || `Failed to create post: ${res.statusText}`);
     }
 
-    const data = await res.json();
     return normalizePost(data.post || data);
   },
 
   /**
-   * Toggle like on a post in the backend
+   * Toggle like on a post in the backend (requires auth)
    */
   async toggleLike(postId: string): Promise<{ likes: number; liked: boolean }> {
     const res = await fetch(`/api/v1/posts/${postId}/likes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
     });
 
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new Error(`Failed to toggle like: ${res.statusText}`);
+      throw new Error(data.error || `Failed to toggle like: ${res.statusText}`);
     }
 
-    return await res.json();
+    return data;
   },
 
   /**
-   * Fetch comments for a post from the backend
+   * Fetch comments for a post from the backend (free browsing)
    */
   async getComments(postId: string): Promise<CommentData[]> {
     const res = await fetch(`/api/v1/posts/${postId}/comments`, {
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
     });
 
     if (!res.ok) {
@@ -218,20 +308,21 @@ export const api = {
   },
 
   /**
-   * Add a new comment to a post in the backend
+   * Add a new comment to a post in the backend (requires auth)
    */
   async addComment(postId: string, text: string): Promise<CommentData> {
     const res = await fetch(`/api/v1/posts/${postId}/comments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ content: text, text }),
     });
 
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new Error(`Failed to add comment: ${res.statusText}`);
+      throw new Error(data.error || `Failed to add comment: ${res.statusText}`);
     }
 
-    const data = await res.json();
     return data.comment || data;
   },
 };

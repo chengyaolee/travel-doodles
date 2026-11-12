@@ -1,57 +1,22 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
 import { DoodleUnderline, DoodlePin } from "@/components/doodles";
+import { TravelDoodlePost } from "@/components/app/CreatePostModal";
+import { useAuth } from "@/lib/authContext";
 
-const JOURNEY = [
-  {
-    city: "London",
-    country: "UK",
-    date: "May 12",
-    image: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=500&h=350&fit=crop",
-    note: "Started the cross-continental trek under misty Tower Bridge. Packed sketchbooks only.",
-    likes: 42,
-  },
-  {
-    city: "Barcelona",
-    country: "Spain",
-    date: "May 16",
-    image: "https://images.unsplash.com/photo-1583422409516-2895a77efded?w=500&h=350&fit=crop",
-    note: "Gaudí's curves make straight lines look boring. Sangria and midnight tapas with hostel pals.",
-    likes: 88,
-  },
-  {
-    city: "Rome",
-    country: "Italy",
-    date: "May 21",
-    image: "https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=500&h=350&fit=crop",
-    note: "Pistachio gelato on the Spanish steps. Ancient stones radiating warmth.",
-    likes: 104,
-  },
-  {
-    city: "Istanbul",
-    country: "Turkey",
-    date: "May 27",
-    image: "https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?w=500&h=350&fit=crop",
-    note: "Bosphorus ferry at sunset. Where continents shake hands and call to prayer echoes across the water.",
-    likes: 156,
-  },
-];
-
-const PROFILE = {
-  name: "Alex Rivera",
-  handle: "@alex_wanders",
-  avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop&crop=face",
-  countries: 14,
-  memories: 52,
-};
-
-export function SectionC() {
+export function SectionC({
+  posts = [],
+  onCreateClick,
+}: {
+  posts?: TravelDoodlePost[];
+  onCreateClick?: () => void;
+}) {
   const [isFollowing, setIsFollowing] = useState(false);
-  const [likes, setLikes] = useState<Record<number, number>>({ 0: 42, 1: 88, 2: 104, 3: 156 });
-  const [likedMap, setLikedMap] = useState<Record<number, boolean>>({});
+  const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
+  const { requireAuth } = useAuth();
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -64,23 +29,58 @@ export function SectionC() {
     return () => observer.disconnect();
   }, []);
 
-  const toggleLike = (idx: number) => {
-    setLikedMap((prev) => ({ ...prev, [idx]: !prev[idx] }));
-    setLikes((prev) => ({
-      ...prev,
-      [idx]: likedMap[idx] ? prev[idx] - 1 : prev[idx] + 1,
+  // Build real traveler journey from database posts
+  const { journeySteps, travelerProfile } = useMemo(() => {
+    if (!posts || posts.length === 0) {
+      return { journeySteps: [], travelerProfile: null };
+    }
+
+    const steps = posts.slice(0, 4).map((p) => ({
+      id: p.id,
+      city: p.city,
+      country: p.country,
+      date: p.date,
+      image: p.image || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=500&h=350&fit=crop",
+      note: p.caption || `Travel memory in ${p.city}`,
+      likes: p.likes,
     }));
+
+    const authorPosts = posts.filter((p) => p.author === posts[0].author);
+    const profile = {
+      name: posts[0].author,
+      handle: `@${posts[0].author.toLowerCase().replace(/[^a-z0-9_]/g, "")}`,
+      avatar: posts[0].avatar,
+      countries: new Set(authorPosts.map((p) => p.country)).size,
+      memories: authorPosts.length,
+    };
+
+    return { journeySteps: steps, travelerProfile: profile };
+  }, [posts]);
+
+  const toggleLike = (id: string) => {
+    requireAuth("like this memory", () => {
+      setLikedMap((prev) => ({ ...prev, [id]: !prev[id] }));
+    });
+  };
+
+  const handleFollow = () => {
+    requireAuth("follow this traveler", () => {
+      setIsFollowing((prev) => !prev);
+    });
   };
 
   return (
-    <section ref={sectionRef} id="stories" className="py-24 md:py-32 px-4 sm:px-6 max-w-5xl mx-auto w-full flex flex-col items-center">
-      {/* Section Header */}
+    <section
+      ref={sectionRef}
+      className="py-24 md:py-32 px-4 sm:px-6 max-w-7xl mx-auto flex flex-col items-center overflow-hidden"
+    >
+      {/* Header */}
       <div className="text-center mb-16 flex flex-col items-center">
         <div className="section-kicker mb-5">
-          Better with your people
+          Follow the journey
         </div>
         <h2
-          className="text-4xl sm:text-5xl md:text-6xl font-medium tracking-[-0.05em] leading-[1.1] text-[var(--ink-primary)]"
+          className="text-4xl sm:text-5xl md:text-6xl font-medium tracking-[-0.05em] leading-[1.1] text-[var(--ink-primary)] mb-3"
           style={{
             opacity: isVisible ? 1 : 0,
             transform: isVisible ? "translateY(0)" : "translateY(20px)",
@@ -91,147 +91,117 @@ export function SectionC() {
           <span className="font-hand relative inline-block whitespace-nowrap font-semibold">
             wander
             <span className="absolute -bottom-1 left-0 w-full flex justify-center">
-              <DoodleUnderline width={165} animate={isVisible} delay={500} />
+              <DoodleUnderline width={160} animate={isVisible} delay={600} />
             </span>
           </span>
+          .
         </h2>
         <p
-          className="text-[var(--ink-secondary)] text-base sm:text-lg mt-4 max-w-lg mx-auto font-normal"
-          style={{ opacity: isVisible ? 1 : 0, transition: "opacity 0.8s ease 0.3s" }}
+          className="text-[var(--ink-secondary)] text-base sm:text-lg max-w-lg mx-auto mt-4 font-normal"
+          style={{
+            opacity: isVisible ? 1 : 0,
+            transition: "opacity 0.8s ease 0.3s",
+          }}
         >
-          Follow the dotted lines connecting your circle&apos;s adventures across cities, borders, and oceans.
+          Trace travel journeys connected across cities and continents with hand-drawn paths and personal postcards.
         </p>
       </div>
 
-      {/* Friend Profile Card Header */}
-      <div
-        className="flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6 rounded-3xl bg-[var(--bg-secondary)] border border-[var(--border-color)] mb-14 shadow-xs"
-        style={{
-          opacity: isVisible ? 1 : 0,
-          transform: isVisible ? "translateY(0)" : "translateY(16px)",
-          transition: "all 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s",
-        }}
-      >
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <img
-              src={PROFILE.avatar}
-              alt={PROFILE.name}
-              className="w-14 h-14 rounded-full object-cover border-2 border-[var(--ink-primary)] shadow-sm"
-            />
-            <span className="absolute -bottom-1 -right-1 text-xs">✈️</span>
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-bold text-lg text-[var(--ink-primary)] leading-tight">{PROFILE.name}</h3>
-              <span className="text-xs font-hand px-2 py-0.5 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--ink-secondary)]">
-                Active Route
-              </span>
+      {journeySteps.length > 0 && travelerProfile ? (
+        <div className="w-full flex flex-col items-center gap-10">
+          {/* Traveler Header */}
+          <div className="w-full max-w-4xl flex flex-col sm:flex-row items-center justify-between p-5 sm:p-6 rounded-3xl bg-[var(--bg-secondary)] border-2 border-[var(--border-color)] gap-4 shadow-sm">
+            <div className="flex items-center gap-4">
+              <img
+                src={travelerProfile.avatar}
+                alt={travelerProfile.name}
+                className="w-14 h-14 rounded-full object-cover border-2 border-[var(--ink-primary)]"
+              />
+              <div>
+                <h3 className="text-lg font-bold text-[var(--ink-primary)]">
+                  {travelerProfile.name}
+                </h3>
+                <p className="text-xs text-[var(--ink-secondary)] font-mono">
+                  {travelerProfile.handle} · {travelerProfile.countries} countries · {travelerProfile.memories} memories
+                </p>
+              </div>
             </div>
-            <p className="text-xs text-[var(--ink-secondary)] mt-0.5 font-mono">
-              {PROFILE.handle} · {PROFILE.countries} countries · {PROFILE.memories} pinned memories
-            </p>
+
+            <button
+              onClick={handleFollow}
+              className={`px-5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                isFollowing
+                  ? "bg-[var(--bg-elevated)] text-[var(--ink-primary)] border border-[var(--border-color)]"
+                  : "bg-[var(--ink-primary)] text-[var(--bg-primary)] shadow-sm hover:opacity-90"
+              }`}
+            >
+              {isFollowing ? "Following ✓" : "+ Follow"}
+            </button>
+          </div>
+
+          {/* Dotted Route Connector Cards */}
+          <div className="w-full max-w-5xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {journeySteps.map((step, idx) => {
+              const isLiked = Boolean(likedMap[step.id]);
+              return (
+                <div
+                  key={step.id}
+                  className="relative flex flex-col bg-[var(--bg-secondary)] border-2 border-[var(--border-color)] rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow group"
+                >
+                  <div className="aspect-[4/3] rounded-xl overflow-hidden bg-neutral-200 mb-3 border border-[var(--border-color)]">
+                    <img
+                      src={step.image}
+                      alt={step.city}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-xs font-mono text-[var(--ink-secondary)] mb-1">
+                    <span>Stop #{idx + 1}</span>
+                    <span>{step.date}</span>
+                  </div>
+                  <h4 className="font-hand text-xl font-bold text-[var(--ink-primary)]">
+                    {step.city}, {step.country}
+                  </h4>
+                  <p className="text-xs text-[var(--ink-secondary)] mt-1.5 leading-relaxed line-clamp-3 flex-1">
+                    &ldquo;{step.note}&rdquo;
+                  </p>
+                  <div className="pt-3 mt-3 border-t border-[var(--border-color)] flex items-center justify-between">
+                    <button
+                      onClick={() => toggleLike(step.id)}
+                      className="text-xs flex items-center gap-1.5 text-[var(--ink-primary)] hover:opacity-80 transition-opacity cursor-pointer"
+                    >
+                      <span>{isLiked ? "❤️" : "🤍"}</span>
+                      <span>{step.likes + (isLiked ? 1 : 0)}</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
-
-        <button
-          onClick={() => setIsFollowing(!isFollowing)}
-          className={`px-5 py-2 text-sm font-medium rounded-full border transition-all duration-200 cursor-pointer ${
-            isFollowing
-              ? "bg-[var(--bg-elevated)] text-[var(--ink-primary)] border-[var(--border-color)]"
-              : "bg-[var(--ink-primary)] text-[var(--bg-primary)] border-transparent hover:opacity-90"
-          }`}
-        >
-          {isFollowing ? "Following ✓" : "+ Follow Route"}
-        </button>
-      </div>
-
-      {/* Dotted Journey Route Timeline */}
-      <div className="relative">
-        {/* Continuous Dotted Vertical Spine */}
-        <div className="absolute left-6 md:left-1/2 top-8 bottom-8 w-0.5 -translate-x-1/2 border-l-2 border-dashed border-[var(--stroke-color)] opacity-30" />
-
-        {JOURNEY.map((stop, i) => (
-          <div
-            key={stop.city}
-            className={`relative flex flex-col md:flex-row items-center gap-8 mb-16 last:mb-0 ${
-              i % 2 === 0 ? "md:flex-row" : "md:flex-row-reverse"
-            }`}
-            style={{
-              opacity: isVisible ? 1 : 0,
-              transform: isVisible ? "translateY(0)" : "translateY(24px)",
-              transition: `all 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${0.25 + i * 0.12}s`,
-            }}
-          >
-            {/* Numbered Waypoint Pin Badge */}
-            <div className="absolute left-6 md:left-1/2 top-4 md:top-1/2 -translate-x-1/2 md:-translate-y-1/2 w-9 h-9 rounded-full bg-[var(--bg-primary)] border-2 border-[var(--ink-primary)] flex items-center justify-center z-10 shadow-md">
-              <span className="font-mono text-xs font-bold text-[var(--ink-primary)]">{i + 1}</span>
-            </div>
-
-            {/* Story Text Column */}
-            <div className={`w-full md:w-1/2 pl-14 md:pl-0 ${i % 2 === 0 ? "md:pr-14 md:text-right" : "md:pl-14 md:text-left"}`}>
-              <div className="inline-flex items-center gap-1.5 font-hand text-sm text-[var(--ink-secondary)] mb-1">
-                <span>{stop.date}</span>
-                <span>·</span>
-                <span>Leg #{i + 1}</span>
-              </div>
-              <h4 className="font-hand text-3xl font-bold text-[var(--ink-primary)] mb-2 leading-none">
-                {stop.city}, {stop.country}
-              </h4>
-              <p className="text-sm text-[var(--ink-secondary)] leading-relaxed mb-4 font-normal">
-                &ldquo;{stop.note}&rdquo;
-              </p>
-
-              {/* Social interactions */}
-              <div className={`flex items-center gap-4 ${i % 2 === 0 ? "md:justify-end" : "md:justify-start"}`}>
-                <button
-                  onClick={() => toggleLike(i)}
-                  className="flex items-center gap-1.5 text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] transition-colors cursor-pointer"
-                >
-                  <span className={likedMap[i] ? "text-red-500 scale-125 transition-transform" : ""}>
-                    {likedMap[i] ? "❤️" : "🤍"}
-                  </span>
-                  <span className="font-bold">{likes[i]}</span>
-                </button>
-                <button className="flex items-center gap-1.5 text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] transition-colors cursor-pointer">
-                  <span>💬</span>
-                  <span>Comment</span>
-                </button>
-                <button className="flex items-center gap-1.5 text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] transition-colors cursor-pointer">
-                  <span>↗</span>
-                  <span>Share</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Polaroid Photo Card */}
-            <div className={`w-full md:w-1/2 pl-14 md:pl-0 ${i % 2 === 0 ? "md:pl-14" : "md:pr-14"}`}>
-              <div
-                className="relative group bg-white p-2.5 pb-8 rounded-xs shadow-md border border-neutral-300 max-w-sm mx-auto transition-transform duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer"
-                style={{
-                  transform: `rotate(${i % 2 === 0 ? -2 : 2.5}deg)`,
-                }}
-              >
-                {/* Sketched Tape */}
-                <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-14 h-4 bg-neutral-200/90 rounded-xs shadow-2xs z-10" />
-
-                <div className="aspect-[4/3] overflow-hidden bg-neutral-100 rounded-2xs">
-                  <img
-                    src={stop.image}
-                    alt={stop.city}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    loading="lazy"
-                  />
-                </div>
-                <div className="mt-2.5 px-1 flex items-center justify-between">
-                  <p className="font-hand text-sm text-neutral-800 font-bold">{stop.city}</p>
-                  <p className="font-hand text-xs text-neutral-400">#traveldoodles</p>
-                </div>
-              </div>
-            </div>
+      ) : (
+        /* Clean Database State: Empty Journey Notice */
+        <div className="w-full max-w-2xl bg-[var(--bg-secondary)] border-2 border-[var(--border-color)] rounded-3xl p-8 sm:p-12 text-center flex flex-col items-center shadow-sm">
+          <div className="w-16 h-16 rounded-full border-2 border-dashed border-[var(--ink-primary)] flex items-center justify-center text-2xl mb-4">
+            ✈️
           </div>
-        ))}
-      </div>
+          <h3 className="font-hand text-3xl font-bold text-[var(--ink-primary)]">
+            No travel routes connected yet
+          </h3>
+          <p className="text-sm text-[var(--ink-secondary)] max-w-md mt-2 mb-6 leading-relaxed font-sans">
+            Once travelers connect memories across multiple destinations, their travel routes will trace across this whiteboard canvas.
+          </p>
+          {onCreateClick && (
+            <button
+              onClick={onCreateClick}
+              className="px-5 py-2.5 rounded-xl bg-[var(--ink-primary)] text-[var(--bg-primary)] font-semibold text-xs hover:opacity-90 transition-opacity shadow-md cursor-pointer flex items-center gap-2"
+            >
+              <span>Start a Travel Route</span>
+              <span>✍️</span>
+            </button>
+          )}
+        </div>
+      )}
     </section>
   );
 }
