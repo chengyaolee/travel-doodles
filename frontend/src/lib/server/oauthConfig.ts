@@ -13,12 +13,14 @@ export function loadBackendEnv(): void {
   backendEnvLoaded = true;
 
   const candidateEnvPaths = [
+    path.resolve(process.cwd(), ".env.local"),
+    path.resolve(process.cwd(), ".env"),
+    path.resolve(process.cwd(), "frontend/.env.local"),
+    path.resolve(process.cwd(), "frontend/.env"),
     path.resolve(process.cwd(), "backend/.env"),
     path.resolve(process.cwd(), "../backend/.env"),
     path.resolve(process.cwd(), "../../backend/.env"),
-    path.resolve(process.cwd(), ".env"),
     path.resolve(process.cwd(), "../.env"),
-    path.resolve(process.cwd(), ".env.local"),
   ];
 
   for (const envPath of candidateEnvPaths) {

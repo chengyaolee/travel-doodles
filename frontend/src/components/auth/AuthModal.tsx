@@ -18,8 +18,8 @@ export function AuthModal() {
         if (authErr.includes("not_configured")) {
           setError(
             authErr.includes("google")
-              ? "Google OAuth is not configured. Please specify GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in backend .env."
-              : "Microsoft OAuth is not configured. Please specify MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET in backend .env."
+              ? "Google OAuth is not configured on Vercel. Please add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your Vercel Project Settings (Environment Variables)."
+              : "Microsoft OAuth is not configured on Vercel. Please add MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET in your Vercel Project Settings (Environment Variables)."
           );
         } else if (authErr.includes("missing")) {
           setError("OAuth authorization code was not returned. Please try signing in again.");
