@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { userStore } from "@/lib/server/userStore";
+import { userStore, toSafeUser } from "@/lib/server/userStore";
 
 const BACKEND_URL = process.env.BACKEND_URL || "";
 
@@ -7,7 +7,6 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const custom_id = (body.custom_id || body.username || "").trim();
-    const password = body.password || "";
     const device_token = body.device_token || "";
 
     if (!custom_id) {
@@ -37,14 +36,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const safeUser = userStore.verifyCredentials(custom_id, password);
-    if (!safeUser) {
+    const user = userStore.findByCustomId(custom_id);
+    if (!user) {
       return NextResponse.json(
-        { error: "Invalid Traveler ID or credentials." },
-        { status: 401 }
+        { error: "Traveler account not found." },
+        { status: 404 }
       );
     }
 
+    const safeUser = toSafeUser(user);
     const sessionToken = userStore.createSession(safeUser.id);
     const response = NextResponse.json({ user: safeUser });
 

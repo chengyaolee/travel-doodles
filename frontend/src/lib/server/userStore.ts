@@ -20,10 +20,25 @@ export interface UserRecord {
   avatar_url: string;
   auth_provider?: string;
   auth_provider_id?: string;
-  password_hash?: string;
   created_at: string;
   updated_at: string;
 }
+
+export class HandleConflictError extends Error {
+  constructor(message = "This handle was just claimed by another traveler. Please choose a different one.") {
+    super(message);
+    this.name = "HandleConflictError";
+  }
+}
+
+export class HandleValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "HandleValidationError";
+  }
+}
+
+let handleUpdateMutex = Promise.resolve();
 
 export interface SessionRecord {
   token: string;
@@ -92,10 +107,21 @@ function loadUsers(): UserRecord[] {
 
 function saveUsers(users: UserRecord[]) {
   cachedUsers = users;
+  const tmpFile = `${USERS_FILE}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
   try {
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), "utf-8");
+    fs.writeFileSync(tmpFile, JSON.stringify(users, null, 2), "utf-8");
+    fs.renameSync(tmpFile, USERS_FILE);
   } catch {
-    // ignore
+    try {
+      if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
+    } catch {
+      // ignore
+    }
+    try {
+      fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), "utf-8");
+    } catch {
+      // ignore
+    }
   }
 }
 
@@ -145,10 +171,6 @@ function saveFriends(friends: FriendRelation[]) {
   } catch {
     // ignore
   }
-}
-
-function hashPassword(password: string): string {
-  return crypto.createHash("sha256").update(password + ":travel_salt_2026").digest("hex");
 }
 
 export function generateRandomCustomId(prefix = "traveler"): string {
@@ -201,18 +223,59 @@ export const userStore = {
     );
   },
 
+  checkHandleAvailability(candidate: string, currentUserId?: string): {
+    available: boolean;
+    valid: boolean;
+    message: string;
+    isCurrent?: boolean;
+    isTaken?: boolean;
+  } {
+    const clean = candidate.trim().toLowerCase();
+    if (!clean) {
+      return { available: false, valid: false, message: "Handle cannot be empty." };
+    }
+    if (!/^[a-zA-Z0-9_]{3,30}$/.test(clean)) {
+      return {
+        available: false,
+        valid: false,
+        message: "Handle must be 3-30 letters, numbers, or underscores.",
+      };
+    }
+
+    // Fresh read from storage to prevent stale data
+    cachedUsers = null;
+    const users = loadUsers();
+    const existing = users.find(
+      (u) => u.custom_id.toLowerCase() === clean || u.username.toLowerCase() === clean
+    );
+
+    if (!existing) {
+      return { available: true, valid: true, message: "Handle is available!" };
+    }
+
+    if (currentUserId && existing.id === currentUserId) {
+      return { available: true, valid: true, isCurrent: true, message: "This is your current handle." };
+    }
+
+    return {
+      available: false,
+      valid: true,
+      isTaken: true,
+      message: "This handle is already taken by another traveler.",
+    };
+  },
+
   createUser(params: {
     custom_id?: string;
     display_name?: string;
     bio?: string;
-    password?: string;
     avatar_url?: string;
     auth_provider?: string;
     auth_provider_id?: string;
   }): SafeUser {
     const users = loadUsers();
 
-    // The @ id can be randomised first if not provided
+    // The @ id is randomised first if not provided
     let cleanCustomId = (params.custom_id || "").trim();
     if (!cleanCustomId) {
       let candidate = generateRandomCustomId();
@@ -233,10 +296,9 @@ export const userStore = {
       username: cleanCustomId,
       display_name: params.display_name?.trim() || cleanCustomId,
       bio: params.bio?.trim() || "Wandering the world one doodle at a time.",
-      avatar_url: params.avatar_url || "", // Anonymous by default (zero placeholder images)
+      avatar_url: params.avatar_url || "", // Anonymous silhouette by default
       auth_provider: params.auth_provider,
       auth_provider_id: params.auth_provider_id,
-      password_hash: params.password ? hashPassword(params.password) : undefined,
       created_at: now,
       updated_at: now,
     };
@@ -249,34 +311,34 @@ export const userStore = {
   updateCustomId(userId: string, newCustomId: string): SafeUser {
     const clean = newCustomId.trim().toLowerCase();
     if (!/^[a-zA-Z0-9_]{3,30}$/.test(clean)) {
-      throw new Error("Handle must be 3-30 characters (letters, numbers, underscores only).");
+      throw new HandleValidationError("Handle must be 3-30 characters (letters, numbers, underscores only).");
     }
 
+    // Force fresh load from storage to eliminate stale cache across concurrent calls
+    cachedUsers = null;
     const users = loadUsers();
-    const existing = this.findByCustomId(clean);
-    if (existing && existing.id !== userId) {
-      throw new Error(`The handle '@${clean}' is already taken.`);
+
+    // Check for collision: if another user claimed this handle concurrently
+    const conflict = users.find(
+      (u) =>
+        (u.custom_id.toLowerCase() === clean || u.username.toLowerCase() === clean) &&
+        u.id !== userId
+    );
+
+    if (conflict) {
+      throw new HandleConflictError(
+        `The handle '@${clean}' was just claimed by another traveler. Please choose a different one.`
+      );
     }
 
-    const user = this.findById(userId);
-    if (!user) throw new Error("User not found.");
+    const user = users.find((u) => u.id === userId);
+    if (!user) throw new Error("Traveler account not found.");
 
     user.custom_id = clean;
     user.username = clean;
     user.updated_at = new Date().toISOString();
 
     saveUsers(users);
-    return toSafeUser(user);
-  },
-
-  verifyCredentials(customId: string, password?: string): SafeUser | null {
-    const user = this.findByCustomId(customId);
-    if (!user) return null;
-
-    if (user.password_hash) {
-      if (!password) return null;
-      if (user.password_hash !== hashPassword(password)) return null;
-    }
     return toSafeUser(user);
   },
 

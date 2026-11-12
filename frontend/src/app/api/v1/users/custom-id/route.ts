@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { userStore } from "@/lib/server/userStore";
+import { userStore, HandleConflictError } from "@/lib/server/userStore";
 
 const BACKEND_URL = process.env.BACKEND_URL || "";
 
@@ -50,7 +50,11 @@ export async function PATCH(req: NextRequest) {
       user: updated,
     });
   } catch (error: unknown) {
+    const isConflict = error instanceof HandleConflictError;
     const msg = error instanceof Error ? error.message : "Failed to update handle";
-    return NextResponse.json({ error: msg }, { status: 400 });
+    return NextResponse.json(
+      { error: msg, code: isConflict ? "HANDLE_CONFLICT" : "INVALID_HANDLE" },
+      { status: isConflict ? 409 : 400 }
+    );
   }
 }

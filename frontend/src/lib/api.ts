@@ -327,6 +327,29 @@ export const api = {
   },
 
   /**
+   * Check whether a candidate @handle is valid and available (debounced on typing)
+   */
+  async checkHandle(handle: string): Promise<{
+    available: boolean;
+    valid: boolean;
+    message: string;
+    isCurrent?: boolean;
+    isTaken?: boolean;
+  }> {
+    const res = await fetch(`/api/v1/users/check-handle?handle=${encodeURIComponent(handle)}`, {
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+
+    const data = await res.json().catch(() => ({
+      available: false,
+      valid: false,
+      message: "Network error checking handle",
+    }));
+    return data;
+  },
+
+  /**
    * Update current user's @handle / custom ID in profile settings
    */
   async updateCustomId(custom_id: string): Promise<{ custom_id: string; message: string }> {
@@ -339,7 +362,11 @@ export const api = {
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new Error(data.error || `Failed to update handle: ${res.statusText}`);
+      const err = new Error(data.error || `Failed to update handle: ${res.statusText}`);
+      if (res.status === 409 || data.code === "HANDLE_CONFLICT") {
+        (err as any).isConflict = true;
+      }
+      throw err;
     }
 
     return data;

@@ -52,7 +52,6 @@ export async function POST(req: NextRequest) {
       custom_id,
       display_name,
       bio,
-      password: password || undefined,
     });
 
     const sessionToken = userStore.createSession(safeUser.id);

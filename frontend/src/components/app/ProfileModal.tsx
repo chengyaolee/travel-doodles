@@ -28,6 +28,14 @@ export function ProfileModal({
   const [newHandle, setNewHandle] = useState("");
   const [handleError, setHandleError] = useState<string | null>(null);
   const [handleSuccess, setHandleSuccess] = useState<string | null>(null);
+  const [handleChecking, setHandleChecking] = useState(false);
+  const [handleAvailability, setHandleAvailability] = useState<{
+    available: boolean;
+    valid?: boolean;
+    message: string;
+    isCurrent?: boolean;
+    isTaken?: boolean;
+  } | null>(null);
 
   // Other Traveler Profile View State
   const [otherUser, setOtherUser] = useState<any | null>(null);
@@ -71,6 +79,62 @@ export function ProfileModal({
         .catch(() => setFriendsList([]));
     }
   }, [isOpen, isAuthenticated, otherUser]);
+
+  // 500ms Debounced validation for handle changes
+  useEffect(() => {
+    if (!isEditingHandle) {
+      setHandleAvailability(null);
+      setHandleChecking(false);
+      return;
+    }
+
+    const clean = newHandle.trim().replace(/^@/, "").toLowerCase();
+    if (!clean) {
+      setHandleAvailability(null);
+      setHandleChecking(false);
+      return;
+    }
+
+    if (clean === user?.custom_id?.toLowerCase()) {
+      setHandleAvailability({
+        available: true,
+        isCurrent: true,
+        message: "Current handle",
+      });
+      setHandleChecking(false);
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_]{3,30}$/.test(clean)) {
+      setHandleAvailability({
+        available: false,
+        valid: false,
+        message: "Must be 3-30 letters, numbers, or underscores.",
+      });
+      setHandleChecking(false);
+      return;
+    }
+
+    setHandleChecking(true);
+    const timer = setTimeout(() => {
+      api.checkHandle(clean)
+        .then((res) => {
+          setHandleAvailability(res);
+        })
+        .catch((err) => {
+          setHandleAvailability({
+            available: false,
+            valid: false,
+            message: err.message || "Failed to check handle availability",
+          });
+        })
+        .finally(() => {
+          setHandleChecking(false);
+        });
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [newHandle, isEditingHandle, user?.custom_id]);
 
   if (!isOpen) return null;
 
@@ -121,8 +185,18 @@ export function ProfileModal({
       setHandleSuccess(`Handle updated to @${res.custom_id}`);
       setIsEditingHandle(false);
       setNewHandle("");
+      setHandleAvailability(null);
     } catch (err: unknown) {
-      setHandleError(err instanceof Error ? err.message : "Failed to update handle.");
+      const msg = err instanceof Error ? err.message : "Failed to update handle.";
+      setHandleError(msg);
+      // If someone claimed the handle concurrently
+      if ((err as any)?.isConflict) {
+        setHandleAvailability({
+          available: false,
+          isTaken: true,
+          message: "Another traveler just claimed this handle. Please choose a different one.",
+        });
+      }
     }
   };
 
@@ -241,32 +315,76 @@ export function ProfileModal({
                   </div>
                 </div>
 
-                {/* Handle Edit Form */}
+                {/* Handle Edit Form with 500ms Debounced Validation */}
                 {isEditingHandle && isViewingSelf && (
-                  <form onSubmit={handleSaveNewHandle} className="mt-3 flex flex-wrap items-center gap-2">
-                    <div className="relative flex items-center">
-                      <span className="absolute left-2.5 text-xs text-[var(--ink-secondary)] font-mono">@</span>
-                      <input
-                        type="text"
-                        value={newHandle}
-                        onChange={(e) => setNewHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
-                        placeholder="new_handle"
-                        className="pl-6 pr-2 py-1 text-xs rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] focus:outline-none focus:border-[var(--ink-primary)] font-mono w-40"
-                      />
+                  <form onSubmit={handleSaveNewHandle} className="mt-3 flex flex-col gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="relative flex items-center">
+                        <span className="absolute left-2.5 text-xs text-[var(--ink-secondary)] font-mono">@</span>
+                        <input
+                          type="text"
+                          value={newHandle}
+                          onChange={(e) => setNewHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                          placeholder="new_handle"
+                          className="pl-6 pr-8 py-1 text-xs rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] focus:outline-hidden focus:border-[var(--ink-primary)] font-mono w-44"
+                        />
+                        {handleChecking && (
+                          <span className="absolute right-2 text-[10px] text-[var(--ink-secondary)] animate-pulse font-mono">
+                            ...
+                          </span>
+                        )}
+                        {!handleChecking && handleAvailability?.available && !handleAvailability?.isCurrent && (
+                          <span className="absolute right-2 text-green-600 dark:text-green-400">
+                            <InkIcon name="check" size={13} />
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={
+                          handleChecking ||
+                          (handleAvailability !== null && !handleAvailability.available) ||
+                          newHandle.trim() === activeProfile.custom_id
+                        }
+                        className="px-3 py-1 bg-[var(--ink-primary)] text-[var(--bg-primary)] rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditingHandle(false);
+                          setHandleError(null);
+                          setHandleAvailability(null);
+                        }}
+                        className="px-2 py-1 text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] cursor-pointer"
+                      >
+                        Cancel
+                      </button>
                     </div>
-                    <button
-                      type="submit"
-                      className="px-3 py-1 bg-[var(--ink-primary)] text-[var(--bg-primary)] rounded-lg text-xs font-semibold cursor-pointer"
-                    >
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsEditingHandle(false)}
-                      className="px-2 py-1 text-xs text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]"
-                    >
-                      Cancel
-                    </button>
+
+                    {/* Live Debounce Validation Feedback */}
+                    {handleChecking && (
+                      <p className="text-[11px] text-[var(--ink-secondary)] font-mono">
+                        Checking availability...
+                      </p>
+                    )}
+                    {!handleChecking && handleAvailability && (
+                      <p
+                        className={`text-[11px] font-mono flex items-center gap-1 ${
+                          handleAvailability.available
+                            ? handleAvailability.isCurrent
+                              ? "text-[var(--ink-secondary)]"
+                              : "text-green-600 dark:text-green-400 font-semibold"
+                            : "text-red-500 font-medium"
+                        }`}
+                      >
+                        {handleAvailability.available && !handleAvailability.isCurrent && (
+                          <InkIcon name="check" size={12} />
+                        )}
+                        <span>{handleAvailability.message}</span>
+                      </p>
+                    )}
                   </form>
                 )}
 

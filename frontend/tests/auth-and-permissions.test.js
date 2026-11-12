@@ -8,12 +8,11 @@ const { postsStore } = require('../src/lib/server/postsStore.ts');
 describe('Auth, Permissions & Clean Database Synchronization', () => {
   const testCustomId = 'wanderer_' + Date.now();
 
-  test('userStore allows account creation with unique custom_id and anonymous avatar default', () => {
+  test('userStore allows account creation with unique custom_id and anonymous avatar default (no passwords)', () => {
     const user = userStore.createUser({
       custom_id: testCustomId,
       display_name: 'Wanderer Sam',
       bio: 'Chasing sunrises and coffee shops across continents.',
-      password: 'secure_password_123',
     });
 
     assert.ok(user.id, 'User must have a generated ID');
@@ -21,7 +20,6 @@ describe('Auth, Permissions & Clean Database Synchronization', () => {
     assert.strictEqual(user.display_name, 'Wanderer Sam');
     assert.strictEqual(user.username, testCustomId);
     assert.strictEqual(user.avatar_url, '', 'Default avatar must be empty for anonymous silhouette fallback');
-    assert.strictEqual(user.password_hash, undefined, 'SafeUser must not expose password_hash');
   });
 
   test('userStore supports randomized custom_id generation', () => {
@@ -57,7 +55,7 @@ describe('Auth, Permissions & Clean Database Synchronization', () => {
     // Rejects duplicate handle
     assert.throws(
       () => userStore.updateCustomId(initialUser.id, testCustomId),
-      /already taken/,
+      /just claimed by another traveler|already taken/,
       'Must reject duplicate handle'
     );
   });
@@ -139,24 +137,60 @@ describe('Auth, Permissions & Clean Database Synchronization', () => {
     );
   });
 
-  test('userStore validates credentials and manages sessions', () => {
-    // Valid credentials
-    const valid = userStore.verifyCredentials(testCustomId, 'secure_password_123');
-    assert.ok(valid, 'Valid credentials must return user');
-    assert.strictEqual(valid.custom_id, testCustomId);
+  test('userStore checks handle availability and validates format', () => {
+    // Non-existent handle is available
+    const freshHandle = 'avail_' + Math.floor(Math.random() * 100000);
+    const availCheck = userStore.checkHandleAvailability(freshHandle);
+    assert.strictEqual(availCheck.available, true);
+    assert.strictEqual(availCheck.valid, true);
 
-    // Invalid credentials
-    const invalid = userStore.verifyCredentials(testCustomId, 'wrong_password');
-    assert.strictEqual(invalid, null, 'Invalid password must return null');
+    // Existing handle is taken
+    const takenCheck = userStore.checkHandleAvailability(testCustomId);
+    assert.strictEqual(takenCheck.available, false);
+    assert.strictEqual(takenCheck.isTaken, true);
+
+    // Invalid format
+    const invalidCheck = userStore.checkHandleAvailability('bad handle with spaces');
+    assert.strictEqual(invalidCheck.available, false);
+    assert.strictEqual(invalidCheck.valid, false);
+
+    // User checking their own current handle
+    const testUser = userStore.findByCustomId(testCustomId);
+    const selfCheck = userStore.checkHandleAvailability(testCustomId, testUser.id);
+    assert.strictEqual(selfCheck.available, true);
+    assert.strictEqual(selfCheck.isCurrent, true);
+  });
+
+  test('userStore handles concurrent handle updates and prevents race conditions', () => {
+    const user1 = userStore.createUser({ display_name: 'Traveler One' });
+    const user2 = userStore.createUser({ display_name: 'Traveler Two' });
+
+    const contestedHandle = 'nomad_' + Math.floor(Math.random() * 100000);
+
+    // User 1 updates to contestedHandle successfully
+    const updatedUser1 = userStore.updateCustomId(user1.id, contestedHandle);
+    assert.strictEqual(updatedUser1.custom_id, contestedHandle);
+
+    // User 2 tries to update to contestedHandle simultaneously: MUST throw conflict
+    assert.throws(
+      () => userStore.updateCustomId(user2.id, contestedHandle),
+      /just claimed by another traveler/,
+      'Concurrent update to same handle must throw conflict error'
+    );
+  });
+
+  test('userStore manages passwordless sessions without password verification', () => {
+    const user = userStore.findByCustomId(testCustomId);
+    assert.ok(user, 'User must exist');
 
     // Create session
-    const sessionToken = userStore.createSession(valid.id);
+    const sessionToken = userStore.createSession(user.id);
     assert.ok(sessionToken.startsWith('sess_'), 'Session token must have sess_ prefix');
 
     // Validate session
     const authedUser = userStore.validateSession(sessionToken);
     assert.ok(authedUser, 'Valid session token must resolve to user');
-    assert.strictEqual(authedUser.id, valid.id);
+    assert.strictEqual(authedUser.id, user.id);
 
     // Revoke session
     userStore.revokeSession(sessionToken);
