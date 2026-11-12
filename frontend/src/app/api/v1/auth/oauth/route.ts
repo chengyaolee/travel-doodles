@@ -19,9 +19,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Proxy to live Go backend if active
+    // Proxy to live Go backend if active (with 4s timeout)
     if (BACKEND_URL) {
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
         const goRes = await fetch(`${BACKEND_URL}/api/v1/auth/oauth`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -32,7 +34,9 @@ export async function POST(req: NextRequest) {
             email,
             avatar_url: avatarUrl,
           }),
+          signal: controller.signal,
         });
+        clearTimeout(timeoutId);
         if (goRes.ok) {
           const data = await goRes.json();
           const cookieHeader = goRes.headers.get("set-cookie");

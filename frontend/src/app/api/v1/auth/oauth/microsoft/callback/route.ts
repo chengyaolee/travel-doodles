@@ -64,9 +64,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(`${appUrl}?auth_error=microsoft_invalid_profile`);
     }
 
-    // 3. Forward to live Go backend if configured
+    // 3. Forward to live Go backend if configured (with strict 4s timeout)
     if (config.backendUrl) {
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
         const goRes = await fetch(`${config.backendUrl}/api/v1/auth/oauth`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -77,7 +79,9 @@ export async function GET(req: NextRequest) {
             email,
             avatar_url: "",
           }),
+          signal: controller.signal,
         });
+        clearTimeout(timeoutId);
 
         if (goRes.ok) {
           const cookieHeader = goRes.headers.get("set-cookie");
@@ -86,9 +90,12 @@ export async function GET(req: NextRequest) {
             response.headers.set("set-cookie", cookieHeader);
           }
           return response;
+        } else {
+          const errBody = await goRes.text().catch(() => "");
+          console.error("Backend Microsoft OAuth login failed with status", goRes.status, errBody);
         }
       } catch (err) {
-        console.error("Failed to forward Microsoft OAuth to live Go backend:", err);
+        console.error("Failed to forward Microsoft OAuth to live Go backend (timed out or unreachable):", err);
       }
     }
 

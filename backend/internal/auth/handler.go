@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"regexp"
 	"strings"
@@ -193,6 +194,12 @@ func (h *Handler) OAuthLogin(w http.ResponseWriter, r *http.Request) {
 
 	req.Provider = strings.ToLower(strings.TrimSpace(req.Provider))
 	req.ProviderUserID = strings.TrimSpace(req.ProviderUserID)
+	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
+	req.DisplayName = strings.TrimSpace(req.DisplayName)
+	if req.DisplayName == "" {
+		req.DisplayName = "Traveler"
+	}
+
 	if req.Provider == "" || req.ProviderUserID == "" {
 		writeError(w, http.StatusBadRequest, "provider and provider_user_id are required")
 		return
@@ -200,15 +207,18 @@ func (h *Handler) OAuthLogin(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	// Check if user already exists with this OAuth account
+	// Check if user already exists with this OAuth account OR with matching email
 	query := `
 		SELECT id, custom_id, username, COALESCE(email, ''), display_name, bio, avatar_key, auth_provider, created_at, updated_at
 		FROM users
-		WHERE auth_provider = $1 AND auth_provider_id = $2;
+		WHERE (auth_provider = $1 AND auth_provider_id = $2)
+		   OR ($3 != '' AND LOWER(email) = $3)
+		ORDER BY created_at ASC
+		LIMIT 1;
 	`
 
 	var u User
-	err := h.pool.QueryRow(ctx, query, req.Provider, req.ProviderUserID).Scan(
+	err := h.pool.QueryRow(ctx, query, req.Provider, req.ProviderUserID, req.Email).Scan(
 		&u.ID,
 		&u.CustomID,
 		&u.Username,
@@ -223,8 +233,19 @@ func (h *Handler) OAuthLogin(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		observability.FromContext(ctx).Error("oauth lookup error", "error", err)
-		writeError(w, http.StatusInternalServerError, "internal server error")
+		writeError(w, http.StatusInternalServerError, "database lookup failed: "+err.Error())
 		return
+	}
+
+	// If existing user was found via email, ensure OAuth provider fields are linked
+	if err == nil && u.ID != "" {
+		if u.AuthProvider != req.Provider {
+			_, _ = h.pool.Exec(ctx, `
+				UPDATE users SET auth_provider = $1, auth_provider_id = $2, updated_at = NOW()
+				WHERE id = $3;
+			`, req.Provider, req.ProviderUserID, u.ID)
+			u.AuthProvider = req.Provider
+		}
 	}
 
 	// Create user if not found
@@ -249,18 +270,31 @@ func (h *Handler) OAuthLogin(w http.ResponseWriter, r *http.Request) {
 			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 				// Retry with random suffix
 				customID = GenerateRandomCustomID("traveler")
-				_ = h.pool.QueryRow(ctx, insertQuery, customID, req.Email, req.DisplayName, req.Provider, req.ProviderUserID).
+				err = h.pool.QueryRow(ctx, insertQuery, customID, req.Email, req.DisplayName, req.Provider, req.ProviderUserID).
 					Scan(&u.ID, &u.CustomID, &u.Username, &u.Email, &u.DisplayName, &u.Bio, &u.AvatarKey, &u.AuthProvider, &u.CreatedAt, &u.UpdatedAt)
 			}
+			if err != nil {
+				observability.FromContext(ctx).Error("oauth insert user failed", "error", err)
+				writeError(w, http.StatusInternalServerError, "failed to create user account: "+err.Error())
+				return
+			}
 		}
+	}
+
+	if u.ID == "" {
+		writeError(w, http.StatusInternalServerError, "failed to resolve user identity")
+		return
 	}
 
 	ip := clientIP(r)
 	ua := r.UserAgent()
 	sessionToken, _, err := h.sm.CreateSession(ctx, u.ID, ip, ua)
-	if err == nil {
-		h.sm.SetSessionCookie(w, sessionToken)
+	if err != nil {
+		observability.FromContext(ctx).Error("oauth session creation failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "failed to create user session: "+err.Error())
+		return
 	}
+	h.sm.SetSessionCookie(w, sessionToken)
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"user": u,
@@ -471,16 +505,25 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 }
 
 func clientIP(r *http.Request) string {
-	xf := r.Header.Get("X-Forwarded-For")
-	if xf != "" {
+	var candidate string
+	if xf := r.Header.Get("X-Forwarded-For"); xf != "" {
 		parts := strings.Split(xf, ",")
-		return strings.TrimSpace(parts[0])
+		candidate = strings.TrimSpace(parts[0])
+	} else if xr := r.Header.Get("X-Real-IP"); xr != "" {
+		candidate = strings.TrimSpace(xr)
+	} else if r.RemoteAddr != "" {
+		host, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err == nil {
+			candidate = host
+		} else {
+			candidate = r.RemoteAddr
+		}
 	}
-	xr := r.Header.Get("X-Real-IP")
-	if xr != "" {
-		return strings.TrimSpace(xr)
+	candidate = strings.Trim(candidate, "[]")
+	if net.ParseIP(candidate) != nil {
+		return candidate
 	}
-	return strings.Split(r.RemoteAddr, ":")[0]
+	return ""
 }
 
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {

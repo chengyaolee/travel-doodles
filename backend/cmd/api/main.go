@@ -81,11 +81,28 @@ func main() {
 	}
 	defer pool.Close()
 
-	// 5. Apply Migrations automatically if in development/staging
-	if cfg.Env != "production" {
-		if err := database.RunMigrations(ctx, pool, "./db/migrations"); err != nil {
-			logger.Warn("auto-migration warning", "error", err)
+	// 5. Apply Database Migrations automatically on startup
+	candidateMigrationDirs := []string{
+		"./db/migrations",
+		"./backend/db/migrations",
+		"../backend/db/migrations",
+		"../db/migrations",
+		"/app/db/migrations",
+	}
+	migrationsApplied := false
+	for _, mDir := range candidateMigrationDirs {
+		if _, err := os.Stat(mDir); err == nil {
+			if err := database.RunMigrations(ctx, pool, mDir); err != nil {
+				logger.Warn("auto-migration warning", "dir", mDir, "error", err)
+			} else {
+				logger.Info("database migrations verified", "dir", mDir)
+			}
+			migrationsApplied = true
+			break
 		}
+	}
+	if !migrationsApplied {
+		logger.Warn("migrations directory not found in standard paths")
 	}
 
 	// 6. Initialize Storage Service
