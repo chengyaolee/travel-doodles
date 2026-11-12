@@ -110,26 +110,6 @@ export function AuthModal() {
           </button>
         </div>
 
-        {/* Reassurance Info Card */}
-        <div className="mt-5 p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs text-[var(--ink-secondary)] space-y-2">
-          <p className="flex items-start gap-2">
-            <span className="text-[var(--ink-primary)] mt-0.5">
-              <InkIcon name="check" size={13} />
-            </span>
-            <span>
-              <strong>Passwordless login:</strong> No passwords to create or remember.
-            </span>
-          </p>
-          <p className="flex items-start gap-2">
-            <span className="text-[var(--ink-primary)] mt-0.5">
-              <InkIcon name="check" size={13} />
-            </span>
-            <span>
-              <strong>Randomized @handle:</strong> A unique tag (like <code className="font-mono text-[var(--ink-primary)]">@traveler_xxxx</code>) is generated automatically, which you can customize in your profile settings.
-            </span>
-          </p>
-        </div>
-
         {/* Footer Note */}
         <p className="mt-5 text-center text-[11px] text-[var(--ink-secondary)] leading-relaxed">
           Browsing the world atlas is completely free. Pinned memories, likes, and comments stay saved to your personal traveler board.
