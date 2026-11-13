@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { userStore } from "@/lib/server/userStore";
 
-const BACKEND_URL = process.env.BACKEND_URL || "";
+import { getBackendUrl } from "@/lib/server/backendUrl";
+const getTargetBackendUrl = () => getBackendUrl();
 
 // GET /api/v1/friends/requests - List incoming and outgoing friend requests
 export async function GET(req: NextRequest) {
   const authUser = userStore.getAuthUser(req);
 
-  if (BACKEND_URL) {
+  if (getTargetBackendUrl()) {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/v1/friends/requests`, {
+      const res = await fetch(`${getTargetBackendUrl()}/api/v1/friends/requests`, {
         headers: {
           ...(req.headers.get("cookie") ? { cookie: req.headers.get("cookie")! } : {}),
           ...(req.headers.get("authorization") ? { authorization: req.headers.get("authorization")! } : {}),
@@ -36,10 +37,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const authUser = userStore.getAuthUser(req);
 
-  if (BACKEND_URL) {
+  if (getTargetBackendUrl()) {
     try {
       const body = await req.clone().json();
-      const res = await fetch(`${BACKEND_URL}/api/v1/friends/requests`, {
+      const res = await fetch(`${getTargetBackendUrl()}/api/v1/friends/requests`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

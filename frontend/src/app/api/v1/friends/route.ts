@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { userStore } from "@/lib/server/userStore";
 
-const BACKEND_URL = process.env.BACKEND_URL || "";
+import { getBackendUrl } from "@/lib/server/backendUrl";
+const getTargetBackendUrl = () => getBackendUrl();
 
 export async function GET(req: NextRequest) {
   const authUser = userStore.getAuthUser(req);
 
-  if (BACKEND_URL) {
+  if (getTargetBackendUrl()) {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/v1/friends`, {
+      const res = await fetch(`${getTargetBackendUrl()}/api/v1/friends`, {
         headers: {
           ...(req.headers.get("cookie") ? { cookie: req.headers.get("cookie")! } : {}),
           ...(req.headers.get("authorization") ? { authorization: req.headers.get("authorization")! } : {}),

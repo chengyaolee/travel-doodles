@@ -8,8 +8,14 @@ import { loadBackendEnv } from "./oauthConfig";
  */
 export function getBackendUrl(): string {
   loadBackendEnv();
-  const url = process.env.BACKEND_URL || process.env.GO_BACKEND_URL || "";
-  return url ? url.trim() : "";
+  let url = (process.env.BACKEND_URL || process.env.GO_BACKEND_URL || "").trim();
+  if (!url) return "";
+  // If protocol was omitted (e.g. "123.45.67.89:8080"), prepend http://
+  if (!/^https?:\/\//i.test(url)) {
+    url = `http://${url}`;
+  }
+  // Strip trailing slashes
+  return url.replace(/\/+$/, "");
 }
 
 /**

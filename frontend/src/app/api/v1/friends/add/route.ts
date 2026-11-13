@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { userStore } from "@/lib/server/userStore";
 
-const BACKEND_URL = process.env.BACKEND_URL || "";
+import { getBackendUrl } from "@/lib/server/backendUrl";
+const getTargetBackendUrl = () => getBackendUrl();
 
 export async function POST(req: NextRequest) {
   const authUser = userStore.getAuthUser(req);
 
-  if (BACKEND_URL) {
+  if (getTargetBackendUrl()) {
     try {
       const body = await req.clone().json();
-      const res = await fetch(`${BACKEND_URL}/api/v1/friends/add`, {
+      const res = await fetch(`${getTargetBackendUrl()}/api/v1/friends/add`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

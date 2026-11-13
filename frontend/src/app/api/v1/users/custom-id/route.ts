@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { userStore, HandleConflictError } from "@/lib/server/userStore";
-
-const BACKEND_URL = process.env.BACKEND_URL || "";
+import { getBackendUrl } from "@/lib/server/backendUrl";
 
 export async function PATCH(req: NextRequest) {
   const authUser = userStore.getAuthUser(req);
 
   // If live Go backend is configured, proxy request
-  if (BACKEND_URL) {
+  const backendUrl = getBackendUrl();
+  if (backendUrl) {
     try {
       const body = await req.clone().json();
-      const res = await fetch(`${BACKEND_URL}/api/v1/users/custom-id`, {
+      const res = await fetch(`${backendUrl}/api/v1/users/custom-id`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

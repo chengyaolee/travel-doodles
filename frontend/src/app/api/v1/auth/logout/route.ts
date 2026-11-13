@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { userStore } from "@/lib/server/userStore";
-
-const BACKEND_URL = process.env.BACKEND_URL || "";
+import { getBackendUrl } from "@/lib/server/backendUrl";
 
 export async function POST(req: NextRequest) {
   const token = req.cookies.get("travel_session")?.value;
@@ -9,14 +8,16 @@ export async function POST(req: NextRequest) {
     userStore.revokeSession(token);
   }
 
-  if (BACKEND_URL) {
+  const backendUrl = getBackendUrl();
+  if (backendUrl) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1200);
-      await fetch(`${BACKEND_URL}/api/v1/auth/logout`, {
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      await fetch(`${backendUrl}/api/v1/auth/logout`, {
         method: "POST",
         headers: {
           ...(req.headers.get("cookie") ? { cookie: req.headers.get("cookie")! } : {}),
+          ...(req.headers.get("authorization") ? { authorization: req.headers.get("authorization")! } : {}),
         },
         signal: controller.signal,
       });

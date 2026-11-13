@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { userStore } from "@/lib/server/userStore";
 
-const BACKEND_URL = process.env.BACKEND_URL || "";
+import { getBackendUrl } from "@/lib/server/backendUrl";
+const getTargetBackendUrl = () => getBackendUrl();
 
 // POST /api/v1/friends/invites - Generate a shareable friend link with 3-day TTL (72 hours)
 export async function POST(req: NextRequest) {
   const authUser = userStore.getAuthUser(req);
 
-  if (BACKEND_URL) {
+  if (getTargetBackendUrl()) {
     try {
       const body = await req.clone().json().catch(() => ({}));
       // Enforce 3-day TTL (72 hours)
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
         max_uses: body.max_uses || 0,
       };
 
-      const res = await fetch(`${BACKEND_URL}/api/v1/friends/invites`, {
+      const res = await fetch(`${getTargetBackendUrl()}/api/v1/friends/invites`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -16,13 +16,17 @@ export async function GET(request: NextRequest) {
   const backendUrl = getBackendUrl();
   if (backendUrl) {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
       const res = await fetch(`${backendUrl}/api/v1/posts?${searchParams.toString()}`, {
         headers: {
           "Content-Type": "application/json",
           ...(request.headers.get("cookie") ? { cookie: request.headers.get("cookie")! } : {}),
           ...(request.headers.get("authorization") ? { authorization: request.headers.get("authorization")! } : {}),
         },
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       if (res.ok) {
         const data = await res.json();
         return NextResponse.json(data);
@@ -57,6 +61,8 @@ export async function POST(request: NextRequest) {
           media: rawBody.image ? [{ object_key: rawBody.image, width: 600, height: 420, sort_order: 0 }] : [],
         };
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
         const res = await fetch(`${backendUrl}/api/v1/posts`, {
           method: "POST",
           headers: {
@@ -65,7 +71,9 @@ export async function POST(request: NextRequest) {
             ...(request.headers.get("authorization") ? { authorization: request.headers.get("authorization")! } : {}),
           },
           body: JSON.stringify(goPayload),
+          signal: controller.signal,
         });
+        clearTimeout(timeoutId);
 
         if (res.ok) {
           const data = await res.json();

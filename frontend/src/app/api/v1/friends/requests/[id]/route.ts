@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { userStore } from "@/lib/server/userStore";
 
-const BACKEND_URL = process.env.BACKEND_URL || "";
+import { getBackendUrl } from "@/lib/server/backendUrl";
+const getTargetBackendUrl = () => getBackendUrl();
 
 // DELETE /api/v1/friends/requests/[id] - Cancel outgoing friend request
 export async function DELETE(
@@ -11,9 +12,9 @@ export async function DELETE(
   const { id } = await params;
   const authUser = userStore.getAuthUser(req);
 
-  if (BACKEND_URL) {
+  if (getTargetBackendUrl()) {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/v1/friends/requests/${id}`, {
+      const res = await fetch(`${getTargetBackendUrl()}/api/v1/friends/requests/${id}`, {
         method: "DELETE",
         headers: {
           ...(req.headers.get("cookie") ? { cookie: req.headers.get("cookie")! } : {}),
