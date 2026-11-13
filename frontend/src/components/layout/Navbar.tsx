@@ -83,11 +83,6 @@ export function Navbar({
             </div>
           )}
 
-          <button onClick={handleStartDoodling} className="button-ink nav-create">
-            <InkIcon name="pen" size={16} />
-            Start doodling
-          </button>
-
           <button
             className="icon-button nav-menu-toggle"
             onClick={() => setMobileOpen(!mobileOpen)}

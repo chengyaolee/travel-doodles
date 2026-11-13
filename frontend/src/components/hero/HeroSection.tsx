@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { HeroWorldMap } from "./HeroWorldMap";
 import { DoodleUnderline } from "@/components/doodles";
 import { InkIcon } from "@/components/ui/InkIcon";
@@ -34,19 +33,6 @@ export function HeroSection({
     >
       {/* Central Hero Header */}
       <div className="relative z-10 text-center max-w-3xl mx-auto mb-10 flex flex-col items-center">
-        <div className="section-kicker mb-6 inline-flex items-center gap-2">
-          <Image
-            src="/icon-transparent.png"
-            alt="Travel Doodles icon"
-            width={24}
-            height={24}
-            className="w-6 h-6 object-contain dark:invert select-none pointer-events-none -rotate-6"
-            priority
-          />
-          <span className="kicker-line" aria-hidden="true" />
-          <span>A living travel whiteboard</span>
-        </div>
-
         <h1
           className="text-5xl sm:text-7xl md:text-8xl font-medium text-[var(--ink-primary)] leading-[1.02] tracking-[-0.065em] mb-3"
           style={{

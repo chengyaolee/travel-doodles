@@ -60,7 +60,7 @@ export function AnonymousAvatar({
           width={size}
           height={size}
           onError={() => setDefaultImgError(true)}
-          className="w-full h-full object-cover dark:invert select-none pointer-events-none p-0.5"
+          className="w-full h-full object-cover select-none pointer-events-none p-0.5"
         />
       </div>
     );

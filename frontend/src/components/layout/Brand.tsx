@@ -8,9 +8,9 @@ export function Brand() {
         <Image
           src="/icon-transparent.png"
           alt="Travel Doodles"
-          width={38}
-          height={38}
-          className="w-9 h-9 object-contain dark:invert transition-transform select-none pointer-events-none"
+          width={56}
+          height={56}
+          className="w-12 h-12 md:w-14 md:h-14 object-contain transition-transform select-none pointer-events-none drop-shadow-sm"
           priority
         />
       </span>
