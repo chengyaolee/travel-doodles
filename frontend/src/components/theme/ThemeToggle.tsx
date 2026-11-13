@@ -73,7 +73,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
   );
 }
 
-/** Cute hand-drawn doodle Sun icon with radiating ink rays */
+/** Authentic hand-drawn doodle Sun icon with organic rays and ink line-weight */
 function DoodleSunIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
   return (
     <svg
@@ -82,28 +82,28 @@ function DoodleSunIcon({ size = 16, className = "" }: { size?: number; className
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2.2"
+      strokeWidth="2.3"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
       aria-hidden="true"
     >
-      {/* Hand-drawn style slightly organic sun center */}
-      <circle cx="12" cy="12" r="4.2" strokeWidth="2.3" />
-      {/* Doodle ray dashes */}
-      <line x1="12" y1="2.4" x2="12" y2="4.8" />
-      <line x1="12" y1="19.2" x2="12" y2="21.6" />
-      <line x1="2.4" y1="12" x2="4.8" y2="12" />
-      <line x1="19.2" y1="12" x2="21.6" y2="12" />
-      <line x1="5.2" y1="5.2" x2="6.9" y2="6.9" />
-      <line x1="17.1" y1="17.1" x2="18.8" y2="18.8" />
-      <line x1="5.2" y1="18.8" x2="6.9" y2="17.1" />
-      <line x1="17.1" y1="6.9" x2="18.8" y2="5.2" />
+      {/* Hand-drawn organic wobbly sun center */}
+      <path d="M12 7.2c2.6-.3 4.9 1.7 5.1 4.4.2 2.8-1.9 5.2-4.7 5.3-2.8.1-5.2-1.9-5.3-4.7-.1-2.8 2-5.1 4.9-5z" />
+      {/* Hand-drawn expressive doodle rays */}
+      <path d="M12 2.3c-.1 1.1-.1 2.2 0 3.1" />
+      <path d="M16.9 7.1c.8-.8 1.7-1.6 2.6-2.3" />
+      <path d="M18.5 12c1.1 0 2.2.1 3.2 0" />
+      <path d="M16.8 16.9c.9.8 1.7 1.7 2.4 2.6" />
+      <path d="M12 18.5c0 1.1.1 2.1 0 3.2" />
+      <path d="M7.1 16.9c-.8.8-1.7 1.7-2.5 2.5" />
+      <path d="M2.3 12c1.1 0 2.1-.1 3.2 0" />
+      <path d="M7.1 7.1c-.8-.8-1.7-1.7-2.5-2.5" />
     </svg>
   );
 }
 
-/** Cute hand-drawn doodle Crescent Moon with sparkle stars */
+/** Authentic hand-drawn doodle Crescent Moon with sparkle stars */
 function DoodleMoonIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
   return (
     <svg
@@ -112,24 +112,22 @@ function DoodleMoonIcon({ size = 16, className = "" }: { size?: number; classNam
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2.2"
+      strokeWidth="2.3"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
       aria-hidden="true"
     >
-      {/* Hand-drawn doodle crescent */}
+      {/* Hand-drawn wobbly doodle crescent */}
+      <path d="M14.8 3.5c-.7 1.8-.5 3.7.4 5.5 1 2.1 2.8 3.7 5 4.3-1 2.8-3.2 5.1-6.1 5.9-3.5 1-7.3-.3-9.5-3.2-2.3-3-2.4-7.2-.3-10.4 1.8-2.7 4.9-4.3 8.1-4.3.8 0 1.6.1 2.4.2z" />
+      {/* Hand-drawn 4-point doodle sparkle star */}
       <path
-        d="M14.8 3.6a7.8 7.8 0 1 0 5.6 12 8.2 8.2 0 0 1-5.6-12z"
-        strokeWidth="2.2"
-      />
-      {/* Hand-drawn sparkle stars */}
-      <path
-        d="M18.8 4.6l.4 1.3 1.3.4-1.3.4-.4 1.3-.4-1.3-1.3-.4 1.3-.4.4-1.3z"
+        d="M19 4.2c0 1.3.5 2 1.6 2.4-1.1.4-1.6 1.1-1.6 2.4 0-1.3-.5-2-1.6-2.4 1.1-.4 1.6-1.1 1.6-2.4z"
         strokeWidth="1.2"
         fill="currentColor"
       />
-      <circle cx="14.8" cy="7.2" r="0.75" fill="currentColor" stroke="none" />
+      {/* Secondary cute doodle ink star dot */}
+      <circle cx="15.2" cy="7.2" r="0.9" fill="currentColor" stroke="none" />
     </svg>
   );
 }

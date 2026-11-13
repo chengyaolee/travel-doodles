@@ -90,10 +90,10 @@ export function AnonymousAvatar({
         <path d="M 22 28 Q 28 20 40 24 Q 48 26 44 36 Q 38 46 28 48 Q 20 44 20 34 Z" fill="none" />
         <path d="M 52 26 Q 64 22 76 28 Q 84 34 82 46 Q 74 52 64 46 Q 58 40 54 34 Z" fill="none" />
         <path d="M 40 56 Q 52 52 60 62 Q 56 78 44 82 Q 36 78 38 68 Z" fill="none" />
-        {/* Cute Doodle Smiley in the center */}
-        <circle cx="44" cy="45" r="2.5" fill="currentColor" />
-        <circle cx="56" cy="45" r="2.5" fill="currentColor" />
-        <path d="M 44 54 Q 50 61 56 54" strokeWidth="3.5" fill="none" />
+        {/* Cute Doodle Smiley in the center: 2 simple solid dots for eyes */}
+        <circle cx="44" cy="45" r="3.2" fill="currentColor" />
+        <circle cx="56" cy="45" r="3.2" fill="currentColor" />
+        <path d="M 44 54 Q 50 61 56 54" strokeWidth="3.5" strokeLinecap="round" fill="none" />
       </svg>
     </div>
   );
