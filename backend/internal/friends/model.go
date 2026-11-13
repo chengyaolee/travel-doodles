@@ -32,5 +32,31 @@ type AddFriendByIDRequest struct {
 
 type CreateInviteRequest struct {
 	MaxUses     int `json:"max_uses"`     // 0 = unlimited
-	ExpireHours int `json:"expire_hours"` // 0 = no expiration
+	ExpireHours int `json:"expire_hours"` // 0 = default to 72 (3 days)
+}
+
+type FriendRequest struct {
+	ID         string    `json:"id"`
+	SenderID   string    `json:"sender_id"`
+	ReceiverID string    `json:"receiver_id"`
+	Status     string    `json:"status"` // 'pending', 'accepted', 'declined', 'cancelled'
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+	Sender     *Friend   `json:"sender,omitempty"`
+	Receiver   *Friend   `json:"receiver,omitempty"`
+}
+
+type SendFriendRequestPayload struct {
+	CustomID string `json:"custom_id"`
+	TargetID string `json:"target_id,omitempty"`
+}
+
+type UserSearchResult struct {
+	ID              string  `json:"id"`
+	CustomID        string  `json:"custom_id"`
+	Username        string  `json:"username"`
+	DisplayName     string  `json:"display_name"`
+	AvatarURL       string  `json:"avatar_url,omitempty"`
+	FriendshipStatus string `json:"friendship_status"` // 'self', 'friends', 'pending_sent', 'pending_received', 'none'
+	ActiveRequestID string  `json:"active_request_id,omitempty"`
 }

@@ -1,0 +1,63 @@
+import { NextRequest, NextResponse } from "next/server";
+import { userStore } from "@/lib/server/userStore";
+
+const BACKEND_URL = process.env.BACKEND_URL || "";
+
+// POST /api/v1/friends/invites - Generate a shareable friend link with 3-day TTL (72 hours)
+export async function POST(req: NextRequest) {
+  const authUser = userStore.getAuthUser(req);
+
+  if (BACKEND_URL) {
+    try {
+      const body = await req.clone().json().catch(() => ({}));
+      // Enforce 3-day TTL (72 hours)
+      const payload = {
+        ...body,
+        expire_hours: body.expire_hours || 72,
+        max_uses: body.max_uses || 0,
+      };
+
+      const res = await fetch(`${BACKEND_URL}/api/v1/friends/invites`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(req.headers.get("cookie") ? { cookie: req.headers.get("cookie")! } : {}),
+          ...(req.headers.get("authorization") ? { authorization: req.headers.get("authorization")! } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return NextResponse.json(data, { status: 201 });
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        return NextResponse.json(errData, { status: res.status });
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  if (!authUser) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const body = await req.json().catch(() => ({}));
+    // TTL is 3 days = 72 hours
+    const expireHours = body.expire_hours || 72;
+    const maxUses = body.max_uses || 0;
+
+    const invite = userStore.createFriendInvite(authUser.id, expireHours, maxUses);
+    return NextResponse.json(
+      {
+        message: "Friend invite link generated successfully (valid for 3 days).",
+        invite,
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to generate friend invite link";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}

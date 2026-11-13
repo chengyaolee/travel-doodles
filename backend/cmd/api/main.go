@@ -275,10 +275,13 @@ func (app *Application) BuildRouter() http.Handler {
 			userR.With(middleware.RequireAuth()).Delete("/{id}/block", app.SocialHandler.Unblock)
 		})
 
-		// Friend System (Add by Custom ID or Send Invite Links)
+		// Friend System (Add by Custom ID, Requests & Accept, Send 3-Day Invite Links)
 		api.Route("/friends", func(friendR chi.Router) {
-			// Public invite link preview
+			// Public invite link preview (inspects 3-day TTL)
 			friendR.Get("/invites/{code}", app.FriendHandler.GetInvite)
+
+			// Search travelers by ID or display name
+			friendR.Get("/search", app.FriendHandler.SearchUsers)
 
 			// Authenticated friend actions
 			friendR.With(middleware.RequireAuth()).Post("/add", app.FriendHandler.AddFriendByID)
@@ -286,6 +289,13 @@ func (app *Application) BuildRouter() http.Handler {
 			friendR.With(middleware.RequireAuth()).Post("/invites/{code}/accept", app.FriendHandler.AcceptInvite)
 			friendR.With(middleware.RequireAuth()).Get("/", app.FriendHandler.ListFriends)
 			friendR.With(middleware.RequireAuth()).Delete("/{id}", app.FriendHandler.RemoveFriend)
+
+			// Friend Requests Workflow (Search -> Request -> Confirm/Accept)
+			friendR.With(middleware.RequireAuth()).Get("/requests", app.FriendHandler.ListFriendRequests)
+			friendR.With(middleware.RequireAuth()).Post("/requests", app.FriendHandler.SendFriendRequest)
+			friendR.With(middleware.RequireAuth()).Post("/requests/{id}/accept", app.FriendHandler.AcceptFriendRequest)
+			friendR.With(middleware.RequireAuth()).Post("/requests/{id}/decline", app.FriendHandler.DeclineFriendRequest)
+			friendR.With(middleware.RequireAuth()).Delete("/requests/{id}", app.FriendHandler.CancelFriendRequest)
 		})
 
 		// Posts & Geographic Discovery

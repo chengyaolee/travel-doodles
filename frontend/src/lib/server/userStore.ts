@@ -65,6 +65,30 @@ export interface FriendRelation {
   created_at: string;
 }
 
+export interface FriendRequestRecord {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  status: "pending" | "accepted" | "declined" | "cancelled";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FriendInviteRecord {
+  id: string;
+  code: string;
+  inviter_id: string;
+  max_uses: number;
+  uses_count: number;
+  expires_at: string; // ISO string (TTL 3 days = 72 hours)
+  created_at: string;
+}
+
+export interface UserSearchResult extends SafeUser {
+  friendship_status: "self" | "friends" | "pending_sent" | "pending_received" | "none";
+  active_request_id?: string;
+}
+
 function resolveDataDir(): string {
   const cwd = process.cwd();
   const directPath = path.join(cwd, ".data");
@@ -85,10 +109,14 @@ const DATA_DIR = resolveDataDir();
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
 const FRIENDS_FILE = path.join(DATA_DIR, "friends.json");
+const REQUESTS_FILE = path.join(DATA_DIR, "friend_requests.json");
+const INVITES_FILE = path.join(DATA_DIR, "friend_invites.json");
 
 let cachedUsers: UserRecord[] | null = null;
 let cachedSessions: Record<string, SessionRecord> | null = null;
 let cachedFriends: FriendRelation[] | null = null;
+let cachedRequests: FriendRequestRecord[] | null = null;
+let cachedInvites: FriendInviteRecord[] | null = null;
 
 function loadUsers(): UserRecord[] {
   if (cachedUsers) return cachedUsers;
@@ -168,6 +196,54 @@ function saveFriends(friends: FriendRelation[]) {
   cachedFriends = friends;
   try {
     fs.writeFileSync(FRIENDS_FILE, JSON.stringify(friends, null, 2), "utf-8");
+  } catch {
+    // ignore
+  }
+}
+
+function loadRequests(): FriendRequestRecord[] {
+  if (cachedRequests) return cachedRequests;
+  if (fs.existsSync(REQUESTS_FILE)) {
+    try {
+      const data = fs.readFileSync(REQUESTS_FILE, "utf-8");
+      cachedRequests = JSON.parse(data);
+      return cachedRequests!;
+    } catch {
+      // ignore
+    }
+  }
+  cachedRequests = [];
+  return cachedRequests;
+}
+
+function saveRequests(requests: FriendRequestRecord[]) {
+  cachedRequests = requests;
+  try {
+    fs.writeFileSync(REQUESTS_FILE, JSON.stringify(requests, null, 2), "utf-8");
+  } catch {
+    // ignore
+  }
+}
+
+function loadInvites(): FriendInviteRecord[] {
+  if (cachedInvites) return cachedInvites;
+  if (fs.existsSync(INVITES_FILE)) {
+    try {
+      const data = fs.readFileSync(INVITES_FILE, "utf-8");
+      cachedInvites = JSON.parse(data);
+      return cachedInvites!;
+    } catch {
+      // ignore
+    }
+  }
+  cachedInvites = [];
+  return cachedInvites;
+}
+
+function saveInvites(invites: FriendInviteRecord[]) {
+  cachedInvites = invites;
+  try {
+    fs.writeFileSync(INVITES_FILE, JSON.stringify(invites, null, 2), "utf-8");
   } catch {
     // ignore
   }
@@ -442,5 +518,306 @@ export const userStore = {
   isFriend(userId: string, targetId: string): boolean {
     const friends = loadFriends();
     return friends.some((f) => f.user_id === userId && f.friend_id === targetId);
+  },
+
+  searchUsers(query: string, currentUserId?: string): UserSearchResult[] {
+    const q = query.replace(/^@/, "").trim().toLowerCase();
+    if (!q) return [];
+
+    const users = loadUsers();
+    const friends = loadFriends();
+    const requests = loadRequests();
+
+    const matches = users.filter((u) => {
+      const matchCustom = u.custom_id.toLowerCase().includes(q);
+      const matchName = u.display_name.toLowerCase().includes(q);
+      const matchUser = u.username.toLowerCase().includes(q);
+      return matchCustom || matchName || matchUser;
+    });
+
+    return matches.slice(0, 10).map((u) => {
+      let status: "self" | "friends" | "pending_sent" | "pending_received" | "none" = "none";
+      let activeRequestId: string | undefined;
+
+      if (currentUserId && u.id === currentUserId) {
+        status = "self";
+      } else if (
+        currentUserId &&
+        friends.some((f) => f.user_id === currentUserId && f.friend_id === u.id)
+      ) {
+        status = "friends";
+      } else if (currentUserId) {
+        const outgoing = requests.find(
+          (r) => r.sender_id === currentUserId && r.receiver_id === u.id && r.status === "pending"
+        );
+        if (outgoing) {
+          status = "pending_sent";
+          activeRequestId = outgoing.id;
+        } else {
+          const incoming = requests.find(
+            (r) => r.sender_id === u.id && r.receiver_id === currentUserId && r.status === "pending"
+          );
+          if (incoming) {
+            status = "pending_received";
+            activeRequestId = incoming.id;
+          }
+        }
+      }
+
+      return {
+        ...toSafeUser(u),
+        friendship_status: status,
+        active_request_id: activeRequestId,
+      };
+    });
+  },
+
+  sendFriendRequest(senderId: string, targetCustomIdOrId: string): { request: FriendRequestRecord; target: SafeUser } {
+    const cleanTarget = targetCustomIdOrId.replace(/^@/, "").trim();
+    const target = this.findByCustomId(cleanTarget) || this.findById(cleanTarget);
+    if (!target) {
+      throw new Error(`Traveler '@${cleanTarget}' was not found.`);
+    }
+    if (target.id === senderId) {
+      throw new Error("You cannot send a friend request to yourself.");
+    }
+    if (this.isFriend(senderId, target.id)) {
+      throw new Error(`You are already friends with '@${target.custom_id}'.`);
+    }
+
+    const requests = loadRequests();
+    const existingOutgoing = requests.find(
+      (r) => r.sender_id === senderId && r.receiver_id === target.id && r.status === "pending"
+    );
+    if (existingOutgoing) {
+      throw new Error(`You already sent a friend request to '@${target.custom_id}'.`);
+    }
+
+    // Check if the other person already sent a request to this user -> auto accept!
+    const existingIncoming = requests.find(
+      (r) => r.sender_id === target.id && r.receiver_id === senderId && r.status === "pending"
+    );
+    if (existingIncoming) {
+      existingIncoming.status = "accepted";
+      existingIncoming.updated_at = new Date().toISOString();
+      saveRequests(requests);
+      this.addFriend(senderId, target.id);
+      return { request: existingIncoming, target: toSafeUser(target) };
+    }
+
+    const now = new Date().toISOString();
+    const newRequest: FriendRequestRecord = {
+      id: "freq-" + Date.now() + "-" + crypto.randomBytes(3).toString("hex"),
+      sender_id: senderId,
+      receiver_id: target.id,
+      status: "pending",
+      created_at: now,
+      updated_at: now,
+    };
+
+    requests.unshift(newRequest);
+    saveRequests(requests);
+
+    return { request: newRequest, target: toSafeUser(target) };
+  },
+
+  listFriendRequests(userId: string) {
+    const requests = loadRequests();
+    const users = loadUsers();
+    const userMap = new Map(users.map((u) => [u.id, toSafeUser(u)]));
+
+    const incoming = requests
+      .filter((r) => r.receiver_id === userId && r.status === "pending")
+      .map((r) => ({
+        ...r,
+        sender: userMap.get(r.sender_id) || {
+          id: r.sender_id,
+          custom_id: "traveler",
+          username: "traveler",
+          display_name: "Traveler",
+          bio: "",
+          avatar_url: "",
+          created_at: r.created_at,
+          updated_at: r.updated_at,
+        },
+      }));
+
+    const outgoing = requests
+      .filter((r) => r.sender_id === userId && r.status === "pending")
+      .map((r) => ({
+        ...r,
+        receiver: userMap.get(r.receiver_id) || {
+          id: r.receiver_id,
+          custom_id: "traveler",
+          username: "traveler",
+          display_name: "Traveler",
+          bio: "",
+          avatar_url: "",
+          created_at: r.created_at,
+          updated_at: r.updated_at,
+        },
+      }));
+
+    return { incoming, outgoing };
+  },
+
+  acceptFriendRequest(userId: string, requestId: string): { request: FriendRequestRecord; friend: SafeUser } {
+    const requests = loadRequests();
+    const req = requests.find((r) => r.id === requestId);
+    if (!req) {
+      throw new Error("Friend request not found.");
+    }
+    if (req.receiver_id !== userId) {
+      throw new Error("You are not authorized to accept this friend request.");
+    }
+    if (req.status !== "pending") {
+      throw new Error(`This friend request has already been ${req.status}.`);
+    }
+
+    req.status = "accepted";
+    req.updated_at = new Date().toISOString();
+    saveRequests(requests);
+
+    const friend = this.addFriend(userId, req.sender_id);
+    return { request: req, friend };
+  },
+
+  declineFriendRequest(userId: string, requestId: string): { request: FriendRequestRecord } {
+    const requests = loadRequests();
+    const req = requests.find((r) => r.id === requestId);
+    if (!req) {
+      throw new Error("Friend request not found.");
+    }
+    if (req.receiver_id !== userId) {
+      throw new Error("You are not authorized to decline this friend request.");
+    }
+    if (req.status !== "pending") {
+      throw new Error(`This friend request has already been ${req.status}.`);
+    }
+
+    req.status = "declined";
+    req.updated_at = new Date().toISOString();
+    saveRequests(requests);
+
+    return { request: req };
+  },
+
+  cancelFriendRequest(userId: string, requestId: string): { request: FriendRequestRecord } {
+    const requests = loadRequests();
+    const req = requests.find((r) => r.id === requestId);
+    if (!req) {
+      throw new Error("Friend request not found.");
+    }
+    if (req.sender_id !== userId) {
+      throw new Error("You are not authorized to cancel this friend request.");
+    }
+    if (req.status !== "pending") {
+      throw new Error(`This friend request is no longer pending.`);
+    }
+
+    req.status = "cancelled";
+    req.updated_at = new Date().toISOString();
+    saveRequests(requests);
+
+    return { request: req };
+  },
+
+  // Friend Link (TTL 3 days = 72 hours)
+  createFriendInvite(inviterId: string, expireHours = 72, maxUses = 0) {
+    const inviter = this.findById(inviterId);
+    if (!inviter) throw new Error("Inviter account not found.");
+
+    const code = crypto.randomBytes(16).toString("hex");
+    const now = new Date();
+    // Default 72 hours = exactly 3 days TTL
+    const expiresAt = new Date(now.getTime() + expireHours * 3600 * 1000).toISOString();
+
+    const inviteRecord: FriendInviteRecord = {
+      id: "inv-" + Date.now() + "-" + crypto.randomBytes(3).toString("hex"),
+      code,
+      inviter_id: inviterId,
+      max_uses: maxUses,
+      uses_count: 0,
+      expires_at: expiresAt,
+      created_at: now.toISOString(),
+    };
+
+    const invites = loadInvites();
+    invites.unshift(inviteRecord);
+    saveInvites(invites);
+
+    return {
+      ...inviteRecord,
+      invite_url: `/invite/${code}`,
+      inviter: toSafeUser(inviter),
+    };
+  },
+
+  getFriendInvite(code: string, currentUserId?: string) {
+    const invites = loadInvites();
+    const invite = invites.find((i) => i.code === code);
+    if (!invite) {
+      throw new Error("Friend invite link not found.");
+    }
+
+    const inviter = this.findById(invite.inviter_id);
+    const safeInviter = inviter ? toSafeUser(inviter) : null;
+
+    const now = Date.now();
+    const expiresTime = new Date(invite.expires_at).getTime();
+    const isExpired = now > expiresTime;
+    const isExhausted = invite.max_uses > 0 && invite.uses_count >= invite.max_uses;
+    const isSelf = currentUserId === invite.inviter_id;
+    const isFriend = currentUserId ? this.isFriend(currentUserId, invite.inviter_id) : false;
+    const remainingMs = Math.max(0, expiresTime - now);
+    const remainingHours = Math.round(remainingMs / (3600 * 1000));
+
+    return {
+      invite,
+      inviter: safeInviter,
+      is_expired: isExpired,
+      is_exhausted: isExhausted,
+      is_self: isSelf,
+      is_friend: isFriend,
+      expires_in_hours: remainingHours,
+    };
+  },
+
+  acceptFriendInvite(receiverId: string, code: string) {
+    const check = this.getFriendInvite(code, receiverId);
+    if (check.is_expired) {
+      throw new Error("This friend invite link has expired. Links expire after 3 days.");
+    }
+    if (check.is_exhausted) {
+      throw new Error("This friend invite link has reached its maximum uses.");
+    }
+    if (check.is_self) {
+      throw new Error("You cannot accept your own friend invite link.");
+    }
+
+    if (this.isFriend(receiverId, check.invite.inviter_id)) {
+      return {
+        friend: check.inviter,
+        already_friends: true,
+        message: `You are already friends with @${check.inviter?.custom_id}.`,
+      };
+    }
+
+    // Connect as mutual friends
+    const friend = this.addFriend(receiverId, check.invite.inviter_id);
+
+    // Update uses count
+    const invites = loadInvites();
+    const inv = invites.find((i) => i.code === code);
+    if (inv) {
+      inv.uses_count += 1;
+      saveInvites(invites);
+    }
+
+    return {
+      friend,
+      already_friends: false,
+      message: `Connected with @${friend.custom_id} as friends!`,
+    };
   },
 };

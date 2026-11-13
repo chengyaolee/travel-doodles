@@ -42,6 +42,47 @@ export interface AuthUser {
   updated_at?: string;
 }
 
+export interface UserSearchResult extends AuthUser {
+  friendship_status: "self" | "friends" | "pending_sent" | "pending_received" | "none";
+  active_request_id?: string;
+}
+
+export interface FriendRequestItem {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  status: "pending" | "accepted" | "declined" | "cancelled";
+  created_at: string;
+  updated_at: string;
+  sender?: AuthUser;
+  receiver?: AuthUser;
+}
+
+export interface FriendInviteItem {
+  id: string;
+  code: string;
+  invite_url: string;
+  inviter_id: string;
+  inviter_custom_id?: string;
+  inviter_name?: string;
+  inviter_avatar_url?: string;
+  max_uses: number;
+  uses_count: number;
+  expires_at: string;
+  created_at: string;
+}
+
+export interface FriendInviteInspectResult {
+  invite: FriendInviteItem;
+  inviter?: AuthUser;
+  is_expired: boolean;
+  is_exhausted: boolean;
+  is_self: boolean;
+  is_friend: boolean;
+  expires_in_hours: number;
+  error?: string;
+}
+
 /**
  * Normalizes raw posts from either the Go backend REST API (Post / PostMarker schema)
  * or the local development posts store into the unified ExplorePost format.
@@ -436,5 +477,167 @@ export const api = {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.error || `Failed to remove friend`);
     }
+  },
+
+  /**
+   * Search travelers by handle or name
+   */
+  async searchTravelers(q: string): Promise<UserSearchResult[]> {
+    if (!q.trim()) return [];
+    const res = await fetch(`/api/v1/friends/search?q=${encodeURIComponent(q.trim())}`, {
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+
+    if (!res.ok) return [];
+    const data = await res.json().catch(() => ({}));
+    return data.users || [];
+  },
+
+  /**
+   * Fetch pending incoming and outgoing friend requests
+   */
+  async getFriendRequests(): Promise<{
+    incoming: FriendRequestItem[];
+    outgoing: FriendRequestItem[];
+  }> {
+    const res = await fetch("/api/v1/friends/requests", {
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+
+    if (!res.ok) return { incoming: [], outgoing: [] };
+    const data = await res.json().catch(() => ({}));
+    return {
+      incoming: data.incoming || [],
+      outgoing: data.outgoing || [],
+    };
+  },
+
+  /**
+   * Send a friend request by handle or ID (requires recipient acceptance)
+   */
+  async sendFriendRequest(custom_id: string): Promise<{
+    message: string;
+    request: FriendRequestItem;
+    target: AuthUser;
+  }> {
+    const res = await fetch("/api/v1/friends/requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ custom_id }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to send friend request");
+    }
+
+    return data;
+  },
+
+  /**
+   * Accept an incoming friend request
+   */
+  async acceptFriendRequest(requestId: string): Promise<AuthUser> {
+    const res = await fetch(`/api/v1/friends/requests/${requestId}/accept`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to accept friend request");
+    }
+
+    return data.friend;
+  },
+
+  /**
+   * Decline an incoming friend request
+   */
+  async declineFriendRequest(requestId: string): Promise<void> {
+    const res = await fetch(`/api/v1/friends/requests/${requestId}/decline`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || "Failed to decline friend request");
+    }
+  },
+
+  /**
+   * Cancel an outgoing friend request
+   */
+  async cancelFriendRequest(requestId: string): Promise<void> {
+    const res = await fetch(`/api/v1/friends/requests/${requestId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || "Failed to cancel friend request");
+    }
+  },
+
+  /**
+   * Generate a 3-day TTL friend invite link
+   */
+  async createFriendInvite(expireHours = 72, maxUses = 0): Promise<FriendInviteItem> {
+    const res = await fetch("/api/v1/friends/invites", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ expire_hours: expireHours, max_uses: maxUses }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to generate friend invite link");
+    }
+
+    return data.invite;
+  },
+
+  /**
+   * Inspect a friend invite link (checks 3-day TTL validity and inviter profile)
+   */
+  async getFriendInvite(code: string): Promise<FriendInviteInspectResult> {
+    const res = await fetch(`/api/v1/friends/invites/${code}`, {
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || "Friend invite link not found");
+    }
+
+    return data;
+  },
+
+  /**
+   * Confirm and accept a friend invite link
+   */
+  async acceptFriendInvite(code: string): Promise<{ friend: AuthUser; message: string }> {
+    const res = await fetch(`/api/v1/friends/invites/${code}/accept`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to accept friend invite");
+    }
+
+    return data;
   },
 };

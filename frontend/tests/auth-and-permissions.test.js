@@ -80,6 +80,103 @@ describe('Auth, Permissions & Clean Database Synchronization', () => {
     assert.strictEqual(userStore.isFriend(userA.id, userB.id), false);
   });
 
+  test('userStore friend requests system: search, send request, accept, decline, and cancel', () => {
+    const userSender = userStore.createUser({ display_name: 'Sender Sam' });
+    const userReceiver = userStore.createUser({ display_name: 'Receiver Rita' });
+
+    // 1. Search user by custom ID
+    const searchById = userStore.searchUsers(userReceiver.custom_id, userSender.id);
+    assert.ok(searchById.length > 0);
+    assert.strictEqual(searchById[0].id, userReceiver.id);
+    assert.strictEqual(searchById[0].friendship_status, 'none');
+
+    // 2. Send friend request
+    const { request, target } = userStore.sendFriendRequest(userSender.id, userReceiver.custom_id);
+    assert.strictEqual(request.status, 'pending');
+    assert.strictEqual(target.id, userReceiver.id);
+
+    // Cannot send duplicate pending request
+    assert.throws(
+      () => userStore.sendFriendRequest(userSender.id, userReceiver.custom_id),
+      /already sent/
+    );
+
+    // They are NOT friends yet (confirmation required)
+    assert.strictEqual(userStore.isFriend(userSender.id, userReceiver.id), false);
+
+    // 3. Receiver sees incoming request
+    const receiverRequests = userStore.listFriendRequests(userReceiver.id);
+    assert.strictEqual(receiverRequests.incoming.length, 1);
+    assert.strictEqual(receiverRequests.incoming[0].sender_id, userSender.id);
+
+    // Sender sees outgoing request
+    const senderRequests = userStore.listFriendRequests(userSender.id);
+    assert.strictEqual(senderRequests.outgoing.length, 1);
+    assert.strictEqual(senderRequests.outgoing[0].receiver_id, userReceiver.id);
+
+    // 4. Receiver accepts request -> now mutual friends
+    const acceptRes = userStore.acceptFriendRequest(userReceiver.id, request.id);
+    assert.strictEqual(acceptRes.request.status, 'accepted');
+    assert.strictEqual(userStore.isFriend(userSender.id, userReceiver.id), true);
+    assert.strictEqual(userStore.isFriend(userReceiver.id, userSender.id), true);
+
+    // Test decline & cancel workflows
+    const userC = userStore.createUser({ display_name: 'Traveler Charlie' });
+    const userD = userStore.createUser({ display_name: 'Traveler Dana' });
+
+    // Send and decline
+    const reqCD = userStore.sendFriendRequest(userC.id, userD.custom_id);
+    userStore.declineFriendRequest(userD.id, reqCD.request.id);
+    assert.strictEqual(userStore.isFriend(userC.id, userD.id), false);
+
+    // Send and cancel
+    const reqCD2 = userStore.sendFriendRequest(userC.id, userD.custom_id);
+    userStore.cancelFriendRequest(userC.id, reqCD2.request.id);
+    assert.strictEqual(userStore.isFriend(userC.id, userD.id), false);
+  });
+
+  test('userStore 3-day TTL friend invite links and receiver confirmation', () => {
+    const userHost = userStore.createUser({ display_name: 'Host Helen' });
+    const userGuest = userStore.createUser({ display_name: 'Guest Gary' });
+
+    // 1. Host creates invite link (default 72 hours = 3 days TTL)
+    const invite = userStore.createFriendInvite(userHost.id, 72);
+    assert.ok(invite.code);
+    assert.ok(invite.invite_url.includes(invite.code));
+
+    // Expiration date is roughly 3 days (72 hours) in future
+    const expireTime = new Date(invite.expires_at).getTime();
+    const createdTime = new Date(invite.created_at).getTime();
+    const diffHours = Math.round((expireTime - createdTime) / (3600 * 1000));
+    assert.strictEqual(diffHours, 72, 'Invite TTL must be exactly 72 hours (3 days)');
+
+    // 2. Guest inspects invite
+    const inspect = userStore.getFriendInvite(invite.code, userGuest.id);
+    assert.strictEqual(inspect.is_expired, false);
+    assert.strictEqual(inspect.is_self, false);
+    assert.strictEqual(inspect.is_friend, false);
+    assert.strictEqual(inspect.inviter.id, userHost.id);
+
+    // 3. Host cannot accept their own invite
+    assert.throws(
+      () => userStore.acceptFriendInvite(userHost.id, invite.code),
+      /cannot accept your own/
+    );
+
+    // 4. Guest confirms and accepts invite
+    const acceptRes = userStore.acceptFriendInvite(userGuest.id, invite.code);
+    assert.strictEqual(acceptRes.already_friends, false);
+    assert.strictEqual(userStore.isFriend(userHost.id, userGuest.id), true);
+    assert.strictEqual(userStore.isFriend(userGuest.id, userHost.id), true);
+
+    // 5. Expired invite (> 3 days) is rejected
+    const expiredInvite = userStore.createFriendInvite(userHost.id, -1); // already expired
+    assert.throws(
+      () => userStore.acceptFriendInvite(userGuest.id, expiredInvite.code),
+      /expired/
+    );
+  });
+
   test('userStore supports passwordless OAuth user lookup and registration', () => {
     const oauthProviderId = 'google_sub_' + Date.now();
     const existing = userStore.findByOAuth('google', oauthProviderId);
