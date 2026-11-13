@@ -11,6 +11,10 @@ export const metadata: Metadata = {
   description:
     "Pin your adventures, doodle your memories, and explore the stories your friends leave around the world.",
   keywords: ["travel", "doodle", "social", "map", "adventure", "memories"],
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export default function RootLayout({
