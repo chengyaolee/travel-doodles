@@ -141,14 +141,21 @@ export function normalizePost(p: any): ExplorePost {
     coordinates = [Number(p.longitude), Number(p.latitude)];
   }
 
-  // Extract author name and avatar
+  // Extract author name, avatar and IDs
   let authorName = "Traveler";
   let avatarUrl = "";
+  let authorId = p.authorId || p.author_id || "";
+  let authorCustomId = p.authorCustomId || p.author_custom_id || "";
+
   if (typeof p.author === "string") {
     authorName = p.author;
   } else if (p.author && typeof p.author === "object") {
     authorName = p.author.display_name || p.author.username || "Traveler";
     if (p.author.avatar_url) avatarUrl = p.author.avatar_url;
+    if (p.author.id && !authorId) authorId = p.author.id;
+    if ((p.author.custom_id || p.author.username) && !authorCustomId) {
+      authorCustomId = p.author.custom_id || p.author.username;
+    }
   } else if (p.author_display_name || p.author_username) {
     authorName = p.author_display_name || p.author_username;
     if (p.author_avatar_url) avatarUrl = p.author_avatar_url;
@@ -157,7 +164,7 @@ export function normalizePost(p: any): ExplorePost {
   // Extract media image
   let imageUrl = p.image || p.thumbnail_url;
   if (!imageUrl && Array.isArray(p.media) && p.media.length > 0) {
-    imageUrl = p.media[0].url || p.media[0].thumbnail_url;
+    imageUrl = p.media[0].url || p.media[0].thumbnail_url || p.media[0].object_key || "";
   }
 
   // Extract location names
@@ -197,6 +204,8 @@ export function normalizePost(p: any): ExplorePost {
     comments: Number(p.comments ?? p.comment_count ?? 0),
     isTextOnly: p.isTextOnly ?? (!imageUrl),
     coordinates,
+    authorId: authorId || undefined,
+    authorCustomId: authorCustomId || undefined,
   };
 }
 
@@ -302,7 +311,7 @@ export const api = {
     if (filter?.limit) params.set("limit", filter.limit.toString());
 
     const res = await fetch(`/api/v1/posts?${params.toString()}`, {
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       credentials: "include",
     });
 
@@ -324,7 +333,7 @@ export const api = {
     if (zoom !== undefined) params.set("zoom", zoom.toString());
 
     const res = await fetch(`/api/v1/posts/map?${params.toString()}`, {
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       credentials: "include",
     });
 
@@ -475,7 +484,7 @@ export const api = {
    */
   async getUserProfile(username: string): Promise<any> {
     const res = await fetch(`/api/v1/users/${encodeURIComponent(username)}`, {
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       credentials: "include",
     });
 

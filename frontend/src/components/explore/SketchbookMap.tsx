@@ -92,6 +92,11 @@ export function SketchbookMap({
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
 
+  // Throttled zoom management to eliminate scroll lag and frame choppiness
+  const liveZoomRef = useRef(1.6);
+  const lastCommittedZoomRef = useRef(1.6);
+  const zoomRafRef = useRef<number | null>(null);
+
   // Cached regions and cities data
   const [regionsData, setRegionsData] = useState<RegionGeoFeature[]>([]);
   const [citiesData, setCitiesData] = useState<CityGeoFeature[]>([]);
@@ -297,25 +302,60 @@ export function SketchbookMap({
       setMapLoaded(true);
     }
 
+    const commitZoomState = (z: number) => {
+      if (zoomRafRef.current) cancelAnimationFrame(zoomRafRef.current);
+      zoomRafRef.current = requestAnimationFrame(() => {
+        lastCommittedZoomRef.current = z;
+        setMapZoom(z);
+      });
+    };
+
     map.on("zoom", () => {
       const z = map.getZoom();
-      setMapZoom(z);
+      liveZoomRef.current = z;
       // Automatically reset to world overview when user zooms out past world threshold
       if (z < 2.8 && selectedCountryRef.current) {
         onSelectCountry("");
       }
+      // Only throttle React state updates when zoom changes by at least 0.35 during active scroll/pinch
+      if (Math.abs(z - lastCommittedZoomRef.current) >= 0.35) {
+        commitZoomState(z);
+      }
     });
 
-    // Requirement 8: Horizontal scrolling to pan left/right
+    map.on("zoomend", () => {
+      commitZoomState(map.getZoom());
+    });
+
+    map.on("moveend", () => {
+      commitZoomState(map.getZoom());
+    });
+
+    // Requirement 8: Horizontal scrolling to pan left/right with RAF batching
     const container = containerRef.current;
+    let pendingPanX = 0;
+    let panRafId: number | null = null;
+
     const handleWheel = (e: WheelEvent) => {
-      // Horizontal trackpad swipe or shift + wheel
+      let dx = 0;
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && Math.abs(e.deltaX) > 1) {
-        e.preventDefault();
-        map.panBy([e.deltaX, 0], { duration: 0 });
+        dx = e.deltaX;
       } else if (e.shiftKey && Math.abs(e.deltaY) > 1) {
+        dx = e.deltaY;
+      }
+
+      if (dx !== 0) {
         e.preventDefault();
-        map.panBy([e.deltaY, 0], { duration: 0 });
+        pendingPanX += dx;
+        if (!panRafId) {
+          panRafId = requestAnimationFrame(() => {
+            if (mapRef.current && pendingPanX !== 0) {
+              mapRef.current.panBy([pendingPanX, 0], { duration: 0 });
+              pendingPanX = 0;
+            }
+            panRafId = null;
+          });
+        }
       }
     };
     container.addEventListener("wheel", handleWheel, { passive: false });
@@ -418,6 +458,8 @@ export function SketchbookMap({
     });
 
     return () => {
+      if (zoomRafRef.current) cancelAnimationFrame(zoomRafRef.current);
+      if (panRafId) cancelAnimationFrame(panRafId);
       container.removeEventListener("wheel", handleWheel);
       countryLabelsRef.current.forEach((m) => m.remove());
       stateLabelsRef.current.forEach((m) => m.remove());
@@ -581,7 +623,12 @@ export function SketchbookMap({
     });
   }, [inventory, mapZoom, onSelectCountry, zoomToCountry, selectedCountry, regionsData, isDark, mapLoaded]);
 
-  // State / Regional Labels on the map with short form names ("CA, TX, ID...")
+  // DynamicFont size & regional zoom thresholding:
+  // - Text does NOT show up if the state border is not big enough on screen.
+  // - Each country/region has an individualized threshold based on its geographic border size.
+  // - State/Region name has a distinct grey shade from cities.
+  // - On zooming in, the state name does NOT disappear (no upper zoom cap).
+  // - DynamicFont size scales proportionally with zoom above the threshold.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
@@ -589,28 +636,47 @@ export function SketchbookMap({
     stateLabelsRef.current.forEach((m) => m.remove());
     stateLabelsRef.current = [];
 
-    // State labels appear starting at zoom 2.8 (or 2.5 when country is selected) up to zoom 7.2
-    const minStateZoom = selectedCountry ? 2.5 : 2.8;
-    if (mapZoom < minStateZoom || mapZoom > 7.2) return;
+    regionsData.forEach((reg) => {
+      // If a country is selected, only show regions belonging to that country
+      if (selectedCountry && reg.country !== selectedCountry) return;
 
-    const visibleRegions = selectedCountry
-      ? regionsData.filter((r) => r.country === selectedCountry)
-      : regionsData.filter((r) => mapZoom >= 3.6);
+      const [[w, s], [e, n]] = reg.bounds || [[0, 0], [0, 0]];
+      const lngSpan = Math.abs(e - w);
+      const latSpan = Math.abs(n - s);
+      const centerLat = reg.center ? reg.center[1] : (s + n) / 2;
+      const cosLat = Math.cos((centerLat * Math.PI) / 180);
+      // Equivalent diameter in degrees
+      const geoSpan = Math.max(0.12, Math.sqrt(lngSpan * cosLat * latSpan));
 
-    visibleRegions.forEach((reg) => {
+      // Individualized threshold: text only appears when state border is large enough on screen
+      // For selected country, ~45px on screen; for world overview, ~60px on screen.
+      const isCurrentCountry = selectedCountry === reg.country;
+      const minRequiredZoom = isCurrentCountry
+        ? Math.min(7.5, Math.max(2.3, Math.log2(62 / geoSpan)))
+        : Math.min(8.2, Math.max(2.8, Math.log2(82 / geoSpan)));
+
+      // Border size check: Do NOT show up if state border is not big enough
+      if (mapZoom < minRequiredZoom) return;
+
+      // On zooming in, state name does NOT disappear (no upper zoom cap)
+
+      // Dynamic font size: scales smoothly as the user zooms in into the region
+      const zoomAbove = Math.max(0, mapZoom - minRequiredZoom);
+      const dynamicFontSize = Math.min(18, Math.max(10, Math.round(10 + zoomAbove * 1.4)));
+
       // Short form name like "CA, TX, ID..." or full name if no commonly known short form
       const displayLabel = reg.shortName || reg.name;
+      const isShortCode = displayLabel.length <= 4 && displayLabel === displayLabel.toUpperCase();
 
       const el = document.createElement("button");
-      // Completely fixed position: zero scale, zero translate on hover to prevent moving away
       el.className =
         "state-label group pointer-events-auto cursor-pointer select-none px-1.5 py-0.5 text-center";
       el.style.transform = "none";
       el.style.transition = "none";
       el.setAttribute("aria-label", `${reg.name} (${displayLabel})`);
 
-      const isShortCode = displayLabel.length <= 4 && displayLabel === displayLabel.toUpperCase();
-      const textColor = isDark ? "#ffffff" : "#1c1917";
+      // Different shade from cities: Distinctive slate/grey tone
+      const textColor = isDark ? "#94a3b8" : "#52525b";
       const textShadow = isDark
         ? "0 1px 3px rgba(0,0,0,0.95), 0 0 4px rgba(0,0,0,0.9)"
         : "0 1px 2px rgba(255,255,255,0.95), 0 0 3px rgba(255,255,255,0.9)";
@@ -618,9 +684,9 @@ export function SketchbookMap({
       el.innerHTML = `
         <span class="block ${
           isShortCode
-            ? "text-[12px] font-mono font-bold tracking-widest"
-            : "text-[10px] font-sans font-semibold tracking-wide"
-        } transition-colors group-hover:text-[#d94e34] dark:group-hover:text-[#f87171]" style="color: ${textColor}; text-shadow: ${textShadow};">
+            ? "font-mono font-bold tracking-widest"
+            : "font-sans font-semibold tracking-wider"
+        } transition-colors group-hover:text-[#d94e34] dark:group-hover:text-[#f87171]" style="font-size: ${dynamicFontSize}px; color: ${textColor}; text-shadow: ${textShadow};">
           ${displayLabel}
         </span>
       `;

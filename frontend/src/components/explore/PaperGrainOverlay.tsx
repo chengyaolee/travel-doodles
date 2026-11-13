@@ -6,6 +6,7 @@ export function PaperGrainOverlay() {
   return (
     <div
       className="absolute inset-0 pointer-events-none z-10 opacity-30 dark:opacity-20 mix-blend-overlay overflow-hidden select-none"
+      style={{ contain: "strict", transform: "translateZ(0)", willChange: "transform" }}
       aria-hidden="true"
     >
       <svg className="w-full h-full opacity-60">

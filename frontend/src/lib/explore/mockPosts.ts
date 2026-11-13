@@ -15,6 +15,8 @@ export interface ExplorePost {
   comments: number;
   isTextOnly?: boolean;
   coordinates: [number, number]; // [lng, lat]
+  authorId?: string;
+  authorCustomId?: string;
 }
 
 // Live production posts: initialized empty; strictly populated via backend API

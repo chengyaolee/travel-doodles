@@ -92,6 +92,8 @@ export async function POST(request: NextRequest) {
     const postPayload = {
       ...rawBody,
       author: authUser.display_name || authUser.custom_id,
+      authorId: authUser.id,
+      authorCustomId: authUser.custom_id,
       avatar: authUser.avatar_url,
     };
 

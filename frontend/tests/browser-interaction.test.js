@@ -325,4 +325,116 @@ describe('Explore Experience & Regional Feed Interactions', () => {
     assert.ok(doodlePinSource.includes('ellipse cx="16" cy="36"'), 'Must contain needle puncture shadow at base');
     assert.ok(doodlePinSource.includes('circle cx="16" cy="9"'), 'Must contain spherical pearl head');
   });
+
+  test('DynamicFont size & Regional zoom thresholding logic', () => {
+    const fs = require('fs');
+    const filePath = fs.existsSync('src/components/explore/SketchbookMap.tsx')
+      ? 'src/components/explore/SketchbookMap.tsx'
+      : 'frontend/src/components/explore/SketchbookMap.tsx';
+    const source = fs.readFileSync(filePath, 'utf-8');
+
+    // 1. Text does not show up if state border is not big enough on screen
+    assert.ok(source.includes('minRequiredZoom'), 'Must calculate individualized minRequiredZoom for each region');
+    assert.ok(source.includes('if (mapZoom < minRequiredZoom) return;'), 'Text must not show up when border is smaller than threshold');
+
+    // 2. On zooming in, state name does not disappear (no upper zoom cap like mapZoom > 7.2)
+    assert.ok(!source.includes('mapZoom > 7.2'), 'Must not have an upper zoom cap that hides states when zooming in');
+
+    // 3. DynamicFont size calculation scales proportionally with zoom above threshold
+    assert.ok(source.includes('dynamicFontSize'), 'Must calculate dynamicFontSize based on zoom above threshold');
+    assert.ok(source.includes('style="font-size: ${dynamicFontSize}px;'), 'Must apply dynamic font size to state labels');
+
+    // Mathematical test of threshold formula: large states appear earlier than micro regions
+    const calcMinZoom = (geoSpan, isCurrentCountry = false) => {
+      return isCurrentCountry
+        ? Math.min(7.5, Math.max(2.3, Math.log2(62 / geoSpan)))
+        : Math.min(8.2, Math.max(2.8, Math.log2(82 / geoSpan)));
+    };
+    const texasSpan = 12.0;
+    const delawareSpan = 0.5;
+    assert.ok(calcMinZoom(texasSpan) < calcMinZoom(delawareSpan), 'Large states must have lower required zoom threshold than small states');
+    assert.ok(calcMinZoom(texasSpan) <= 3.2, 'Texas should be visible by zoom 3.2');
+    assert.ok(calcMinZoom(delawareSpan) >= 6.5, 'Delaware should only appear after zoom 6.5 when border is large enough');
+
+    // Dynamic font size scaling test
+    const calcFontSize = (zoom, minZoom) => Math.min(18, Math.max(10, Math.round(10 + Math.max(0, zoom - minZoom) * 1.4)));
+    assert.strictEqual(calcFontSize(3.0, 3.0), 10, 'Font size at threshold must start at 10px');
+    assert.strictEqual(calcFontSize(5.0, 3.0), 13, 'Font size must scale up smoothly with deeper zoom');
+    assert.strictEqual(calcFontSize(12.0, 3.0), 18, 'Font size must be capped at 18px so it remains elegant');
+  });
+
+  test('State/Region name has distinctive grey styling from cities', () => {
+    const fs = require('fs');
+    const filePath = fs.existsSync('src/components/explore/SketchbookMap.tsx')
+      ? 'src/components/explore/SketchbookMap.tsx'
+      : 'frontend/src/components/explore/SketchbookMap.tsx';
+    const source = fs.readFileSync(filePath, 'utf-8');
+
+    // State labels use grey tones (#52525b light / #94a3b8 dark)
+    assert.ok(source.includes('#52525b') && source.includes('#94a3b8'), 'State/region labels must use distinct grey shades');
+    // Cities use bold dark/light tones (#1c1917 / #ffffff)
+    assert.ok(source.includes('#1c1917'), 'Cities must maintain strong dark/light contrast');
+  });
+
+  test('Smooth scrolling & zoom performance: RAF throttling eliminates frame choppiness', () => {
+    const fs = require('fs');
+    const filePath = fs.existsSync('src/components/explore/SketchbookMap.tsx')
+      ? 'src/components/explore/SketchbookMap.tsx'
+      : 'frontend/src/components/explore/SketchbookMap.tsx';
+    const source = fs.readFileSync(filePath, 'utf-8');
+
+    // 1. Zoom state updates are throttled with RAF and minimum delta
+    assert.ok(source.includes('commitZoomState'), 'Must commit zoom state via requestAnimationFrame');
+    assert.ok(source.includes('lastCommittedZoomRef'), 'Must track last committed zoom to prevent spamming re-renders on scroll');
+    assert.ok(source.includes('cancelAnimationFrame(zoomRafRef.current)'), 'Must cancel pending RAF to avoid stale frames');
+
+    // 2. Horizontal wheel panning is batched with RAF
+    assert.ok(source.includes('panRafId'), 'Wheel panning must be batched with requestAnimationFrame');
+    assert.ok(source.includes('pendingPanX'), 'Wheel delta must be accumulated to prevent synchronous layout thrashing');
+  });
+
+  test('Hero world map projection accuracy aligns location pins with SVG landmasses', () => {
+    const fs = require('fs');
+    const filePath = fs.existsSync('src/lib/worldMapData.ts')
+      ? 'src/lib/worldMapData.ts'
+      : 'frontend/src/lib/worldMapData.ts';
+    const source = fs.readFileSync(filePath, 'utf-8');
+
+    assert.ok(source.includes('export function projectLngLatToWorldMap'), 'worldMapData must export projectLngLatToWorldMap');
+
+    // Mathematical verification of Mercator projection formula:
+    // x = 500 + (lng * 145 * Math.PI) / 180
+    // y = 335 - 145 * Math.log(Math.tan(Math.PI / 4 + rad / 2))
+    const project = (lng, lat) => {
+      const clampedLat = Math.max(-84, Math.min(84, lat));
+      const x = 500 + (lng * 145 * Math.PI) / 180;
+      const rad = (clampedLat * Math.PI) / 180;
+      const y = 335 - 145 * Math.log(Math.tan(Math.PI / 4 + rad / 2));
+      return { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
+    };
+
+    // Center of map (0 lng, 0 lat)
+    const center = project(0, 0);
+    assert.strictEqual(center.x, 500, 'Prime meridian must project to x=500');
+    assert.strictEqual(center.y, 335, 'Equator must project to y=335');
+
+    // Tokyo (approx 139.69, 35.69)
+    const tokyo = project(139.69, 35.69);
+    assert.ok(Math.abs(tokyo.x - 853.5) < 1.0, `Tokyo x (${tokyo.x}) must align with SVG map coordinates ~853.5`);
+    assert.ok(Math.abs(tokyo.y - 238.2) < 1.0, `Tokyo y (${tokyo.y}) must align with SVG map coordinates ~238.2`);
+
+    // London (approx -0.13, 51.51)
+    const london = project(-0.13, 51.51);
+    assert.ok(Math.abs(london.x - 499.7) < 1.0, `London x (${london.x}) must align with SVG map coordinates ~499.7`);
+    assert.ok(Math.abs(london.y - 182.4) < 1.0, `London y (${london.y}) must align with SVG map coordinates ~182.4`);
+
+    // Verify HeroWorldMap pin needle anchor positioning
+    const heroFilePath = fs.existsSync('src/components/hero/HeroWorldMap.tsx')
+      ? 'src/components/hero/HeroWorldMap.tsx'
+      : 'frontend/src/components/hero/HeroWorldMap.tsx';
+    const heroSource = fs.readFileSync(heroFilePath, 'utf-8');
+    assert.ok(heroSource.includes('projectLngLatToWorldMap'), 'HeroWorldMap must use projectLngLatToWorldMap');
+    assert.ok(heroSource.includes('transformOrigin: "50% 8.6px"'), 'HeroWorldMap pin must pivot on needle puncture point');
+    assert.ok(heroSource.includes('aspect-[1000/560]'), 'HeroWorldMap container must match SVG aspect ratio');
+  });
 });

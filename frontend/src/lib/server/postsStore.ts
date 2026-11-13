@@ -4,10 +4,19 @@ import { type ExplorePost } from "../explore/mockPosts.ts";
 
 function resolveDataDir(): string {
   const cwd = process.cwd();
-  const directPath = path.join(cwd, ".data");
-  const nestedPath = path.join(cwd, "frontend", ".data");
+  const candidates = [
+    process.env.DATA_DIR,
+    path.join(cwd, "frontend", ".data"),
+    path.join(cwd, ".data"),
+    path.join(cwd, "..", "frontend", ".data"),
+    path.join(cwd, "..", ".data"),
+  ];
 
-  if (fs.existsSync(nestedPath)) return nestedPath;
+  for (const c of candidates) {
+    if (c && fs.existsSync(c)) return c;
+  }
+
+  const directPath = path.join(cwd, ".data");
   if (!fs.existsSync(directPath)) {
     try {
       fs.mkdirSync(directPath, { recursive: true });
@@ -67,10 +76,21 @@ function loadPosts(): ExplorePost[] {
 function savePosts(posts: ExplorePost[]) {
   cachedPosts = posts;
   ensureDataDir();
+  const tmpFile = `${DATA_FILE}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
   try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(posts, null, 2), "utf-8");
-  } catch (e) {
-    console.warn("Could not persist posts.json", e);
+    fs.writeFileSync(tmpFile, JSON.stringify(posts, null, 2), "utf-8");
+    fs.renameSync(tmpFile, DATA_FILE);
+  } catch {
+    try {
+      if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
+    } catch {
+      // ignore
+    }
+    try {
+      fs.writeFileSync(DATA_FILE, JSON.stringify(posts, null, 2), "utf-8");
+    } catch (e) {
+      console.warn("Could not persist posts.json", e);
+    }
   }
 }
 
@@ -208,6 +228,8 @@ export const postsStore = {
       city: newPostData.city || "Kyoto",
       location: newPostData.location || `${newPostData.city}, ${newPostData.country}`,
       author: newPostData.author || "Traveler",
+      authorId: newPostData.authorId || "",
+      authorCustomId: newPostData.authorCustomId || "",
       avatar: newPostData.avatar || "",
       date: newPostData.date || new Date().toISOString().split("T")[0],
       visibility: (newPostData.visibility as "everyone" | "friends") || "everyone",

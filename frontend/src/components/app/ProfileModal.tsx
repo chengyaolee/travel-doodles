@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { DoodlePin } from "@/components/doodles";
 import { TravelDoodlePost } from "./CreatePostModal";
-import { WORLD_LAND_PATH, ACCURATE_CITIES } from "@/lib/worldMapData";
+import { WORLD_LAND_PATH, WORLD_VIEWBOX, ACCURATE_CITIES, projectLngLatToWorldMap } from "@/lib/worldMapData";
 import { useAuth } from "@/lib/authContext";
 import { api, AuthUser, FriendRequestItem, UserSearchResult } from "@/lib/api";
 import { AnonymousAvatar } from "@/components/ui/AnonymousAvatar";
@@ -219,10 +219,13 @@ export function ProfileModal({
         : userPosts.filter(
             (p) =>
               !user?.custom_id ||
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              ((p as any).authorId && (p as any).authorId === user.id) ||
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              ((p as any).authorCustomId && (p as any).authorCustomId.toLowerCase() === (user.custom_id || "").toLowerCase()) ||
               p.author.toLowerCase() === (user.custom_id || "").toLowerCase() ||
               p.author.toLowerCase() === (user.display_name || "").toLowerCase() ||
-              p.author.toLowerCase() === (user.username || "").toLowerCase() ||
-              userPosts.length <= 5
+              p.author.toLowerCase() === (user.username || "").toLowerCase()
           ))
     : otherUser?.posts || [];
 
@@ -597,21 +600,27 @@ export function ProfileModal({
             {/* Tab Content */}
             {tab === "board" && (
               <div className="relative w-full aspect-[16/9] max-h-[380px] bg-[#fbf8f2] dark:bg-stone-900 border border-[var(--border-color)] rounded-2xl overflow-hidden p-4 flex flex-col justify-between shadow-inner">
-                <svg viewBox="0 0 1000 500" className="w-full h-full opacity-40 dark:opacity-20 pointer-events-none">
+                <svg viewBox={WORLD_VIEWBOX} className="w-full h-full opacity-40 dark:opacity-20 pointer-events-none" preserveAspectRatio="none">
                   <path d={WORLD_LAND_PATH} fill="currentColor" className="text-stone-300 dark:text-stone-700" />
                 </svg>
                 {displayedPosts.map((post: TravelDoodlePost, idx: number) => {
                   const cityKey = post.city ? (post.city.toLowerCase() as keyof typeof ACCURATE_CITIES) : undefined;
                   const cityData = cityKey ? ACCURATE_CITIES[cityKey] : undefined;
-                  const lon = post.coordinates ? post.coordinates[0] : (cityData ? cityData.coords[0] : null);
-                  const lat = post.coordinates ? post.coordinates[1] : (cityData ? cityData.coords[1] : null);
-                  const x = lon !== null ? ((lon + 180) * 1000) / 360 : 500 + (idx * 30 - 60);
-                  const y = lat !== null ? ((90 - lat) * 500) / 180 : 250 + (idx * 20 - 40);
+                  let x = 500 + (idx * 30 - 60);
+                  let y = 335 + (idx * 20 - 40);
+                  if (cityData) {
+                    x = cityData.x;
+                    y = cityData.y;
+                  } else if (post.coordinates && post.coordinates.length >= 2 && (post.coordinates[0] !== 0 || post.coordinates[1] !== 0)) {
+                    const projected = projectLngLatToWorldMap(post.coordinates[0], post.coordinates[1]);
+                    x = projected.x;
+                    y = projected.y;
+                  }
                   return (
                     <div
                       key={post.id}
                       className="absolute group z-10 cursor-pointer"
-                      style={{ left: `${(x / 1000) * 100}%`, top: `${(y / 500) * 100}%` }}
+                      style={{ left: `${(x / 1000) * 100}%`, top: `${(y / 560) * 100}%` }}
                     >
                       <div className="hover:scale-125 transition-transform duration-200">
                         <DoodlePin size={22} color="#d94e34" filled />

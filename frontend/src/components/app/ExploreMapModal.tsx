@@ -11,6 +11,7 @@ import {
   WORLD_LAND_PATH,
   WORLD_GRATICULE_PATH,
   ACCURATE_CITIES,
+  projectLngLatToWorldMap,
 } from "@/lib/worldMapData";
 
 function getPostMapCoords(post: TravelDoodlePost): { x: number; y: number; region: string } {
@@ -26,12 +27,11 @@ function getPostMapCoords(post: TravelDoodlePost): { x: number; y: number; regio
     }
   }
 
-  // Equirectangular projection from post.coordinates [lng, lat]
+  // Precise Mercator projection from post.coordinates [lng, lat]
   if (post.coordinates && post.coordinates.length >= 2 && (post.coordinates[0] !== 0 || post.coordinates[1] !== 0)) {
     const lng = post.coordinates[0];
     const lat = Math.max(-80, Math.min(84, post.coordinates[1]));
-    const x = ((lng + 180) / 360) * 1000;
-    const y = 280 - (lat / 90) * 230;
+    const { x, y } = projectLngLatToWorldMap(lng, lat);
 
     let region = "Americas";
     if (lng > -30 && lng < 50 && lat > 30) region = "Europe";
@@ -40,7 +40,7 @@ function getPostMapCoords(post: TravelDoodlePost): { x: number; y: number; regio
     return { x, y, region };
   }
 
-  return { x: 500, y: 280, region: "Americas" };
+  return { x: 500, y: 335, region: "Americas" };
 }
 
 export function ExploreMapModal({

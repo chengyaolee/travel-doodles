@@ -9,6 +9,7 @@ import {
   WORLD_LAND_PATH,
   WORLD_GRATICULE_PATH,
   ACCURATE_CITIES,
+  projectLngLatToWorldMap,
 } from "@/lib/worldMapData";
 import { TravelDoodlePost } from "@/components/app/CreatePostModal";
 
@@ -39,10 +40,14 @@ export function HeroWorldMap({
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isVisible, setIsVisible] = useState(false);
   const [activePreview, setActivePreview] = useState<HeroPin | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), 150);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
   }, []);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -50,7 +55,10 @@ export function HeroWorldMap({
     const rect = containerRef.current.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
     const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
-    setMousePos({ x, y });
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      setMousePos({ x, y });
+    });
   }, []);
 
   const parallax = (depth: number) => ({
@@ -64,7 +72,7 @@ export function HeroWorldMap({
 
     return posts.map((p, index) => {
       let x = 500;
-      let y = 280;
+      let y = 335;
       const cityKey = (p.city || "").toLowerCase().trim();
       const matchCity = Object.entries(ACCURATE_CITIES).find(
         ([k, c]) => k === cityKey || c.name.toLowerCase() === cityKey
@@ -74,10 +82,9 @@ export function HeroWorldMap({
         x = matchCity[1].x;
         y = matchCity[1].y;
       } else if (p.coordinates && p.coordinates.length >= 2 && (p.coordinates[0] !== 0 || p.coordinates[1] !== 0)) {
-        const lng = p.coordinates[0];
-        const lat = Math.max(-80, Math.min(84, p.coordinates[1]));
-        x = ((lng + 180) / 360) * 1000;
-        y = 280 - (lat / 90) * 230;
+        const projected = projectLngLatToWorldMap(p.coordinates[0], p.coordinates[1]);
+        x = projected.x;
+        y = projected.y;
       }
 
       const rotations = [-2.5, 2, -1.5, 3, -3, 1.5];
@@ -105,7 +112,7 @@ export function HeroWorldMap({
   return (
     <div
       ref={containerRef}
-      className="hero-board relative w-full max-w-6xl mx-auto aspect-[4/3] sm:aspect-[1000/560] overflow-hidden rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] select-none"
+      className="hero-board relative w-full max-w-6xl mx-auto aspect-[1000/560] overflow-hidden rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] select-none"
       onMouseMove={handleMouseMove}
     >
       {/* Whiteboard Subtle Dot Grid Texture */}
@@ -178,9 +185,9 @@ export function HeroWorldMap({
         </g>
       </svg>
 
-      {/* Pinned Photographs from Real Database Posts */}
+      {/* Pinned Photographs from Real Database Posts - locked with parallax(2) to map layer */}
       {heroPins.length > 0 ? (
-        <div className="absolute inset-0 pointer-events-auto">
+        <div className="absolute inset-0 pointer-events-auto" style={parallax(2)}>
           {heroPins.map((pin) => {
             const isActive = activePreview?.id === pin.id;
 
@@ -194,7 +201,8 @@ export function HeroWorldMap({
                 style={{
                   left: `${(pin.x / 1000) * 100}%`,
                   top: `${(pin.y / 560) * 100}%`,
-                  transform: `translate(-50%, -105%) rotate(${pin.rotation}deg)`,
+                  transform: `translate(-50%, -8.6px) rotate(${pin.rotation}deg)`,
+                  transformOrigin: "50% 8.6px",
                   zIndex: isActive ? 45 : 20,
                 }}
                 onClick={() => handlePinClick(pin)}

@@ -53,6 +53,8 @@ export default function Home() {
             image: p.image || "",
             doodleSticker: "",
             author: p.author,
+            authorId: p.authorId,
+            authorCustomId: p.authorCustomId,
             avatar: p.avatar,
             likes: p.likes,
             coordinates: p.coordinates || [0, 0],

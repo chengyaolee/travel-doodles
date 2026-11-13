@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { postsStore } from "@/lib/server/postsStore";
 import { userStore } from "@/lib/server/userStore";
-
-const BACKEND_URL = process.env.BACKEND_URL || "";
+import { getBackendUrl } from "@/lib/server/backendUrl";
 
 export async function GET(
   request: NextRequest,
@@ -10,11 +9,12 @@ export async function GET(
 ) {
   const { username } = await context.params;
   const decoded = decodeURIComponent(username);
+  const backendUrl = getBackendUrl();
 
   // Proxy to live Go backend if active
-  if (BACKEND_URL) {
+  if (backendUrl) {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/v1/users/${encodeURIComponent(decoded)}`, {
+      const res = await fetch(`${backendUrl}/api/v1/users/${encodeURIComponent(decoded)}`, {
         headers: {
           ...(request.headers.get("cookie") ? { cookie: request.headers.get("cookie")! } : {}),
           ...(request.headers.get("authorization") ? { authorization: request.headers.get("authorization")! } : {}),
@@ -23,6 +23,7 @@ export async function GET(
       if (res.ok) {
         const data = await res.json();
         const profile = data.profile || data.user || data;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const normalizedPosts = (profile.posts || []).map((p: any) => ({
           id: String(p.id),
           caption: p.caption || "",
@@ -42,6 +43,7 @@ export async function GET(
           date: p.visited_at ? String(p.visited_at).split("T")[0] : (p.created_at ? String(p.created_at).split("T")[0] : new Date().toISOString().split("T")[0]),
         }));
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const visitedCountries = Array.from(new Set(normalizedPosts.map((p: any) => p.country).filter(Boolean)));
 
         return NextResponse.json({
@@ -67,8 +69,8 @@ export async function GET(
     }
   }
 
-  // Look up user in real database
-  const user = userStore.findByCustomId(decoded);
+  // Look up user in real database by custom_id or id
+  const user = userStore.findByCustomId(decoded) || userStore.findById(decoded);
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
@@ -76,8 +78,11 @@ export async function GET(
   const { posts } = postsStore.getPosts();
   const userPosts = posts.filter(
     (p) =>
+      (p.authorId && p.authorId === user.id) ||
+      (p.authorCustomId && p.authorCustomId.toLowerCase() === user.custom_id.toLowerCase()) ||
       p.author.toLowerCase() === user.custom_id.toLowerCase() ||
-      p.author.toLowerCase() === user.display_name.toLowerCase()
+      (user.display_name && p.author.toLowerCase() === user.display_name.toLowerCase()) ||
+      (user.username && p.author.toLowerCase() === user.username.toLowerCase())
   );
 
   const visitedCountries = Array.from(new Set(userPosts.map((p) => p.country).filter(Boolean)));

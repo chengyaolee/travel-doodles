@@ -109,3 +109,22 @@ export const ACCURATE_CITIES = {
     "y": 356.4
   }
 };
+
+/**
+ * Projects real-world geographic coordinates [lng, lat] to the SVG coordinate space (0 0 1000 560).
+ * Matches the Mercator projection used in WORLD_LAND_PATH and WORLD_GRATICULE_PATH:
+ * - Prime Meridian (lng 0) at x = 500
+ * - Equator (lat 0) at y = 335
+ * - Mercator scale factor: 145
+ */
+export function projectLngLatToWorldMap(lng: number, lat: number): { x: number; y: number } {
+  const clampedLat = Math.max(-84, Math.min(84, lat));
+  const x = 500 + (lng * 145 * Math.PI) / 180;
+  const rad = (clampedLat * Math.PI) / 180;
+  const y = 335 - 145 * Math.log(Math.tan(Math.PI / 4 + rad / 2));
+  return {
+    x: Math.round(x * 10) / 10,
+    y: Math.round(y * 10) / 10,
+  };
+}
+

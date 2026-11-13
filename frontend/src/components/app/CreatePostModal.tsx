@@ -18,6 +18,8 @@ export interface TravelDoodlePost {
   image: string;
   doodleSticker?: string;
   author: string;
+  authorId?: string;
+  authorCustomId?: string;
   avatar: string;
   likes: number;
   coordinates?: [number, number];
@@ -319,6 +321,8 @@ export function CreatePostModal({
         visibility: serverPost.visibility,
         image: serverPost.image || photoUrl,
         author: serverPost.author,
+        authorId: serverPost.authorId || user?.id,
+        authorCustomId: serverPost.authorCustomId || user?.custom_id,
         avatar: serverPost.avatar,
         likes: serverPost.likes,
         coordinates: serverPost.coordinates || coordinates,

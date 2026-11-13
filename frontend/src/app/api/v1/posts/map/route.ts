@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { postsStore } from "@/lib/server/postsStore";
-
-const BACKEND_URL = process.env.BACKEND_URL || "";
+import { getBackendUrl } from "@/lib/server/backendUrl";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const bbox = searchParams.get("bbox") || undefined;
   const zoomParam = searchParams.get("zoom");
   const zoom = zoomParam ? parseInt(zoomParam, 10) : undefined;
+  const backendUrl = getBackendUrl();
 
-  if (BACKEND_URL) {
+  if (backendUrl) {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/v1/posts/map?${searchParams.toString()}`, {
+      const res = await fetch(`${backendUrl}/api/v1/posts/map?${searchParams.toString()}`, {
         headers: {
           ...(request.headers.get("cookie") ? { cookie: request.headers.get("cookie")! } : {}),
           ...(request.headers.get("authorization") ? { authorization: request.headers.get("authorization")! } : {}),

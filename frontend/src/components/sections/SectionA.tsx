@@ -8,6 +8,7 @@ import {
   WORLD_VIEWBOX,
   WORLD_LAND_PATH,
   ACCURATE_CITIES,
+  projectLngLatToWorldMap,
 } from "@/lib/worldMapData";
 import { TravelDoodlePost } from "@/components/app/CreatePostModal";
 
@@ -64,10 +65,9 @@ export function SectionA({
         x = (matchCity[1].x / 1000) * 100;
         y = (matchCity[1].y / 560) * 100;
       } else if (p.coordinates && p.coordinates.length >= 2 && (p.coordinates[0] !== 0 || p.coordinates[1] !== 0)) {
-        const lng = p.coordinates[0];
-        const lat = Math.max(-80, Math.min(84, p.coordinates[1]));
-        x = ((lng + 180) / 360) * 100;
-        y = ((280 - (lat / 90) * 230) / 560) * 100;
+        const projected = projectLngLatToWorldMap(p.coordinates[0], p.coordinates[1]);
+        x = (projected.x / 1000) * 100;
+        y = (projected.y / 560) * 100;
       }
 
       return {

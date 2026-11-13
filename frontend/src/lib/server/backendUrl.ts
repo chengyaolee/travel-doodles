@@ -8,10 +8,7 @@ import { loadBackendEnv } from "./oauthConfig";
  */
 export function getBackendUrl(): string {
   loadBackendEnv();
-  const url =
-    process.env.BACKEND_URL ||
-    process.env.BASE_URL ||
-    (process.env.PORT && process.env.PORT !== "3000" ? `http://localhost:${process.env.PORT}` : "");
+  const url = process.env.BACKEND_URL || process.env.GO_BACKEND_URL || "";
   return url ? url.trim() : "";
 }
 

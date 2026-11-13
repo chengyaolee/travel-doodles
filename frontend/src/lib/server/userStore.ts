@@ -91,10 +91,19 @@ export interface UserSearchResult extends SafeUser {
 
 function resolveDataDir(): string {
   const cwd = process.cwd();
-  const directPath = path.join(cwd, ".data");
-  const nestedPath = path.join(cwd, "frontend", ".data");
+  const candidates = [
+    process.env.DATA_DIR,
+    path.join(cwd, "frontend", ".data"),
+    path.join(cwd, ".data"),
+    path.join(cwd, "..", "frontend", ".data"),
+    path.join(cwd, "..", ".data"),
+  ];
 
-  if (fs.existsSync(nestedPath)) return nestedPath;
+  for (const c of candidates) {
+    if (c && fs.existsSync(c)) return c;
+  }
+
+  const directPath = path.join(cwd, ".data");
   if (!fs.existsSync(directPath)) {
     try {
       fs.mkdirSync(directPath, { recursive: true });
