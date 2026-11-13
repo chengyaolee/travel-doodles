@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { InkIcon } from "@/components/ui/InkIcon";
+import { AnonymousAvatar } from "@/components/ui/AnonymousAvatar";
 import { Brand } from "./Brand";
 import { useAuth } from "@/lib/authContext";
 
@@ -49,11 +50,11 @@ export function Navbar({
                 className="flex items-center gap-2 py-1 px-2.5 rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-elevated)] transition-colors text-xs font-medium cursor-pointer"
                 title={`Logged in as @${user.custom_id}`}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <AnonymousAvatar
                   src={user.avatar_url}
                   alt={user.display_name}
-                  className="w-5 h-5 rounded-full object-cover"
+                  size={20}
+                  className="w-5 h-5"
                 />
                 <span className="hidden sm:inline font-mono">@{user.custom_id}</span>
               </button>
