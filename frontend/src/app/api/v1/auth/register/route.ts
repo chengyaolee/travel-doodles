@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     const sessionToken = userStore.createSession(safeUser.id);
 
     const response = NextResponse.json(
-      { user: safeUser, message: "Welcome to Travel Doodles!" },
+      { user: safeUser, token: sessionToken, message: "Welcome to Travel Doodles!" },
       { status: 201 }
     );
 

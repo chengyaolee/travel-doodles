@@ -1,19 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { postsStore } from "@/lib/server/postsStore";
-import { userStore } from "@/lib/server/userStore";
-
-const BACKEND_URL = process.env.BACKEND_URL || "";
+import { getBackendUrl, resolveAuthUser } from "@/lib/server/backendUrl";
 
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-  const authUser = userStore.getAuthUser(request);
+  const backendUrl = getBackendUrl();
 
-  if (BACKEND_URL) {
+  if (backendUrl) {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/v1/posts/${id}/likes`, {
+      const res = await fetch(`${backendUrl}/api/v1/posts/${id}/likes`, {
         method: "POST",
         headers: {
           ...(request.headers.get("cookie") ? { cookie: request.headers.get("cookie")! } : {}),
@@ -23,17 +21,16 @@ export async function POST(
       if (res.ok) {
         const data = await res.json();
         return NextResponse.json(data);
-      } else if (res.status === 401) {
-        return NextResponse.json(
-          { error: "Authentication required to like a memory. Please log in or create an account." },
-          { status: 401 }
-        );
+      } else if (res.status !== 401) {
+        const errorData = await res.json().catch(() => ({ error: `Backend error: ${res.statusText}` }));
+        return NextResponse.json(errorData, { status: res.status });
       }
     } catch {
       // Fallback
     }
   }
 
+  const authUser = await resolveAuthUser(request);
   if (!authUser) {
     return NextResponse.json(
       { error: "Authentication required to like a memory. Please log in or create an account." },

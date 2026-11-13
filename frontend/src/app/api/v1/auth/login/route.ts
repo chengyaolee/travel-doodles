@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     const safeUser = toSafeUser(user);
     const sessionToken = userStore.createSession(safeUser.id);
-    const response = NextResponse.json({ user: safeUser });
+    const response = NextResponse.json({ user: safeUser, token: sessionToken });
 
     response.cookies.set("travel_session", sessionToken, {
       httpOnly: true,

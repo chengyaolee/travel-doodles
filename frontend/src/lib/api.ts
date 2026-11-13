@@ -1,5 +1,47 @@
 import { ExplorePost } from "@/lib/explore/mockPosts";
 
+const TOKEN_KEY = "travel_doodles_token";
+let inMemoryToken: string | null = null;
+
+export function getAuthToken(): string | null {
+  if (typeof window !== "undefined") {
+    try {
+      const stored = localStorage.getItem(TOKEN_KEY);
+      if (stored) return stored;
+    } catch {
+      // ignore
+    }
+  }
+  return inMemoryToken;
+}
+
+export function setAuthToken(token: string | null): void {
+  inMemoryToken = token;
+  if (typeof window !== "undefined") {
+    try {
+      if (token) {
+        localStorage.setItem(TOKEN_KEY, token);
+      } else {
+        localStorage.removeItem(TOKEN_KEY);
+      }
+    } catch {
+      // ignore
+    }
+  }
+}
+
+export function getAuthHeaders(extraHeaders: Record<string, string> = {}): Record<string, string> {
+  const token = getAuthToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...extraHeaders,
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 export interface PostsFilter {
   country?: string;
   region?: string;
@@ -165,11 +207,14 @@ export const api = {
   async getMe(): Promise<AuthUser | null> {
     try {
       const res = await fetch("/api/v1/auth/me", {
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         credentials: "include",
       });
       if (!res.ok) return null;
       const data = await res.json();
+      if (data.token) {
+        setAuthToken(data.token);
+      }
       return data.user || null;
     } catch {
       return null;
@@ -187,7 +232,7 @@ export const api = {
   }): Promise<AuthUser> {
     const res = await fetch("/api/v1/auth/register", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       credentials: "include",
       body: JSON.stringify(params),
     });
@@ -195,6 +240,10 @@ export const api = {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       throw new Error(data.error || `Registration failed: ${res.statusText}`);
+    }
+
+    if (data.token) {
+      setAuthToken(data.token);
     }
 
     return data.user;
@@ -209,7 +258,7 @@ export const api = {
   }): Promise<AuthUser> {
     const res = await fetch("/api/v1/auth/login", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       credentials: "include",
       body: JSON.stringify(params),
     });
@@ -219,6 +268,10 @@ export const api = {
       throw new Error(data.error || `Login failed: ${res.statusText}`);
     }
 
+    if (data.token) {
+      setAuthToken(data.token);
+    }
+
     return data.user;
   },
 
@@ -226,11 +279,15 @@ export const api = {
    * Log out of current traveler account
    */
   async logout(): Promise<void> {
-    await fetch("/api/v1/auth/logout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-    });
+    try {
+      await fetch("/api/v1/auth/logout", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
+    } finally {
+      setAuthToken(null);
+    }
   },
 
   /**
@@ -300,7 +357,7 @@ export const api = {
 
     const res = await fetch("/api/v1/posts", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       credentials: "include",
       body: JSON.stringify(payload),
     });
@@ -319,7 +376,7 @@ export const api = {
   async toggleLike(postId: string): Promise<{ likes: number; liked: boolean }> {
     const res = await fetch(`/api/v1/posts/${postId}/likes`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       credentials: "include",
     });
 
@@ -336,7 +393,7 @@ export const api = {
    */
   async getComments(postId: string): Promise<CommentData[]> {
     const res = await fetch(`/api/v1/posts/${postId}/comments`, {
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       credentials: "include",
     });
 
@@ -354,7 +411,7 @@ export const api = {
   async addComment(postId: string, text: string): Promise<CommentData> {
     const res = await fetch(`/api/v1/posts/${postId}/comments`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       credentials: "include",
       body: JSON.stringify({ content: text, text }),
     });
@@ -396,7 +453,7 @@ export const api = {
   async updateCustomId(custom_id: string): Promise<{ custom_id: string; message: string }> {
     const res = await fetch("/api/v1/users/custom-id", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       credentials: "include",
       body: JSON.stringify({ custom_id }),
     });

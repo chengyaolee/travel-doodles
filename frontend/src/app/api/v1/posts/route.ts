@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { postsStore } from "@/lib/server/postsStore";
-import { userStore } from "@/lib/server/userStore";
-
-const BACKEND_URL = process.env.BACKEND_URL || "";
+import { getBackendUrl, resolveAuthUser } from "@/lib/server/backendUrl";
 
 // GET /api/v1/posts - Free browsing for everyone (no account required)
 export async function GET(request: NextRequest) {
@@ -15,9 +13,10 @@ export async function GET(request: NextRequest) {
   const limit = limitParam ? parseInt(limitParam, 10) : undefined;
 
   // If a live Go backend URL is configured, forward directly
-  if (BACKEND_URL) {
+  const backendUrl = getBackendUrl();
+  if (backendUrl) {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/v1/posts?${searchParams.toString()}`, {
+      const res = await fetch(`${backendUrl}/api/v1/posts?${searchParams.toString()}`, {
         headers: {
           "Content-Type": "application/json",
           ...(request.headers.get("cookie") ? { cookie: request.headers.get("cookie")! } : {}),
@@ -41,10 +40,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.json();
-    const authUser = userStore.getAuthUser(request);
+    const backendUrl = getBackendUrl();
 
     // If live Go backend configured, proxy to Go backend
-    if (BACKEND_URL) {
+    if (backendUrl) {
       try {
         const lat = rawBody.latitude ?? (rawBody.coordinates ? rawBody.coordinates[1] : 0);
         const lon = rawBody.longitude ?? (rawBody.coordinates ? rawBody.coordinates[0] : 0);
@@ -58,7 +57,7 @@ export async function POST(request: NextRequest) {
           media: rawBody.image ? [{ object_key: rawBody.image, width: 600, height: 420, sort_order: 0 }] : [],
         };
 
-        const res = await fetch(`${BACKEND_URL}/api/v1/posts`, {
+        const res = await fetch(`${backendUrl}/api/v1/posts`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -71,7 +70,7 @@ export async function POST(request: NextRequest) {
         if (res.ok) {
           const data = await res.json();
           return NextResponse.json(data, { status: 201 });
-        } else {
+        } else if (res.status !== 401) {
           const errorData = await res.json().catch(() => ({ error: `Backend error: ${res.statusText}` }));
           return NextResponse.json(errorData, { status: res.status });
         }
@@ -79,6 +78,9 @@ export async function POST(request: NextRequest) {
         console.warn("Go backend proxy unreachable, falling back to local store:", proxyErr);
       }
     }
+
+    // Resolve user across local userStore and Bearer token / cookies
+    const authUser = await resolveAuthUser(request);
 
     if (!authUser) {
       return NextResponse.json(
@@ -89,7 +91,7 @@ export async function POST(request: NextRequest) {
 
     const postPayload = {
       ...rawBody,
-      author: authUser.display_name || authUser.username,
+      author: authUser.display_name || authUser.custom_id,
       avatar: authUser.avatar_url,
     };
 

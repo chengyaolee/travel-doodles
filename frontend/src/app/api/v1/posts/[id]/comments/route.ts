@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { postsStore } from "@/lib/server/postsStore";
-import { userStore } from "@/lib/server/userStore";
-
-const BACKEND_URL = process.env.BACKEND_URL || "";
+import { getBackendUrl, resolveAuthUser } from "@/lib/server/backendUrl";
 
 // GET /api/v1/posts/[id]/comments - Free browsing for everyone
 export async function GET(
@@ -10,10 +8,11 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
+  const backendUrl = getBackendUrl();
 
-  if (BACKEND_URL) {
+  if (backendUrl) {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/v1/posts/${id}/comments`);
+      const res = await fetch(`${backendUrl}/api/v1/posts/${id}/comments`);
       if (res.ok) {
         const data = await res.json();
         return NextResponse.json(data);
@@ -33,7 +32,7 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-  const authUser = userStore.getAuthUser(request);
+  const backendUrl = getBackendUrl();
 
   try {
     const body = await request.json();
@@ -43,9 +42,9 @@ export async function POST(
       return NextResponse.json({ error: "Comment text cannot be empty" }, { status: 400 });
     }
 
-    if (BACKEND_URL) {
+    if (backendUrl) {
       try {
-        const res = await fetch(`${BACKEND_URL}/api/v1/posts/${id}/comments`, {
+        const res = await fetch(`${backendUrl}/api/v1/posts/${id}/comments`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -57,17 +56,16 @@ export async function POST(
         if (res.ok) {
           const data = await res.json();
           return NextResponse.json(data, { status: 201 });
-        } else if (res.status === 401) {
-          return NextResponse.json(
-            { error: "Authentication required to leave a comment. Please log in or create an account." },
-            { status: 401 }
-          );
+        } else if (res.status !== 401) {
+          const errorData = await res.json().catch(() => ({ error: `Backend error: ${res.statusText}` }));
+          return NextResponse.json(errorData, { status: res.status });
         }
       } catch {
         // Fallback
       }
     }
 
+    const authUser = await resolveAuthUser(request);
     if (!authUser) {
       return NextResponse.json(
         { error: "Authentication required to leave a comment. Please log in or create an account." },
@@ -75,7 +73,7 @@ export async function POST(
       );
     }
 
-    const author = authUser.display_name || authUser.username;
+    const author = authUser.display_name || authUser.custom_id || authUser.username;
     const comment = postsStore.addComment(id, text, author);
     return NextResponse.json({ comment }, { status: 201 });
   } catch (error) {

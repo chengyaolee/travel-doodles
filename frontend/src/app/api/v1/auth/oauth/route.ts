@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
     const sessionToken = userStore.createSession(safeUser.id);
     const response = NextResponse.json({
       user: safeUser,
+      token: sessionToken,
       message: `Signed in via ${provider.charAt(0).toUpperCase() + provider.slice(1)}`,
     });
 

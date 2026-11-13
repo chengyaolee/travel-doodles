@@ -418,9 +418,9 @@ export const userStore = {
     return toSafeUser(user);
   },
 
-  createSession(userId: string): string {
+  createSession(userId: string, customToken?: string): string {
     const sessions = loadSessions();
-    const token = "sess_" + crypto.randomBytes(32).toString("hex");
+    const token = customToken || ("sess_" + crypto.randomBytes(32).toString("hex"));
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
     sessions[token] = {

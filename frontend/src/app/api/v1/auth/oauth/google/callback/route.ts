@@ -85,9 +85,45 @@ export async function GET(req: NextRequest) {
 
         if (goRes.ok) {
           const cookieHeader = goRes.headers.get("set-cookie");
-          const response = NextResponse.redirect(`${appUrl}/`);
+          // Synchronize to userStore as well
+          const existingUser = userStore.findByOAuth("google", providerUserId);
+          let localUserId: string;
+          if (!existingUser) {
+            let customId = generateRandomCustomId("traveler");
+            while (userStore.findByCustomId(customId)) {
+              customId = generateRandomCustomId("traveler");
+            }
+            const newUser = userStore.createUser({
+              custom_id: customId,
+              display_name: displayName,
+              avatar_url: avatarUrl,
+              auth_provider: "google",
+              auth_provider_id: providerUserId,
+            });
+            localUserId = newUser.id;
+          } else {
+            localUserId = existingUser.id;
+          }
+
+          // Extract token from cookie header if possible
+          let extractedToken = "";
+          if (cookieHeader) {
+            const match = cookieHeader.match(/travel_session=([^;]+)/);
+            if (match) extractedToken = match[1];
+          }
+          const sessionToken = userStore.createSession(localUserId, extractedToken || undefined);
+
+          const response = NextResponse.redirect(`${appUrl}/?auth_status=authenticating`);
           if (cookieHeader) {
             response.headers.set("set-cookie", cookieHeader);
+          } else {
+            response.cookies.set("travel_session", sessionToken, {
+              httpOnly: true,
+              secure: process.env.NODE_ENV === "production",
+              sameSite: "lax",
+              maxAge: 7 * 24 * 60 * 60,
+              path: "/",
+            });
           }
           return response;
         } else {
@@ -122,7 +158,7 @@ export async function GET(req: NextRequest) {
     }
 
     const sessionToken = userStore.createSession(userId);
-    const response = NextResponse.redirect(`${appUrl}/`);
+    const response = NextResponse.redirect(`${appUrl}/?auth_status=authenticating`);
     response.cookies.set("travel_session", sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
