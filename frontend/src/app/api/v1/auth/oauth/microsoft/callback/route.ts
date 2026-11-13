@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { userStore, generateRandomCustomId } from "@/lib/server/userStore";
 import { getOAuthConfig } from "@/lib/server/oauthConfig";
+import { getBackendUrl } from "@/lib/server/backendUrl";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -64,14 +65,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(`${appUrl}?auth_error=microsoft_invalid_profile`);
     }
 
-    // 3. Forward to live Go backend if configured (fast 1.5s timeout)
-    if (config.backendUrl) {
+    // 3. Forward to live Go backend if configured
+    const backendUrl = getBackendUrl();
+    if (backendUrl) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 1500);
-        const goRes = await fetch(`${config.backendUrl}/api/v1/auth/oauth`, {
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const goRes = await fetch(`${backendUrl}/api/v1/auth/oauth`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Internal-Secret": process.env.OAUTH_INTERNAL_SECRET || "",
+          },
           body: JSON.stringify({
             provider: "microsoft",
             provider_user_id: providerUserId,

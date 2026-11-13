@@ -40,6 +40,7 @@ type Config struct {
 
 	// Auth
 	SessionSecret        string
+	OAuthInternalSecret  string
 	SessionCookieName    string
 	SessionDurationHours int
 	SessionSecureCookie  bool
@@ -86,6 +87,7 @@ func LoadConfig() (*Config, error) {
 		StoragePublicURL:  getEnv("STORAGE_PUBLIC_URL", "http://localhost:8080/media/files"),
 
 		SessionSecret:        getEnv("SESSION_SECRET", "travel-doodles-default-secret-change-in-prod-32-bytes"),
+		OAuthInternalSecret:  getEnv("OAUTH_INTERNAL_SECRET", ""),
 		SessionCookieName:    getEnv("SESSION_COOKIE_NAME", "travel_session"),
 		SessionDurationHours: getEnvInt("SESSION_DURATION_HOURS", 168), // 7 days
 		SessionSecureCookie:  getEnvBool("SESSION_SECURE_COOKIE", false),

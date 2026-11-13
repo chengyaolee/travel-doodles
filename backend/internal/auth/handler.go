@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -185,7 +186,15 @@ func (h *Handler) PasswordlessLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 // OAuthLogin handles passwordless sign-in and account creation via Google/Apple/OAuth
+// It trusts provider_user_id/email, so only the Next.js server (which verified the
+// identity with the provider) may call it, proven via the shared OAUTH_INTERNAL_SECRET.
 func (h *Handler) OAuthLogin(w http.ResponseWriter, r *http.Request) {
+	secret := h.cfg.OAuthInternalSecret
+	if secret == "" || subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Internal-Secret")), []byte(secret)) != 1 {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
 	var req OAuthRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON payload")

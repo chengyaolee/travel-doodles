@@ -65,7 +65,6 @@ export interface OAuthConfig {
   microsoftClientId: string;
   microsoftClientSecret: string;
   microsoftTenantId: string;
-  backendUrl: string;
   appUrl: string;
 }
 
@@ -78,7 +77,6 @@ export function getOAuthConfig(): OAuthConfig {
     microsoftClientId: cleanEnvValue(process.env.MICROSOFT_CLIENT_ID),
     microsoftClientSecret: cleanEnvValue(process.env.MICROSOFT_CLIENT_SECRET),
     microsoftTenantId: cleanEnvValue(process.env.MICROSOFT_TENANT_ID) || "common",
-    backendUrl: cleanEnvValue(process.env.BACKEND_URL).replace(/\/+$/, ""),
     appUrl: cleanEnvValue(process.env.NEXT_PUBLIC_APP_URL).replace(/\/+$/, ""),
   };
 }
