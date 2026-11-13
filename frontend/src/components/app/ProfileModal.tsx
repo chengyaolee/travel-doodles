@@ -250,7 +250,6 @@ export function ProfileModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-xs overflow-y-auto"
-      onClick={onClose}
     >
       <div
         className="relative w-full max-w-4xl bg-[var(--bg-primary)] border-2 border-[var(--border-color)] rounded-3xl shadow-2xl p-6 sm:p-8 my-8 flex flex-col max-h-[90vh] overflow-y-auto"

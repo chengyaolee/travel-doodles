@@ -275,4 +275,32 @@ describe('Auth, Permissions & Clean Database Synchronization', () => {
     assert.ok(googleRoute.includes('google_oauth_not_configured'), 'Google route must error when not configured');
     assert.ok(msRoute.includes('microsoft_oauth_not_configured'), 'Microsoft route must error when not configured');
   });
+
+  test('Modal forms prohibit click-to-close on background backdrop to prevent closing when dragging selections', () => {
+    const createModal = fs.readFileSync(path.join(__dirname, '../src/components/app/CreatePostModal.tsx'), 'utf-8');
+    const profileModal = fs.readFileSync(path.join(__dirname, '../src/components/app/ProfileModal.tsx'), 'utf-8');
+    const authModal = fs.readFileSync(path.join(__dirname, '../src/components/auth/AuthModal.tsx'), 'utf-8');
+
+    // Ensure the outer backdrop does not have onClick={onClose} or onClick={closeAuthModal}
+    assert.strictEqual(
+      createModal.includes('className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto"\n      onClick={onClose}'),
+      false,
+      'CreatePostModal backdrop must not have onClick={onClose}'
+    );
+    assert.strictEqual(
+      profileModal.includes('className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-xs overflow-y-auto"\n      onClick={onClose}'),
+      false,
+      'ProfileModal backdrop must not have onClick={onClose}'
+    );
+    assert.strictEqual(
+      authModal.includes('className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in overflow-y-auto"\n      onClick={closeAuthModal}'),
+      false,
+      'AuthModal backdrop must not have onClick={closeAuthModal}'
+    );
+
+    // Verify explicit "x" close buttons exist
+    assert.ok(createModal.includes('aria-label="Close"'), 'CreatePostModal must have explicit close button');
+    assert.ok(profileModal.includes('aria-label="Close"'), 'ProfileModal must have explicit close button');
+    assert.ok(authModal.includes('aria-label="Close"'), 'AuthModal must have explicit close button');
+  });
 });

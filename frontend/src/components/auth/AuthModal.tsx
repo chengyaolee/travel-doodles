@@ -43,7 +43,6 @@ export function AuthModal() {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in overflow-y-auto"
-      onClick={closeAuthModal}
       role="dialog"
       aria-modal="true"
       aria-labelledby="auth-modal-title"

@@ -148,7 +148,6 @@ export function SectionD({
       {selectedPost && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
-          onClick={() => setSelectedPost(null)}
         >
           <div
             className="relative w-full max-w-lg bg-[var(--bg-primary)] rounded-3xl border-2 border-[var(--border-color)] p-6 shadow-2xl overflow-hidden animate-fade-in"
