@@ -13,8 +13,9 @@ export async function POST(
   const authUser = userStore.getAuthUser(req);
 
   if (getTargetBackendUrl()) {
+    let res: Response;
     try {
-      const res = await fetch(`${getTargetBackendUrl()}/api/v1/friends/invites/${code}/accept`, {
+      res = await fetch(`${getTargetBackendUrl()}/api/v1/friends/invites/${code}/accept`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -22,15 +23,20 @@ export async function POST(
           ...(req.headers.get("authorization") ? { authorization: req.headers.get("authorization")! } : {}),
         },
       });
-      if (res.ok) {
-        const data = await res.json();
-        return NextResponse.json(data);
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        return NextResponse.json(errData, { status: res.status });
-      }
-    } catch {
-      // Fallback
+    } catch (proxyErr) {
+      console.error("Go backend unreachable for accept invite:", proxyErr);
+      return NextResponse.json(
+        { error: "Backend server is unreachable. Please try again later." },
+        { status: 502 }
+      );
+    }
+
+    if (res.ok) {
+      const data = await res.json();
+      return NextResponse.json(data);
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      return NextResponse.json(errData, { status: res.status });
     }
   }
 

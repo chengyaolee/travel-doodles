@@ -8,9 +8,10 @@ export async function PATCH(req: NextRequest) {
   // If live Go backend is configured, proxy request
   const backendUrl = getBackendUrl();
   if (backendUrl) {
+    let res: Response;
     try {
       const body = await req.clone().json();
-      const res = await fetch(`${backendUrl}/api/v1/users/custom-id`, {
+      res = await fetch(`${backendUrl}/api/v1/users/custom-id`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -19,15 +20,20 @@ export async function PATCH(req: NextRequest) {
         },
         body: JSON.stringify(body),
       });
-      if (res.ok) {
-        const data = await res.json();
-        return NextResponse.json(data);
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        return NextResponse.json(errData, { status: res.status });
-      }
-    } catch {
-      // Fallback
+    } catch (proxyErr) {
+      console.error("Go backend unreachable for PATCH /users/custom-id:", proxyErr);
+      return NextResponse.json(
+        { error: "Backend server is unreachable. Please try again later." },
+        { status: 502 }
+      );
+    }
+
+    if (res.ok) {
+      const data = await res.json();
+      return NextResponse.json(data);
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      return NextResponse.json(errData, { status: res.status });
     }
   }
 

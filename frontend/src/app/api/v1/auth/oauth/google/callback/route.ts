@@ -129,9 +129,11 @@ export async function GET(req: NextRequest) {
         } else {
           const errBody = await goRes.text().catch(() => "");
           console.error("Backend OAuth login failed with status", goRes.status, errBody);
+          return NextResponse.redirect(`${appUrl}?auth_error=backend_oauth_failed`);
         }
       } catch (err) {
         console.error("Failed to forward Google OAuth to live Go backend (timed out or unreachable):", err);
+        return NextResponse.redirect(`${appUrl}?auth_error=backend_unavailable`);
       }
     }
 

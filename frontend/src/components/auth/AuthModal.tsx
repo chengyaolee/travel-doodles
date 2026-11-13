@@ -6,9 +6,18 @@ import { DoodlePin, DoodleUnderline } from "@/components/doodles";
 import { InkIcon } from "@/components/ui/InkIcon";
 
 export function AuthModal() {
-  const { authModalOpen, authModalAction, closeAuthModal, isAuthenticating } = useAuth();
+  const { authModalOpen, authModalAction, closeAuthModal, isAuthenticating, authStage } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState<"google" | "microsoft" | null>(null);
+
+  const isAuthenticatedSuccess = authStage === "authenticated";
+  const showLoading = isAuthenticating || connecting !== null || isAuthenticatedSuccess;
+
+  React.useEffect(() => {
+    if (!authModalOpen) {
+      setConnecting(null);
+    }
+  }, [authModalOpen]);
 
   React.useEffect(() => {
     if (typeof window !== "undefined") {
@@ -33,8 +42,6 @@ export function AuthModal() {
   }, [authModalOpen]);
 
   if (!authModalOpen) return null;
-
-  const showLoading = isAuthenticating || connecting !== null;
 
   const handleOAuthLogin = (provider: "google" | "microsoft") => {
     setError(null);
@@ -70,12 +77,12 @@ export function AuthModal() {
         )}
 
         {showLoading ? (
-          /* Loading window: Same size as the login prompt */
+          /* Loading / Authenticated window: Same size as the login prompt */
           <div className="flex flex-col items-center justify-center text-center my-auto py-6 animate-fade-in">
-            {/* Spinning Doodle Dashed Orbit with Needle Pin */}
+            {/* Spinning Doodle Dashed Orbit with Needle Pin / Checkmark */}
             <div className="relative mb-5 flex items-center justify-center">
               <svg
-                className="w-20 h-20 animate-spin text-[var(--ink-primary)]"
+                className={`w-20 h-20 text-[var(--ink-primary)] ${isAuthenticatedSuccess ? "transition-transform duration-500 scale-105" : "animate-spin"}`}
                 style={{ animationDuration: "5s" }}
                 viewBox="0 0 100 100"
                 fill="none"
@@ -86,12 +93,20 @@ export function AuthModal() {
                   r="42"
                   stroke="currentColor"
                   strokeWidth="3"
-                  strokeDasharray="6 8"
+                  strokeDasharray={isAuthenticatedSuccess ? "none" : "6 8"}
                   strokeLinecap="round"
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <DoodlePin size={38} className="text-[var(--ink-primary)] drop-shadow-sm" filled />
+                {isAuthenticatedSuccess ? (
+                  <div className="w-10 h-10 rounded-full bg-[var(--ink-primary)] text-[var(--bg-primary)] flex items-center justify-center shadow-sm">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
+                ) : (
+                  <DoodlePin size={38} className="text-[var(--ink-primary)] drop-shadow-sm" filled />
+                )}
               </div>
             </div>
 
@@ -99,25 +114,27 @@ export function AuthModal() {
               Traveler Passport
             </span>
             <h2 id="auth-modal-title" className="text-2xl font-bold tracking-tight mt-0.5">
-              Authenticating...
+              {isAuthenticatedSuccess ? "Authenticated!" : "Authenticating..."}
             </h2>
             <DoodleUnderline className="w-44 h-2 text-[var(--ink-primary)] mt-1 animate-pulse" />
 
             <p className="mt-5 text-sm text-[var(--ink-secondary)] max-w-xs leading-relaxed">
-              {connecting
+              {isAuthenticatedSuccess
+                ? "Passport verified! Welcome aboard."
+                : connecting
                 ? `Connecting to ${connecting === "google" ? "Google" : "Microsoft"}...`
                 : "Processing traveler authentication and refreshing your travel board..."}
             </p>
 
             {/* Hand-drawn style animated progress bar */}
-            <div className="mt-6 w-full max-w-[200px] h-2 bg-[var(--bg-secondary)] rounded-full border border-[var(--ink-primary)] overflow-hidden p-0.5">
+            <div className="mt-6 w-full max-w-[200px] h-2.5 bg-[var(--bg-secondary)] rounded-full border border-[var(--ink-primary)] overflow-hidden p-0.5">
               <div
-                className="h-full bg-[var(--ink-primary)] rounded-full animate-pulse"
-                style={{ width: "70%" }}
+                className={`h-full bg-[var(--ink-primary)] rounded-full transition-all duration-400 ease-out ${isAuthenticatedSuccess ? "" : "animate-pulse"}`}
+                style={{ width: isAuthenticatedSuccess ? "100%" : "70%" }}
               />
             </div>
             <p className="mt-3 text-[11px] text-[var(--ink-secondary)] font-mono">
-              Please wait a moment
+              {isAuthenticatedSuccess ? "Verified!" : "Please wait a moment"}
             </p>
           </div>
         ) : (

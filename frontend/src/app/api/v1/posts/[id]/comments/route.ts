@@ -43,8 +43,9 @@ export async function POST(
     }
 
     if (backendUrl) {
+      let res: Response;
       try {
-        const res = await fetch(`${backendUrl}/api/v1/posts/${id}/comments`, {
+        res = await fetch(`${backendUrl}/api/v1/posts/${id}/comments`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -53,15 +54,20 @@ export async function POST(
           },
           body: JSON.stringify({ content: text }),
         });
-        if (res.ok) {
-          const data = await res.json();
-          return NextResponse.json(data, { status: 201 });
-        } else if (res.status !== 401) {
-          const errorData = await res.json().catch(() => ({ error: `Backend error: ${res.statusText}` }));
-          return NextResponse.json(errorData, { status: res.status });
-        }
-      } catch {
-        // Fallback
+      } catch (proxyErr) {
+        console.error("Go backend unreachable for POST /comments:", proxyErr);
+        return NextResponse.json(
+          { error: "Backend server is unreachable. Please try again later." },
+          { status: 502 }
+        );
+      }
+
+      if (res.ok) {
+        const data = await res.json();
+        return NextResponse.json(data, { status: 201 });
+      } else {
+        const errorData = await res.json().catch(() => ({ error: `Backend error: ${res.statusText}` }));
+        return NextResponse.json(errorData, { status: res.status });
       }
     }
 

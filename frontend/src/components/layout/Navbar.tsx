@@ -19,7 +19,7 @@ export function Navbar({
   onProfileClick?: () => void;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { user, isAuthenticated, logout, requireAuth, openAuthModal } = useAuth();
+  const { user, isAuthenticated, isLoading, logout, requireAuth, openAuthModal } = useAuth();
 
   const handleStartDoodling = () => {
     requireAuth("create a travel doodle", onStartDoodling);
@@ -42,8 +42,10 @@ export function Navbar({
         <div className="site-nav-actions">
           <ThemeToggle />
 
-          {/* User Auth Status / Actions */}
-          {isAuthenticated && user ? (
+          {/* User Auth Status / Actions: Smooth transition with zero flash during session resolution */}
+          {isLoading ? (
+            <div className="flex items-center gap-2 min-w-[80px] h-7" aria-hidden="true" />
+          ) : isAuthenticated && user ? (
             <div className="flex items-center gap-2">
               <button
                 onClick={handleProfileClick}

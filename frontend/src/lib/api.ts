@@ -1,7 +1,9 @@
 import { ExplorePost } from "@/lib/explore/mockPosts";
 
 const TOKEN_KEY = "travel_doodles_token";
+const USER_KEY = "travel_doodles_user";
 let inMemoryToken: string | null = null;
+let inMemoryUser: AuthUser | null = null;
 
 export function getAuthToken(): string | null {
   if (typeof window !== "undefined") {
@@ -23,6 +25,33 @@ export function setAuthToken(token: string | null): void {
         localStorage.setItem(TOKEN_KEY, token);
       } else {
         localStorage.removeItem(TOKEN_KEY);
+      }
+    } catch {
+      // ignore
+    }
+  }
+}
+
+export function getStoredUser(): AuthUser | null {
+  if (typeof window !== "undefined") {
+    try {
+      const stored = localStorage.getItem(USER_KEY);
+      if (stored) return JSON.parse(stored);
+    } catch {
+      // ignore
+    }
+  }
+  return inMemoryUser;
+}
+
+export function setStoredUser(user: AuthUser | null): void {
+  inMemoryUser = user;
+  if (typeof window !== "undefined") {
+    try {
+      if (user) {
+        localStorage.setItem(USER_KEY, JSON.stringify(user));
+      } else {
+        localStorage.removeItem(USER_KEY);
       }
     } catch {
       // ignore
@@ -219,14 +248,25 @@ export const api = {
         headers: getAuthHeaders(),
         credentials: "include",
       });
-      if (!res.ok) return null;
+      if (!res.ok) {
+        // If 401 Unauthorized, clear stale cached user & token
+        if (res.status === 401) {
+          setAuthToken(null);
+          setStoredUser(null);
+        }
+        return null;
+      }
       const data = await res.json();
       if (data.token) {
         setAuthToken(data.token);
       }
+      if (data.user) {
+        setStoredUser(data.user);
+      }
       return data.user || null;
     } catch {
-      return null;
+      // In case of transient network failure, fall back to locally stored user
+      return getStoredUser();
     }
   },
 
@@ -254,6 +294,9 @@ export const api = {
     if (data.token) {
       setAuthToken(data.token);
     }
+    if (data.user) {
+      setStoredUser(data.user);
+    }
 
     return data.user;
   },
@@ -280,6 +323,9 @@ export const api = {
     if (data.token) {
       setAuthToken(data.token);
     }
+    if (data.user) {
+      setStoredUser(data.user);
+    }
 
     return data.user;
   },
@@ -296,6 +342,7 @@ export const api = {
       });
     } finally {
       setAuthToken(null);
+      setStoredUser(null);
     }
   },
 
@@ -373,10 +420,11 @@ export const api = {
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new Error(data.error || `Failed to create post: ${res.statusText}`);
+      throw new Error(`Upload failed: ${data.error || res.statusText}`);
     }
 
-    return normalizePost(data.post || data);
+    if (!data.post?.id) throw new Error("Upload failed: backend did not return the saved post.");
+    return normalizePost(data.post);
   },
 
   /**

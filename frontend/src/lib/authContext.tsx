@@ -2,13 +2,14 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { api, AuthUser } from "@/lib/api";
+import { api, AuthUser, getAuthToken, getStoredUser } from "@/lib/api";
 
 interface AuthContextType {
   user: AuthUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   isAuthenticating: boolean;
+  authStage: "idle" | "authenticating" | "authenticated";
   login: (custom_id: string, password?: string) => Promise<void>;
   register: (params: {
     custom_id: string;
@@ -32,12 +33,28 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    if (typeof window !== "undefined") {
+      const token = getAuthToken();
+      const cached = getStoredUser();
+      if (token && cached) return cached;
+    }
+    return null;
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const token = getAuthToken();
+      const cached = getStoredUser();
+      return !Boolean(token && cached);
+    }
+    return true;
+  });
+  const [authStage, setAuthStage] = useState<"idle" | "authenticating" | "authenticated">("idle");
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalAction, setAuthModalAction] = useState("");
   const [pendingCallback, setPendingCallback] = useState<(() => void) | null>(null);
+
+  const isAuthenticating = authStage === "authenticating";
 
   // Check existing session on mount
   useEffect(() => {
@@ -79,10 +96,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (authStatus === "authenticating") {
       setAuthModalOpen(true);
-      setIsAuthenticating(true);
+      setAuthStage("authenticating");
 
       let attempts = 0;
-      const maxAttempts = 8;
+      const maxAttempts = 15;
       let cancelled = false;
 
       const pollSession = async () => {
@@ -96,10 +113,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               url.searchParams.delete("auth_status");
               window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
 
-              // Wait briefly for a smooth visual confirmation
-              await new Promise((r) => setTimeout(r, 450));
+              // Switch progress bar to 100% full
+              setAuthStage("authenticated");
+
+              // Wait 0.5s for visual confirmation
+              await new Promise((r) => setTimeout(r, 500));
+
               if (!cancelled) {
-                setIsAuthenticating(false);
+                setAuthStage("idle");
                 setAuthModalOpen(false);
                 setAuthModalAction("");
                 executePending();
@@ -118,7 +139,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (!cancelled) {
-          setIsAuthenticating(false);
+          setAuthStage("idle");
+          setAuthModalOpen(false);
         }
       };
 
@@ -138,7 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const closeAuthModal = useCallback(() => {
     setAuthModalOpen(false);
-    setIsAuthenticating(false);
+    setAuthStage("idle");
     setAuthModalAction("");
     setPendingCallback(null);
     if (typeof window !== "undefined") {
@@ -153,13 +175,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (custom_id: string, password?: string) => {
-    setIsAuthenticating(true);
+    setAuthStage("authenticating");
     setAuthModalOpen(true);
     try {
       const loggedUser = await api.login({ custom_id, password });
       const verifiedUser = (await api.getMe()) || loggedUser;
       setUser(verifiedUser);
-      await new Promise((r) => setTimeout(r, 400));
+      setAuthStage("authenticated");
+      await new Promise((r) => setTimeout(r, 500));
       closeAuthModal();
       executePending();
       try {
@@ -168,7 +191,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // ignore
       }
     } finally {
-      setIsAuthenticating(false);
+      setAuthStage("idle");
     }
   };
 
@@ -178,13 +201,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     bio?: string;
     password?: string;
   }) => {
-    setIsAuthenticating(true);
+    setAuthStage("authenticating");
     setAuthModalOpen(true);
     try {
       const newUser = await api.register(params);
       const verifiedUser = (await api.getMe()) || newUser;
       setUser(verifiedUser);
-      await new Promise((r) => setTimeout(r, 400));
+      setAuthStage("authenticated");
+      await new Promise((r) => setTimeout(r, 500));
       closeAuthModal();
       executePending();
       try {
@@ -193,13 +217,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // ignore
       }
     } finally {
-      setIsAuthenticating(false);
+      setAuthStage("idle");
     }
   };
 
   const logout = async () => {
     // Optimistic UI state reset: immediately reflect logged out without waiting for network
     setUser(null);
+    setAuthStage("idle");
     closeAuthModal();
     try {
       await api.logout();
@@ -232,6 +257,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         isAuthenticated: !!user,
         isAuthenticating,
+        authStage,
         login,
         register,
         logout,

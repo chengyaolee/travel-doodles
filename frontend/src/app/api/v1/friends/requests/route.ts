@@ -38,9 +38,10 @@ export async function POST(req: NextRequest) {
   const authUser = userStore.getAuthUser(req);
 
   if (getTargetBackendUrl()) {
+    let res: Response;
     try {
       const body = await req.clone().json();
-      const res = await fetch(`${getTargetBackendUrl()}/api/v1/friends/requests`, {
+      res = await fetch(`${getTargetBackendUrl()}/api/v1/friends/requests`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -49,15 +50,20 @@ export async function POST(req: NextRequest) {
         },
         body: JSON.stringify(body),
       });
-      if (res.ok) {
-        const data = await res.json();
-        return NextResponse.json(data, { status: 201 });
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        return NextResponse.json(errData, { status: res.status });
-      }
-    } catch {
-      // Fallback
+    } catch (proxyErr) {
+      console.error("Go backend unreachable for POST /friends/requests:", proxyErr);
+      return NextResponse.json(
+        { error: "Backend server is unreachable. Please try again later." },
+        { status: 502 }
+      );
+    }
+
+    if (res.ok) {
+      const data = await res.json();
+      return NextResponse.json(data, { status: 201 });
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      return NextResponse.json(errData, { status: res.status });
     }
   }
 

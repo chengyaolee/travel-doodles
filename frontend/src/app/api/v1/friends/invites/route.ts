@@ -9,16 +9,17 @@ export async function POST(req: NextRequest) {
   const authUser = userStore.getAuthUser(req);
 
   if (getTargetBackendUrl()) {
-    try {
-      const body = await req.clone().json().catch(() => ({}));
-      // Enforce 3-day TTL (72 hours)
-      const payload = {
-        ...body,
-        expire_hours: body.expire_hours || 72,
-        max_uses: body.max_uses || 0,
-      };
+    const body = await req.clone().json().catch(() => ({}));
+    // Enforce 3-day TTL (72 hours)
+    const payload = {
+      ...body,
+      expire_hours: body.expire_hours || 72,
+      max_uses: body.max_uses || 0,
+    };
 
-      const res = await fetch(`${getTargetBackendUrl()}/api/v1/friends/invites`, {
+    let res: Response;
+    try {
+      res = await fetch(`${getTargetBackendUrl()}/api/v1/friends/invites`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -27,15 +28,20 @@ export async function POST(req: NextRequest) {
         },
         body: JSON.stringify(payload),
       });
-      if (res.ok) {
-        const data = await res.json();
-        return NextResponse.json(data, { status: 201 });
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        return NextResponse.json(errData, { status: res.status });
-      }
-    } catch {
-      // Fallback
+    } catch (proxyErr) {
+      console.error("Go backend unreachable for create invite:", proxyErr);
+      return NextResponse.json(
+        { error: "Backend server is unreachable. Please try again later." },
+        { status: 502 }
+      );
+    }
+
+    if (res.ok) {
+      const data = await res.json();
+      return NextResponse.json(data, { status: 201 });
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      return NextResponse.json(errData, { status: res.status });
     }
   }
 

@@ -18,13 +18,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Proxy to live Go backend if active (with 6s timeout)
+    // Proxy to live Go backend if active (with 6s timeout) — NO fallback to local store
     const backendUrl = getBackendUrl();
     if (backendUrl) {
+      let goRes: Response;
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 6000);
-        const goRes = await fetch(`${backendUrl}/api/v1/auth/oauth`, {
+        goRes = await fetch(`${backendUrl}/api/v1/auth/oauth`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -37,30 +38,38 @@ export async function POST(req: NextRequest) {
           signal: controller.signal,
         });
         clearTimeout(timeoutId);
-        if (goRes.ok) {
-          const data = await goRes.json();
-          const cookieHeader = goRes.headers.get("set-cookie");
-          let sessionToken = data.token || "";
-          if (!sessionToken && cookieHeader) {
-            const match = cookieHeader.match(/travel_session=([^;]+)/);
-            if (match) sessionToken = match[1];
-          }
+      } catch (proxyErr) {
+        console.error("Go backend unreachable for oauth:", proxyErr);
+        return NextResponse.json(
+          { error: "Backend server is unreachable. Please try again later." },
+          { status: 502 }
+        );
+      }
 
-          const response = NextResponse.json({ ...data, token: sessionToken });
-          if (cookieHeader) response.headers.set("set-cookie", cookieHeader);
-          if (sessionToken) {
-            response.cookies.set("travel_session", sessionToken, {
-              httpOnly: true,
-              secure: process.env.NODE_ENV === "production",
-              sameSite: "lax",
-              maxAge: 7 * 24 * 60 * 60,
-              path: "/",
-            });
-          }
-          return response;
+      if (goRes.ok) {
+        const data = await goRes.json();
+        const cookieHeader = goRes.headers.get("set-cookie");
+        let sessionToken = data.token || "";
+        if (!sessionToken && cookieHeader) {
+          const match = cookieHeader.match(/travel_session=([^;]+)/);
+          if (match) sessionToken = match[1];
         }
-      } catch {
-        // Fallback
+
+        const response = NextResponse.json({ ...data, token: sessionToken });
+        if (cookieHeader) response.headers.set("set-cookie", cookieHeader);
+        if (sessionToken) {
+          response.cookies.set("travel_session", sessionToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            maxAge: 7 * 24 * 60 * 60,
+            path: "/",
+          });
+        }
+        return response;
+      } else {
+        const errData = await goRes.json().catch(() => ({}));
+        return NextResponse.json(errData, { status: goRes.status });
       }
     }
 

@@ -90,20 +90,28 @@ export interface UserSearchResult extends SafeUser {
 }
 
 function resolveDataDir(): string {
+  if (process.env.DATA_DIR) return process.env.DATA_DIR;
   const cwd = process.cwd();
+  // Always canonicalize to frontend/.data to ensure single source of truth across workers
   const candidates = [
-    process.env.DATA_DIR,
-    path.join(cwd, "frontend", ".data"),
-    path.join(cwd, ".data"),
-    path.join(cwd, "..", "frontend", ".data"),
-    path.join(cwd, "..", ".data"),
+    path.resolve(cwd, "frontend", ".data"),
+    path.resolve(cwd, ".data"),
+    path.resolve(cwd, "..", "frontend", ".data"),
+    path.resolve(cwd, "..", ".data"),
   ];
 
+  // Prioritize frontend/.data if it exists
   for (const c of candidates) {
-    if (c && fs.existsSync(c)) return c;
+    if (c.includes(path.join("frontend", ".data")) && fs.existsSync(c)) {
+      return c;
+    }
   }
 
-  const directPath = path.join(cwd, ".data");
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+
+  const directPath = path.resolve(cwd, "frontend", ".data");
   if (!fs.existsSync(directPath)) {
     try {
       fs.mkdirSync(directPath, { recursive: true });
@@ -121,24 +129,42 @@ const FRIENDS_FILE = path.join(DATA_DIR, "friends.json");
 const REQUESTS_FILE = path.join(DATA_DIR, "friend_requests.json");
 const INVITES_FILE = path.join(DATA_DIR, "friend_invites.json");
 
+// In-memory cache with mtime validation to prevent stale cache across worker threads
 let cachedUsers: UserRecord[] | null = null;
+let usersMtime = 0;
 let cachedSessions: Record<string, SessionRecord> | null = null;
+let sessionsMtime = 0;
 let cachedFriends: FriendRelation[] | null = null;
+let friendsMtime = 0;
 let cachedRequests: FriendRequestRecord[] | null = null;
+let requestsMtime = 0;
 let cachedInvites: FriendInviteRecord[] | null = null;
+let invitesMtime = 0;
 
 function loadUsers(): UserRecord[] {
-  if (cachedUsers) return cachedUsers;
   if (fs.existsSync(USERS_FILE)) {
     try {
+      const stat = fs.statSync(USERS_FILE);
+      if (cachedUsers && stat.mtimeMs === usersMtime) {
+        return cachedUsers;
+      }
       const data = fs.readFileSync(USERS_FILE, "utf-8");
-      cachedUsers = JSON.parse(data);
-      return cachedUsers!;
+      if (data && data.trim()) {
+        const parsed = JSON.parse(data);
+        cachedUsers = parsed;
+        usersMtime = stat.mtimeMs;
+        return cachedUsers!;
+      }
     } catch {
-      // ignore
+      // If reading/parsing momentarily fails (e.g. concurrent atomic write), keep existing cache
+      if (cachedUsers && cachedUsers.length > 0) {
+        return cachedUsers;
+      }
     }
   }
-  cachedUsers = [];
+  if (!cachedUsers) {
+    cachedUsers = [];
+  }
   return cachedUsers;
 }
 
@@ -148,6 +174,11 @@ function saveUsers(users: UserRecord[]) {
   try {
     fs.writeFileSync(tmpFile, JSON.stringify(users, null, 2), "utf-8");
     fs.renameSync(tmpFile, USERS_FILE);
+    try {
+      usersMtime = fs.statSync(USERS_FILE).mtimeMs;
+    } catch {
+      // ignore
+    }
   } catch {
     try {
       if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
@@ -156,6 +187,11 @@ function saveUsers(users: UserRecord[]) {
     }
     try {
       fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), "utf-8");
+      try {
+        usersMtime = fs.statSync(USERS_FILE).mtimeMs;
+      } catch {
+        // ignore
+      }
     } catch {
       // ignore
     }
@@ -163,35 +199,72 @@ function saveUsers(users: UserRecord[]) {
 }
 
 function loadSessions(): Record<string, SessionRecord> {
-  if (cachedSessions) return cachedSessions;
   if (fs.existsSync(SESSIONS_FILE)) {
     try {
+      const stat = fs.statSync(SESSIONS_FILE);
+      if (cachedSessions && stat.mtimeMs === sessionsMtime) {
+        return cachedSessions;
+      }
       const data = fs.readFileSync(SESSIONS_FILE, "utf-8");
-      cachedSessions = JSON.parse(data);
-      return cachedSessions!;
+      if (data && data.trim()) {
+        const parsed = JSON.parse(data);
+        cachedSessions = parsed;
+        sessionsMtime = stat.mtimeMs;
+        return cachedSessions!;
+      }
     } catch {
-      // ignore
+      // If reading/parsing momentarily fails (e.g. concurrent atomic write), keep existing cache
+      if (cachedSessions && Object.keys(cachedSessions).length > 0) {
+        return cachedSessions;
+      }
     }
   }
-  cachedSessions = {};
+  if (!cachedSessions) {
+    cachedSessions = {};
+  }
   return cachedSessions;
 }
 
 function saveSessions(sessions: Record<string, SessionRecord>) {
   cachedSessions = sessions;
+  const tmpFile = `${SESSIONS_FILE}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
   try {
-    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2), "utf-8");
+    fs.writeFileSync(tmpFile, JSON.stringify(sessions, null, 2), "utf-8");
+    fs.renameSync(tmpFile, SESSIONS_FILE);
+    try {
+      sessionsMtime = fs.statSync(SESSIONS_FILE).mtimeMs;
+    } catch {
+      // ignore
+    }
   } catch {
-    // ignore
+    try {
+      if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
+    } catch {
+      // ignore
+    }
+    try {
+      fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2), "utf-8");
+      try {
+        sessionsMtime = fs.statSync(SESSIONS_FILE).mtimeMs;
+      } catch {
+        // ignore
+      }
+    } catch {
+      // ignore
+    }
   }
 }
 
 function loadFriends(): FriendRelation[] {
-  if (cachedFriends) return cachedFriends;
   if (fs.existsSync(FRIENDS_FILE)) {
     try {
+      const stat = fs.statSync(FRIENDS_FILE);
+      if (cachedFriends && stat.mtimeMs === friendsMtime) {
+        return cachedFriends;
+      }
       const data = fs.readFileSync(FRIENDS_FILE, "utf-8");
       cachedFriends = JSON.parse(data);
+      friendsMtime = stat.mtimeMs;
       return cachedFriends!;
     } catch {
       // ignore
@@ -205,17 +278,26 @@ function saveFriends(friends: FriendRelation[]) {
   cachedFriends = friends;
   try {
     fs.writeFileSync(FRIENDS_FILE, JSON.stringify(friends, null, 2), "utf-8");
+    try {
+      friendsMtime = fs.statSync(FRIENDS_FILE).mtimeMs;
+    } catch {
+      // ignore
+    }
   } catch {
     // ignore
   }
 }
 
 function loadRequests(): FriendRequestRecord[] {
-  if (cachedRequests) return cachedRequests;
   if (fs.existsSync(REQUESTS_FILE)) {
     try {
+      const stat = fs.statSync(REQUESTS_FILE);
+      if (cachedRequests && stat.mtimeMs === requestsMtime) {
+        return cachedRequests;
+      }
       const data = fs.readFileSync(REQUESTS_FILE, "utf-8");
       cachedRequests = JSON.parse(data);
+      requestsMtime = stat.mtimeMs;
       return cachedRequests!;
     } catch {
       // ignore
@@ -229,17 +311,26 @@ function saveRequests(requests: FriendRequestRecord[]) {
   cachedRequests = requests;
   try {
     fs.writeFileSync(REQUESTS_FILE, JSON.stringify(requests, null, 2), "utf-8");
+    try {
+      requestsMtime = fs.statSync(REQUESTS_FILE).mtimeMs;
+    } catch {
+      // ignore
+    }
   } catch {
     // ignore
   }
 }
 
 function loadInvites(): FriendInviteRecord[] {
-  if (cachedInvites) return cachedInvites;
   if (fs.existsSync(INVITES_FILE)) {
     try {
+      const stat = fs.statSync(INVITES_FILE);
+      if (cachedInvites && stat.mtimeMs === invitesMtime) {
+        return cachedInvites;
+      }
       const data = fs.readFileSync(INVITES_FILE, "utf-8");
       cachedInvites = JSON.parse(data);
+      invitesMtime = stat.mtimeMs;
       return cachedInvites!;
     } catch {
       // ignore
@@ -253,6 +344,11 @@ function saveInvites(invites: FriendInviteRecord[]) {
   cachedInvites = invites;
   try {
     fs.writeFileSync(INVITES_FILE, JSON.stringify(invites, null, 2), "utf-8");
+    try {
+      invitesMtime = fs.statSync(INVITES_FILE).mtimeMs;
+    } catch {
+      // ignore
+    }
   } catch {
     // ignore
   }
@@ -468,8 +564,15 @@ export const userStore = {
   },
 
   getAuthUser(req: RequestLike): SafeUser | null {
-    // 1. Check travel_session cookie
-    const cookieToken = req.cookies.get("travel_session")?.value;
+    // 1. Check travel_session cookie (both parsed and raw cookie header)
+    let cookieToken = req.cookies?.get?.("travel_session")?.value;
+    if (!cookieToken) {
+      const cookieHeader = req.headers.get("cookie");
+      if (cookieHeader) {
+        const match = cookieHeader.match(/travel_session=([^;]+)/);
+        if (match) cookieToken = decodeURIComponent(match[1].trim());
+      }
+    }
     if (cookieToken) {
       const user = this.validateSession(cookieToken);
       if (user) return user;

@@ -3,20 +3,28 @@ import path from "path";
 import { type ExplorePost } from "../explore/mockPosts.ts";
 
 function resolveDataDir(): string {
+  if (process.env.DATA_DIR) return process.env.DATA_DIR;
   const cwd = process.cwd();
+  // Always canonicalize to frontend/.data to ensure single source of truth across workers
   const candidates = [
-    process.env.DATA_DIR,
-    path.join(cwd, "frontend", ".data"),
-    path.join(cwd, ".data"),
-    path.join(cwd, "..", "frontend", ".data"),
-    path.join(cwd, "..", ".data"),
+    path.resolve(cwd, "frontend", ".data"),
+    path.resolve(cwd, ".data"),
+    path.resolve(cwd, "..", "frontend", ".data"),
+    path.resolve(cwd, "..", ".data"),
   ];
 
+  // Prioritize frontend/.data if it exists
   for (const c of candidates) {
-    if (c && fs.existsSync(c)) return c;
+    if (c.includes(path.join("frontend", ".data")) && fs.existsSync(c)) {
+      return c;
+    }
   }
 
-  const directPath = path.join(cwd, ".data");
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+
+  const directPath = path.resolve(cwd, "frontend", ".data");
   if (!fs.existsSync(directPath)) {
     try {
       fs.mkdirSync(directPath, { recursive: true });
@@ -40,9 +48,11 @@ export interface CommentItem {
   createdAt: string;
 }
 
-// In-memory cache for fast responses
+// In-memory cache with mtime validation to prevent stale cache across worker threads
 let cachedPosts: ExplorePost[] | null = null;
+let postsMtime = 0;
 let cachedComments: Record<string, CommentItem[]> | null = null;
+let commentsMtime = 0;
 
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
@@ -55,21 +65,31 @@ function ensureDataDir() {
 }
 
 function loadPosts(): ExplorePost[] {
-  if (cachedPosts) return cachedPosts;
-
   ensureDataDir();
   if (fs.existsSync(DATA_FILE)) {
     try {
+      const stat = fs.statSync(DATA_FILE);
+      if (cachedPosts && stat.mtimeMs === postsMtime) {
+        return cachedPosts;
+      }
       const content = fs.readFileSync(DATA_FILE, "utf-8");
-      cachedPosts = JSON.parse(content);
-      return cachedPosts!;
+      if (content && content.trim()) {
+        cachedPosts = JSON.parse(content);
+        postsMtime = stat.mtimeMs;
+        return cachedPosts!;
+      }
     } catch (e) {
+      if (cachedPosts && cachedPosts.length > 0) {
+        return cachedPosts;
+      }
       console.warn("Could not read posts.json, falling back to seed data", e);
     }
   }
 
   // Default empty posts collection (strictly real backend/persisted posts, zero mock data)
-  cachedPosts = [];
+  if (!cachedPosts) {
+    cachedPosts = [];
+  }
   return cachedPosts;
 }
 
@@ -80,6 +100,11 @@ function savePosts(posts: ExplorePost[]) {
   try {
     fs.writeFileSync(tmpFile, JSON.stringify(posts, null, 2), "utf-8");
     fs.renameSync(tmpFile, DATA_FILE);
+    try {
+      postsMtime = fs.statSync(DATA_FILE).mtimeMs;
+    } catch {
+      // ignore
+    }
   } catch {
     try {
       if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
@@ -88,6 +113,11 @@ function savePosts(posts: ExplorePost[]) {
     }
     try {
       fs.writeFileSync(DATA_FILE, JSON.stringify(posts, null, 2), "utf-8");
+      try {
+        postsMtime = fs.statSync(DATA_FILE).mtimeMs;
+      } catch {
+        // ignore
+      }
     } catch (e) {
       console.warn("Could not persist posts.json", e);
     }
@@ -95,13 +125,16 @@ function savePosts(posts: ExplorePost[]) {
 }
 
 function loadComments(): Record<string, CommentItem[]> {
-  if (cachedComments) return cachedComments;
-
   ensureDataDir();
   if (fs.existsSync(COMMENTS_FILE)) {
     try {
+      const stat = fs.statSync(COMMENTS_FILE);
+      if (cachedComments && stat.mtimeMs === commentsMtime) {
+        return cachedComments;
+      }
       const content = fs.readFileSync(COMMENTS_FILE, "utf-8");
       cachedComments = JSON.parse(content);
+      commentsMtime = stat.mtimeMs;
       return cachedComments!;
     } catch {
       // ignore
@@ -118,6 +151,11 @@ function saveComments(comments: Record<string, CommentItem[]>) {
   ensureDataDir();
   try {
     fs.writeFileSync(COMMENTS_FILE, JSON.stringify(comments, null, 2), "utf-8");
+    try {
+      commentsMtime = fs.statSync(COMMENTS_FILE).mtimeMs;
+    } catch {
+      // ignore
+    }
   } catch {
     // ignore
   }

@@ -10,23 +10,29 @@ export async function POST(
   const backendUrl = getBackendUrl();
 
   if (backendUrl) {
+    let res: Response;
     try {
-      const res = await fetch(`${backendUrl}/api/v1/posts/${id}/likes`, {
+      res = await fetch(`${backendUrl}/api/v1/posts/${id}/likes`, {
         method: "POST",
         headers: {
           ...(request.headers.get("cookie") ? { cookie: request.headers.get("cookie")! } : {}),
           ...(request.headers.get("authorization") ? { authorization: request.headers.get("authorization")! } : {}),
         },
       });
-      if (res.ok) {
-        const data = await res.json();
-        return NextResponse.json(data);
-      } else if (res.status !== 401) {
-        const errorData = await res.json().catch(() => ({ error: `Backend error: ${res.statusText}` }));
-        return NextResponse.json(errorData, { status: res.status });
-      }
-    } catch {
-      // Fallback
+    } catch (proxyErr) {
+      console.error("Go backend unreachable for POST /likes:", proxyErr);
+      return NextResponse.json(
+        { error: "Backend server is unreachable. Please try again later." },
+        { status: 502 }
+      );
+    }
+
+    if (res.ok) {
+      const data = await res.json();
+      return NextResponse.json(data);
+    } else {
+      const errorData = await res.json().catch(() => ({ error: `Backend error: ${res.statusText}` }));
+      return NextResponse.json(errorData, { status: res.status });
     }
   }
 
