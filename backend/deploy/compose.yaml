@@ -50,9 +50,10 @@ services:
     restart: unless-stopped
     entrypoint: ["/app/travel-api"]
     env_file:
-      - path: ../.env
-        required: false
+      # Later files win: real .env must come last so it overrides the example defaults
       - path: ../.env.example
+        required: false
+      - path: ../.env
         required: false
     environment:
       - DATABASE_URL=postgres://travel_user:travel_password@travel-db:5432/travel_doodles?sslmode=disable
@@ -62,7 +63,6 @@ services:
       - ENV=production
       - STORAGE_TYPE=local
       - STORAGE_LOCAL_DIR=/app/data/storage
-      - STORAGE_PUBLIC_URL=http://localhost:8080/media/files
     volumes:
       - media_storage:/app/data/storage
     ports:
@@ -91,9 +91,10 @@ services:
     restart: unless-stopped
     entrypoint: ["/app/travel-worker"]
     env_file:
-      - path: ../.env
-        required: false
+      # Later files win: real .env must come last so it overrides the example defaults
       - path: ../.env.example
+        required: false
+      - path: ../.env
         required: false
     environment:
       - DATABASE_URL=postgres://travel_user:travel_password@travel-db:5432/travel_doodles?sslmode=disable
@@ -102,7 +103,6 @@ services:
       - ENV=production
       - STORAGE_TYPE=local
       - STORAGE_LOCAL_DIR=/app/data/storage
-      - STORAGE_PUBLIC_URL=http://localhost:8080/media/files
       - WORKER_CONCURRENCY=4
     volumes:
       - media_storage:/app/data/storage
@@ -122,8 +122,6 @@ services:
     ports:
       - "80:80"
       - "443:443"
-    environment:
-      - BACKEND_DOMAIN=${BACKEND_DOMAIN:-localhost}
     env_file:
       - path: ../.env
         required: false
