@@ -72,6 +72,23 @@ func TestLocalStorage_Operations(t *testing.T) {
 	if err != ErrObjectNotFound {
 		t.Errorf("expected ErrObjectNotFound, got: %v", err)
 	}
+
+	// 7. Verify PublicURL handling for local keys, remote URLs, and data URLs
+	pubURL := store.PublicURL(key)
+	expectedPub := "http://localhost:8080/media/" + key
+	if pubURL != expectedPub {
+		t.Errorf("expected PublicURL %s, got %s", expectedPub, pubURL)
+	}
+
+	remoteURL := "https://images.unsplash.com/photo-12345"
+	if got := store.PublicURL(remoteURL); got != remoteURL {
+		t.Errorf("expected untouched remote URL %s, got %s", remoteURL, got)
+	}
+
+	dataURL := "data:image/jpeg;base64,/9j/4AAQSkZJRg=="
+	if got := store.PublicURL(dataURL); got != dataURL {
+		t.Errorf("expected untouched data URL, got %s", got)
+	}
 }
 
 func TestLocalStorage_PathTraversalProtection(t *testing.T) {

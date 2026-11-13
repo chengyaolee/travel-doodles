@@ -325,27 +325,13 @@ export function CreatePostModal({
       };
 
       onPublish(newPost);
-    } catch (err) {
-      console.warn("Backend create fallback to local state:", err);
-      const fallbackPost: TravelDoodlePost = {
-        id: "post-" + Date.now(),
-        location: fullGranularLocation,
-        city: city.trim() || locationName.trim(),
-        country: countryCode || country,
-        region: regionId || state.trim(),
-        caption,
-        date,
-        visibility,
-        image: photoUrl,
-        author: authorName,
-        avatar: authorAvatar,
-        likes: 1,
-        coordinates,
-      };
-      onPublish(fallbackPost);
+      onClose();
+    } catch (err: unknown) {
+      console.error("Failed to publish doodle to backend:", err);
+      const errMsg = err instanceof Error ? err.message : "Failed to publish doodle memory. Please try again.";
+      setPhotoError(errMsg);
     } finally {
       setIsSubmitting(false);
-      onClose();
     }
   };
 

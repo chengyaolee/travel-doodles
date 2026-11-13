@@ -85,7 +85,7 @@ func (s *Service) queryBoxMarkers(ctx context.Context, bbox BoundingBox, viewerI
 			p.id, p.author_id, p.caption, p.latitude, p.longitude, p.location_name,
 			p.country_code, p.visited_at, p.created_at,
 			u.username, u.display_name, u.avatar_key,
-			(SELECT pm.thumbnail_key FROM post_media pm WHERE pm.post_id = p.id ORDER BY pm.sort_order ASC LIMIT 1) as thumbnail_key
+			(SELECT COALESCE(NULLIF(pm.thumbnail_key, ''), pm.object_key, '') FROM post_media pm WHERE pm.post_id = p.id ORDER BY pm.sort_order ASC LIMIT 1) as thumbnail_key
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
 		WHERE p.deleted_at IS NULL
@@ -140,8 +140,12 @@ func (s *Service) queryBoxMarkers(ctx context.Context, bbox BoundingBox, viewerI
 		if avatarKey != nil && *avatarKey != "" && s.storage != nil {
 			m.AuthorAvatarURL = s.storage.PublicURL(*avatarKey)
 		}
-		if thumbKey != nil && *thumbKey != "" && s.storage != nil {
-			m.ThumbnailURL = s.storage.PublicURL(*thumbKey)
+		if thumbKey != nil && *thumbKey != "" {
+			if s.storage != nil {
+				m.ThumbnailURL = s.storage.PublicURL(*thumbKey)
+			} else {
+				m.ThumbnailURL = *thumbKey
+			}
 		}
 
 		markers = append(markers, m)
@@ -172,7 +176,7 @@ func (s *Service) GetNearbyPosts(ctx context.Context, lon, lat float64, radiusKm
 			p.id, p.author_id, p.caption, p.latitude, p.longitude, p.location_name,
 			p.country_code, p.visited_at, p.created_at,
 			u.username, u.display_name, u.avatar_key,
-			(SELECT pm.thumbnail_key FROM post_media pm WHERE pm.post_id = p.id ORDER BY pm.sort_order ASC LIMIT 1) as thumbnail_key
+			(SELECT COALESCE(NULLIF(pm.thumbnail_key, ''), pm.object_key, '') FROM post_media pm WHERE pm.post_id = p.id ORDER BY pm.sort_order ASC LIMIT 1) as thumbnail_key
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
 		WHERE p.deleted_at IS NULL
@@ -223,8 +227,12 @@ func (s *Service) GetNearbyPosts(ctx context.Context, lon, lat float64, radiusKm
 		if avatarKey != nil && *avatarKey != "" && s.storage != nil {
 			m.AuthorAvatarURL = s.storage.PublicURL(*avatarKey)
 		}
-		if thumbKey != nil && *thumbKey != "" && s.storage != nil {
-			m.ThumbnailURL = s.storage.PublicURL(*thumbKey)
+		if thumbKey != nil && *thumbKey != "" {
+			if s.storage != nil {
+				m.ThumbnailURL = s.storage.PublicURL(*thumbKey)
+			} else {
+				m.ThumbnailURL = *thumbKey
+			}
 		}
 
 		markers = append(markers, m)

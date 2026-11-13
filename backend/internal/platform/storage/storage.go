@@ -128,6 +128,12 @@ func (l *LocalStorage) signToken(key, contentType string, expires int64) string 
 }
 
 func (l *LocalStorage) PublicURL(objectKey string) string {
+	if objectKey == "" {
+		return ""
+	}
+	if strings.HasPrefix(objectKey, "http://") || strings.HasPrefix(objectKey, "https://") || strings.HasPrefix(objectKey, "data:") {
+		return objectKey
+	}
 	cleanKey, err := l.sanitizeKey(objectKey)
 	if err != nil {
 		return ""
@@ -255,6 +261,12 @@ func NewS3Storage(cfg *config.Config) (*S3Storage, error) {
 }
 
 func (s *S3Storage) PublicURL(objectKey string) string {
+	if objectKey == "" {
+		return ""
+	}
+	if strings.HasPrefix(objectKey, "http://") || strings.HasPrefix(objectKey, "https://") || strings.HasPrefix(objectKey, "data:") {
+		return objectKey
+	}
 	return fmt.Sprintf("%s/%s", s.publicURL, strings.TrimLeft(objectKey, "/"))
 }
 

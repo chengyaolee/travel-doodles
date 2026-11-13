@@ -116,7 +116,11 @@ export const postsStore = {
 
     if (filter?.country) {
       const c = filter.country.toUpperCase();
-      posts = posts.filter((p) => p.country.toUpperCase() === c);
+      posts = posts.filter(
+        (p) =>
+          p.country.toUpperCase() === c ||
+          (p.location && p.location.toUpperCase().includes(c))
+      );
     }
     if (filter?.region) {
       const r = filter.region.toLowerCase();

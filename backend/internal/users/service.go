@@ -25,21 +25,37 @@ var (
 	customIDRegex      = regexp.MustCompile(`^[a-zA-Z0-9_]{3,30}$`)
 )
 
+type ProfilePostItem struct {
+	ID           string     `json:"id"`
+	Caption      string     `json:"caption"`
+	Latitude     float64    `json:"latitude"`
+	Longitude    float64    `json:"longitude"`
+	LocationName string     `json:"location_name"`
+	CountryCode  string     `json:"country_code"`
+	Visibility   string     `json:"visibility"`
+	LikeCount    int        `json:"like_count"`
+	CommentCount int        `json:"comment_count"`
+	Image        string     `json:"image"`
+	VisitedAt    *time.Time `json:"visited_at,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+}
+
 type ProfileResponse struct {
-	ID             string    `json:"id"`
-	CustomID       string    `json:"custom_id"`
-	Username       string    `json:"username"`
-	DisplayName    string    `json:"display_name"`
-	Bio            string    `json:"bio"`
-	AvatarURL      string    `json:"avatar_url,omitempty"`
-	PostCount      int       `json:"post_count"`
-	FollowerCount  int       `json:"follower_count"`
-	FollowingCount int       `json:"following_count"`
-	FriendCount    int       `json:"friend_count"`
-	IsFriend       bool      `json:"is_friend"`
-	IsFollowing    bool      `json:"is_following"`
-	IsSelf         bool      `json:"is_self"`
-	CreatedAt      time.Time `json:"created_at"`
+	ID             string            `json:"id"`
+	CustomID       string            `json:"custom_id"`
+	Username       string            `json:"username"`
+	DisplayName    string            `json:"display_name"`
+	Bio            string            `json:"bio"`
+	AvatarURL      string            `json:"avatar_url,omitempty"`
+	PostCount      int               `json:"post_count"`
+	FollowerCount  int               `json:"follower_count"`
+	FollowingCount int               `json:"following_count"`
+	FriendCount    int               `json:"friend_count"`
+	IsFriend       bool              `json:"is_friend"`
+	IsFollowing    bool              `json:"is_following"`
+	IsSelf         bool              `json:"is_self"`
+	CreatedAt      time.Time         `json:"created_at"`
+	Posts          []ProfilePostItem `json:"posts"`
 }
 
 type UpdateProfileRequest struct {
@@ -131,6 +147,55 @@ func (s *Service) GetProfile(ctx context.Context, identifier string, viewerID st
 	p.IsSelf = (viewerID != "" && viewerID == p.ID)
 	if avatarKey != nil && *avatarKey != "" && s.storage != nil {
 		p.AvatarURL = s.storage.PublicURL(*avatarKey)
+	}
+
+	p.Posts = make([]ProfilePostItem, 0)
+	// Query posts authored by this traveler (respecting visibility permissions)
+	postsQuery := `
+		SELECT 
+			p.id, p.caption, p.latitude, p.longitude, p.location_name,
+			p.country_code, p.visibility, p.like_count, p.comment_count,
+			p.visited_at, p.created_at,
+			(SELECT COALESCE(NULLIF(pm.thumbnail_key, ''), pm.object_key, '') FROM post_media pm WHERE pm.post_id = p.id ORDER BY pm.sort_order ASC LIMIT 1) as media_key
+		FROM posts p
+		WHERE p.author_id = $1 AND p.deleted_at IS NULL
+		  AND (
+			  $2 = true
+			  OR p.visibility = 'public'
+			  OR (p.visibility = 'friends' AND $3 = true)
+		  )
+		ORDER BY p.created_at DESC
+		LIMIT 50;
+	`
+	if postRows, err := s.pool.Query(ctx, postsQuery, p.ID, p.IsSelf, p.IsFriend); err == nil {
+		defer postRows.Close()
+		for postRows.Next() {
+			var item ProfilePostItem
+			var mediaKey *string
+			if err := postRows.Scan(
+				&item.ID,
+				&item.Caption,
+				&item.Latitude,
+				&item.Longitude,
+				&item.LocationName,
+				&item.CountryCode,
+				&item.Visibility,
+				&item.LikeCount,
+				&item.CommentCount,
+				&item.VisitedAt,
+				&item.CreatedAt,
+				&mediaKey,
+			); err == nil {
+				if mediaKey != nil && *mediaKey != "" {
+					if s.storage != nil {
+						item.Image = s.storage.PublicURL(*mediaKey)
+					} else {
+						item.Image = *mediaKey
+					}
+				}
+				p.Posts = append(p.Posts, item)
+			}
+		}
 	}
 
 	// Cache public view for 5 minutes

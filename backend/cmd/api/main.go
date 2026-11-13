@@ -222,7 +222,7 @@ func (app *Application) BuildRouter() http.Handler {
 	r.Use(middleware.RequestLogger(app.Metrics))
 	r.Use(middleware.Recoverer())
 	r.Use(middleware.CORS(app.Config))
-	r.Use(middleware.BodyLimit(2 * 1024 * 1024)) // 2 MB limit for standard JSON bodies
+	r.Use(middleware.BodyLimit(20 * 1024 * 1024)) // 20 MB limit for JSON bodies with image data
 	if app.Config.RateLimitEnabled {
 		r.Use(middleware.RateLimitMiddleware(app.RateLimiter))
 	}

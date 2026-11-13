@@ -2,7 +2,9 @@ package posts
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -101,6 +103,45 @@ func (s *Service) CreatePost(ctx context.Context, authorID string, req CreatePos
 			sortOrder = idx
 		}
 
+		// Handle base64 image data (e.g. from canvas doodle or custom photo upload)
+		if strings.HasPrefix(m.ObjectKey, "data:") {
+			parts := strings.SplitN(m.ObjectKey, ",", 2)
+			if len(parts) == 2 {
+				contentType := "image/jpeg"
+				header := strings.ToLower(parts[0])
+				if strings.Contains(header, "image/png") {
+					contentType = "image/png"
+				} else if strings.Contains(header, "image/webp") {
+					contentType = "image/webp"
+				}
+
+				rawBytes, decodeErr := base64.StdEncoding.DecodeString(parts[1])
+				if decodeErr != nil {
+					rawBytes, decodeErr = base64.RawStdEncoding.DecodeString(parts[1])
+				}
+
+				if decodeErr == nil && len(rawBytes) > 0 {
+					ext := ".jpg"
+					if contentType == "image/png" {
+						ext = ".png"
+					} else if contentType == "image/webp" {
+						ext = ".webp"
+					}
+
+					b := make([]byte, 16)
+					_, _ = rand.Read(b)
+					fileUUID := hex.EncodeToString(b)
+					storedKey := fmt.Sprintf("uploads/%s/%s%s", authorID, fileUUID, ext)
+
+					if s.storage != nil {
+						if putErr := s.storage.PutObject(ctx, storedKey, rawBytes, contentType); putErr == nil {
+							m.ObjectKey = storedKey
+						}
+					}
+				}
+			}
+		}
+
 		err = tx.QueryRow(ctx, insertMediaQuery,
 			post.ID, m.ObjectKey, "", m.Width, m.Height, sortOrder,
 		).Scan(&mediaID, &mediaCreatedAt)
@@ -127,6 +168,8 @@ func (s *Service) CreatePost(ctx context.Context, authorID string, req CreatePos
 		}
 		if s.storage != nil {
 			item.URL = s.storage.PublicURL(m.ObjectKey)
+		} else {
+			item.URL = m.ObjectKey
 		}
 		post.Media = append(post.Media, item)
 	}
@@ -324,8 +367,8 @@ func (s *Service) DeletePost(ctx context.Context, postID, authorID string) error
 	return nil
 }
 
-// ListPublicPosts returns public posts with keyset pagination
-func (s *Service) ListPublicPosts(ctx context.Context, viewerID, cursor string, limit int) (*PaginatedPosts, error) {
+// ListPublicPosts returns public posts with optional country filter and keyset pagination
+func (s *Service) ListPublicPosts(ctx context.Context, viewerID, cursor string, limit int, country string) (*PaginatedPosts, error) {
 	if limit <= 0 || limit > 50 {
 		limit = 20
 	}
@@ -345,6 +388,8 @@ func (s *Service) ListPublicPosts(ctx context.Context, viewerID, cursor string, 
 		}
 	}
 
+	country = strings.ToUpper(strings.TrimSpace(country))
+
 	var query string
 	var args []interface{}
 
@@ -359,11 +404,12 @@ func (s *Service) ListPublicPosts(ctx context.Context, viewerID, cursor string, 
 			FROM posts p
 			JOIN users u ON p.author_id = u.id
 			WHERE p.deleted_at IS NULL AND p.visibility = 'public'
+			  AND (NULLIF($5, '') IS NULL OR p.country_code = $5)
 			  AND (p.created_at, p.id) < ($2, $3::uuid)
 			ORDER BY p.created_at DESC, p.id DESC
 			LIMIT $4;
 		`
-		args = []interface{}{viewerID, cursorTime, cursorID, limit + 1}
+		args = []interface{}{viewerID, cursorTime, cursorID, limit + 1, country}
 	} else {
 		query = `
 			SELECT 
@@ -375,10 +421,11 @@ func (s *Service) ListPublicPosts(ctx context.Context, viewerID, cursor string, 
 			FROM posts p
 			JOIN users u ON p.author_id = u.id
 			WHERE p.deleted_at IS NULL AND p.visibility = 'public'
+			  AND (NULLIF($3, '') IS NULL OR p.country_code = $3)
 			ORDER BY p.created_at DESC, p.id DESC
 			LIMIT $2;
 		`
-		args = []interface{}{viewerID, limit + 1}
+		args = []interface{}{viewerID, limit + 1, country}
 	}
 
 	rows, err := s.pool.Query(ctx, query, args...)

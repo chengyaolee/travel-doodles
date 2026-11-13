@@ -59,10 +59,13 @@ export function ProfileModal({
 
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const isViewingSelf = !viewUsername || (user && (viewUsername === user.custom_id || viewUsername === user.username));
+  const [selfPosts, setSelfPosts] = useState<TravelDoodlePost[]>([]);
 
-  // Load other user's profile if viewUsername is specified
+  // Load traveler profile and their posts upon opening
   useEffect(() => {
-    if (isOpen && viewUsername && !isViewingSelf) {
+    if (!isOpen) return;
+
+    if (viewUsername && !isViewingSelf) {
       setLoadingOther(true);
       api.getUserProfile(viewUsername)
         .then((profile) => {
@@ -72,10 +75,21 @@ export function ProfileModal({
           setOtherUser(null);
         })
         .finally(() => setLoadingOther(false));
+    } else if (isViewingSelf && user) {
+      const handle = user.custom_id || user.username;
+      if (handle) {
+        api.getUserProfile(handle)
+          .then((profile) => {
+            if (profile?.posts && Array.isArray(profile.posts)) {
+              setSelfPosts(profile.posts);
+            }
+          })
+          .catch(() => {});
+      }
     } else {
       setOtherUser(null);
     }
-  }, [isOpen, viewUsername, isViewingSelf]);
+  }, [isOpen, viewUsername, isViewingSelf, user?.custom_id, user?.username]);
 
   // Load friends and friend requests
   const refreshFriendsAndRequests = () => {
@@ -200,7 +214,16 @@ export function ProfileModal({
     : null;
 
   const displayedPosts: TravelDoodlePost[] = isViewingSelf
-    ? userPosts
+    ? (selfPosts.length > 0
+        ? selfPosts
+        : userPosts.filter(
+            (p) =>
+              !user?.custom_id ||
+              p.author.toLowerCase() === (user.custom_id || "").toLowerCase() ||
+              p.author.toLowerCase() === (user.display_name || "").toLowerCase() ||
+              p.author.toLowerCase() === (user.username || "").toLowerCase() ||
+              userPosts.length <= 5
+          ))
     : otherUser?.posts || [];
 
   const visitedCountries = Array.from(new Set(displayedPosts.map((p: TravelDoodlePost) => p.country)));

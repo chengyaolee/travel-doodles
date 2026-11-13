@@ -40,22 +40,22 @@ export async function GET(request: NextRequest) {
 // POST /api/v1/posts - Only interactions require an account
 export async function POST(request: NextRequest) {
   try {
+    const rawBody = await request.json();
     const authUser = userStore.getAuthUser(request);
 
     // If live Go backend configured, proxy to Go backend
     if (BACKEND_URL) {
       try {
-        const body = await request.clone().json();
-        const lat = body.latitude ?? (body.coordinates ? body.coordinates[1] : 0);
-        const lon = body.longitude ?? (body.coordinates ? body.coordinates[0] : 0);
+        const lat = rawBody.latitude ?? (rawBody.coordinates ? rawBody.coordinates[1] : 0);
+        const lon = rawBody.longitude ?? (rawBody.coordinates ? rawBody.coordinates[0] : 0);
         const goPayload = {
-          caption: body.caption || "",
+          caption: rawBody.caption || "",
           latitude: lat,
           longitude: lon,
-          location_name: body.location || `${body.city || ""}, ${body.country || ""}`.trim(),
-          country_code: body.country || body.country_code || "",
-          visibility: body.visibility === "everyone" ? "public" : (body.visibility || "public"),
-          media: body.image ? [{ object_key: body.image, width: 600, height: 420, sort_order: 0 }] : [],
+          location_name: rawBody.location || `${rawBody.city || ""}, ${rawBody.country || ""}`.trim(),
+          country_code: rawBody.country || rawBody.country_code || "",
+          visibility: rawBody.visibility === "everyone" ? "public" : (rawBody.visibility || "public"),
+          media: rawBody.image ? [{ object_key: rawBody.image, width: 600, height: 420, sort_order: 0 }] : [],
         };
 
         const res = await fetch(`${BACKEND_URL}/api/v1/posts`, {
@@ -67,17 +67,16 @@ export async function POST(request: NextRequest) {
           },
           body: JSON.stringify(goPayload),
         });
+
         if (res.ok) {
           const data = await res.json();
           return NextResponse.json(data, { status: 201 });
-        } else if (res.status === 401) {
-          return NextResponse.json(
-            { error: "Authentication required to create a post. Please log in or create an account." },
-            { status: 401 }
-          );
+        } else {
+          const errorData = await res.json().catch(() => ({ error: `Backend error: ${res.statusText}` }));
+          return NextResponse.json(errorData, { status: res.status });
         }
-      } catch {
-        // Fallback to local server store
+      } catch (proxyErr) {
+        console.warn("Go backend proxy unreachable, falling back to local store:", proxyErr);
       }
     }
 
@@ -88,9 +87,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
     const postPayload = {
-      ...body,
+      ...rawBody,
       author: authUser.display_name || authUser.username,
       avatar: authUser.avatar_url,
     };

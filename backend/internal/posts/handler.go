@@ -32,7 +32,8 @@ func (h *Handler) ListPosts(w http.ResponseWriter, r *http.Request) {
 		viewerID = u.ID
 	}
 
-	res, err := h.service.ListPublicPosts(r.Context(), viewerID, cursor, limit)
+	country := r.URL.Query().Get("country")
+	res, err := h.service.ListPublicPosts(r.Context(), viewerID, cursor, limit, country)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list posts")
 		return

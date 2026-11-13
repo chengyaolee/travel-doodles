@@ -67,8 +67,8 @@ CREATE INDEX IF NOT EXISTS idx_posts_visibility_created ON posts (visibility, cr
 CREATE TABLE IF NOT EXISTS post_media (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-    object_key VARCHAR(255) NOT NULL,
-    thumbnail_key VARCHAR(255) NOT NULL DEFAULT '',
+    object_key TEXT NOT NULL,
+    thumbnail_key TEXT NOT NULL DEFAULT '',
     width INTEGER NOT NULL DEFAULT 0,
     height INTEGER NOT NULL DEFAULT 0,
     sort_order SMALLINT NOT NULL DEFAULT 0,
