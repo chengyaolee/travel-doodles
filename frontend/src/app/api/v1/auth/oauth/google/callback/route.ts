@@ -68,10 +68,11 @@ export async function GET(req: NextRequest) {
     // 3. Forward to live Go backend if configured
     const backendUrl = getBackendUrl();
     if (backendUrl) {
+      let goRes: Response;
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000);
-        const goRes = await fetch(`${backendUrl}/api/v1/auth/oauth`, {
+        goRes = await fetch(`${backendUrl}/api/v1/auth/oauth`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -87,59 +88,25 @@ export async function GET(req: NextRequest) {
           signal: controller.signal,
         });
         clearTimeout(timeoutId);
-
-        if (goRes.ok) {
-          const cookieHeader = goRes.headers.get("set-cookie");
-          // Synchronize to userStore as well
-          const existingUser = userStore.findByOAuth("google", providerUserId);
-          let localUserId: string;
-          if (!existingUser) {
-            let customId = generateRandomCustomId("traveler");
-            while (userStore.findByCustomId(customId)) {
-              customId = generateRandomCustomId("traveler");
-            }
-            const newUser = userStore.createUser({
-              custom_id: customId,
-              display_name: displayName,
-              avatar_url: avatarUrl,
-              auth_provider: "google",
-              auth_provider_id: providerUserId,
-            });
-            localUserId = newUser.id;
-          } else {
-            localUserId = existingUser.id;
-          }
-
-          // Extract token from cookie header if possible
-          let extractedToken = "";
-          if (cookieHeader) {
-            const match = cookieHeader.match(/travel_session=([^;]+)/);
-            if (match) extractedToken = match[1];
-          }
-          const sessionToken = userStore.createSession(localUserId, extractedToken || undefined);
-
-          const response = NextResponse.redirect(`${appUrl}/?auth_status=authenticating`);
-          if (cookieHeader) {
-            response.headers.set("set-cookie", cookieHeader);
-          } else {
-            response.cookies.set("travel_session", sessionToken, {
-              httpOnly: true,
-              secure: process.env.NODE_ENV === "production",
-              sameSite: "lax",
-              maxAge: 7 * 24 * 60 * 60,
-              path: "/",
-            });
-          }
-          return response;
-        } else {
-          const errBody = await goRes.text().catch(() => "");
-          console.error("Backend OAuth login failed with status", goRes.status, errBody);
-          return NextResponse.redirect(`${appUrl}?auth_error=backend_oauth_failed`);
-        }
       } catch (err) {
-        console.error("Failed to forward Google OAuth to live Go backend (timed out or unreachable):", err);
-        return NextResponse.redirect(`${appUrl}?auth_error=backend_unavailable`);
+        console.error("Failed to forward Google OAuth to live Go backend:", backendUrl, err);
+        // Surface the network cause (ENOTFOUND, ECONNREFUSED, AbortError, ...) so it is diagnosable from the UI
+        const e = err as { name?: string; cause?: { code?: string } };
+        const reason = e.cause?.code || e.name || "error";
+        return NextResponse.redirect(`${appUrl}?auth_error=backend_unavailable_${encodeURIComponent(reason)}`);
       }
+
+      const cookieHeader = goRes.headers.get("set-cookie");
+      if (!goRes.ok || !cookieHeader) {
+        const errBody = await goRes.text().catch(() => "");
+        console.error("Backend Google OAuth login failed with status", goRes.status, errBody);
+        return NextResponse.redirect(`${appUrl}?auth_error=backend_oauth_failed_${goRes.status}`);
+      }
+
+      // Backend is the source of truth for users/sessions; just hand its session cookie to the browser
+      const response = NextResponse.redirect(`${appUrl}/?auth_status=authenticating`);
+      response.headers.set("set-cookie", cookieHeader);
+      return response;
     }
 
     // 4. Server user store synchronization
