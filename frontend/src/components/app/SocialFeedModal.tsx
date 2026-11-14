@@ -1,5 +1,6 @@
 "use client";
 
+import { useMobileModalBack } from "@/lib/useMobileModalBack";
 import { useState, useEffect } from "react";
 import { DoodlePin } from "@/components/doodles";
 import { InkIcon } from "@/components/ui/InkIcon";
@@ -34,6 +35,8 @@ export function SocialFeedModal({
   useEffect(() => {
     setFeed(extraPosts.map((p) => ({ ...p, commentsList: [] })));
   }, [extraPosts]);
+
+  useMobileModalBack(isOpen, onClose);
 
   if (!isOpen) return null;
 

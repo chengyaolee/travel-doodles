@@ -1,5 +1,6 @@
 "use client";
 
+import { useMobileModalBack } from "@/lib/useMobileModalBack";
 import { useState, useEffect, useRef } from "react";
 import { DoodlePin } from "@/components/doodles";
 import { TravelDoodlePost } from "./CreatePostModal";
@@ -197,6 +198,8 @@ export function ProfileModal({
 
     return () => clearTimeout(timer);
   }, [newHandle, isEditingHandle, user?.custom_id]);
+
+  useMobileModalBack(isOpen, onClose);
 
   if (!isOpen) return null;
 

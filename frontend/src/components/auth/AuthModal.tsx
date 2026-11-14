@@ -1,5 +1,6 @@
 "use client";
 
+import { useMobileModalBack } from "@/lib/useMobileModalBack";
 import React, { useState } from "react";
 import { useAuth } from "@/lib/authContext";
 import { DoodlePin, DoodleUnderline } from "@/components/doodles";
@@ -40,6 +41,8 @@ export function AuthModal() {
       }
     }
   }, [authModalOpen]);
+
+  useMobileModalBack(authModalOpen, closeAuthModal);
 
   if (!authModalOpen) return null;
 

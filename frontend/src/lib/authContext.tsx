@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { api, AuthUser, getAuthToken, getStoredUser } from "@/lib/api";
+import { api, AuthUser } from "@/lib/api";
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -33,22 +33,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [user, setUser] = useState<AuthUser | null>(() => {
-    if (typeof window !== "undefined") {
-      const token = getAuthToken();
-      const cached = getStoredUser();
-      if (token && cached) return cached;
-    }
-    return null;
-  });
-  const [isLoading, setIsLoading] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      const token = getAuthToken();
-      const cached = getStoredUser();
-      return !Boolean(token && cached);
-    }
-    return true;
-  });
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [authStage, setAuthStage] = useState<"idle" | "authenticating" | "authenticated">("idle");
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalAction, setAuthModalAction] = useState("");
