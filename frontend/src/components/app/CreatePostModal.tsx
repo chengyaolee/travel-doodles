@@ -349,10 +349,10 @@ export function CreatePostModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[20dvh] sm:pt-4 bg-black/60 backdrop-blur-xs overflow-y-auto"
     >
       <div
-        className="relative w-full max-w-4xl bg-[var(--bg-primary)] border-2 border-[var(--border-color)] rounded-3xl shadow-2xl p-6 sm:p-8 my-8 overflow-hidden"
+        className="relative w-full max-w-4xl bg-[var(--bg-primary)] border-2 border-[var(--border-color)] rounded-3xl shadow-2xl p-6 sm:p-8 my-auto overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
