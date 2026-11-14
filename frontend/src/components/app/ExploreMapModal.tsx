@@ -96,10 +96,14 @@ export function ExploreMapModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6 bg-black/75 backdrop-blur-xs"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
     >
       <div
         className="relative w-full h-[92vh] max-w-7xl bg-[var(--bg-primary)] border-2 border-[var(--border-color)] rounded-3xl shadow-2xl flex flex-col overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Floating Top Control Bar */}
         <div className="p-4 border-b border-[var(--border-color)] bg-[var(--bg-primary)]/90 backdrop-blur-md flex flex-wrap items-center justify-between gap-4 z-20">
