@@ -2,9 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { postsStore } from "@/lib/server/postsStore";
 import { getBackendUrl, resolveAuthUser } from "@/lib/server/backendUrl";
 
-export async function POST(
+export const POST = (request: NextRequest, context: { params: Promise<{ id: string }> }) =>
+  handleLike(request, context, "POST");
+
+// DELETE unlikes on the Go backend; the local store's toggle covers both directions.
+export const DELETE = (request: NextRequest, context: { params: Promise<{ id: string }> }) =>
+  handleLike(request, context, "DELETE");
+
+async function handleLike(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
+  method: "POST" | "DELETE"
 ) {
   const { id } = await context.params;
   const backendUrl = getBackendUrl();
@@ -13,14 +21,14 @@ export async function POST(
     let res: Response;
     try {
       res = await fetch(`${backendUrl}/api/v1/posts/${id}/likes`, {
-        method: "POST",
+        method,
         headers: {
           ...(request.headers.get("cookie") ? { cookie: request.headers.get("cookie")! } : {}),
           ...(request.headers.get("authorization") ? { authorization: request.headers.get("authorization")! } : {}),
         },
       });
     } catch (proxyErr) {
-      console.error("Go backend unreachable for POST /likes:", proxyErr);
+      console.error(`Go backend unreachable for ${method} /likes:`, proxyErr);
       return NextResponse.json(
         { error: "Backend server is unreachable. Please try again later." },
         { status: 502 }

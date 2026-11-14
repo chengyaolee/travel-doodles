@@ -75,9 +75,7 @@ export function SocialFeedModal({
   };
 
   const handleShare = (post: FeedPost) => {
-    const url = `${window.location.origin}/explore?country=${post.country}&city=${encodeURIComponent(
-      post.city
-    )}&post=${post.id}`;
+    const url = `${window.location.origin}/p/${post.id}`;
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url);
     }

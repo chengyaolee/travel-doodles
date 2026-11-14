@@ -141,7 +141,7 @@ export function RegionalFeed({
   };
 
   const handleShare = (post: ExplorePost) => {
-    const url = `${window.location.origin}/explore?country=${post.country}&region=${post.region}&post=${post.id}`;
+    const url = `${window.location.origin}/p/${post.id}`;
     if (!navigator.clipboard) {
       setToastMessage("Story link: " + url);
       return;
