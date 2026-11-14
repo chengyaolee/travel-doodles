@@ -1,5 +1,6 @@
 "use client";
 
+import { useMobileModalBack } from "@/lib/useMobileModalBack";
 import { useState, useEffect, useRef } from "react";
 import { DoodlePin } from "@/components/doodles";
 import { InkIcon } from "@/components/ui/InkIcon";
@@ -139,6 +140,8 @@ export function CreatePostModal({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useMobileModalBack(isOpen, onClose);
 
   if (!isOpen) return null;
 

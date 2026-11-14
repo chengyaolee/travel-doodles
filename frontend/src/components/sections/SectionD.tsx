@@ -1,5 +1,6 @@
 "use client";
 
+import { useMobileModalBack } from "@/lib/useMobileModalBack";
 import { useRef, useState, useEffect, useMemo } from "react";
 import { DoodleUnderline, DoodlePin } from "@/components/doodles";
 import { InkIcon } from "@/components/ui/InkIcon";
@@ -16,6 +17,7 @@ export function SectionD({
   onViewProfile?: (username: string) => void;
 }) {
   const [selectedPost, setSelectedPost] = useState<TravelDoodlePost | null>(null);
+  useMobileModalBack(selectedPost !== null, () => setSelectedPost(null));
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
 

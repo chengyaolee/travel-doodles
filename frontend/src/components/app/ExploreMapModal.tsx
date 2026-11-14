@@ -1,5 +1,6 @@
 "use client";
 
+import { useMobileModalBack } from "@/lib/useMobileModalBack";
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { DoodlePin, DoodleGlobe, DoodleCompass } from "@/components/doodles";
@@ -90,6 +91,8 @@ export function ExploreMapModal({
   }, [allPosts, selectedRegion, filterAudience, searchQuery]);
 
   const activePost = allPosts.find((p) => p.id === activePinId);
+
+  useMobileModalBack(isOpen, onClose);
 
   if (!isOpen) return null;
 
