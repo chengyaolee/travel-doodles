@@ -20,7 +20,7 @@ async function handleLike(
   if (backendUrl) {
     let res: Response;
     try {
-      res = await fetch(`${backendUrl}/api/v1/posts/${id}/likes`, {
+      res = await fetch(`${backendUrl}/api/v1/posts/${encodeURIComponent(id)}/likes`, {
         method,
         headers: {
           ...(request.headers.get("cookie") ? { cookie: request.headers.get("cookie")! } : {}),
@@ -52,6 +52,11 @@ async function handleLike(
     );
   }
 
+  // The local store only toggles, so skip when already in the requested state.
+  const post = postsStore.getPostById(id) as { likes: number; _userLiked?: boolean } | null;
+  if (post && Boolean(post._userLiked) === (method === "POST")) {
+    return NextResponse.json({ likes: post.likes, liked: Boolean(post._userLiked) });
+  }
   const result = postsStore.toggleLike(id);
   return NextResponse.json(result);
 }

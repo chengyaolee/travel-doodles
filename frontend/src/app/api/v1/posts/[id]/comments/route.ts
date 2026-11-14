@@ -12,7 +12,7 @@ export async function GET(
 
   if (backendUrl) {
     try {
-      const res = await fetch(`${backendUrl}/api/v1/posts/${id}/comments`);
+      const res = await fetch(`${backendUrl}/api/v1/posts/${encodeURIComponent(id)}/comments`);
       if (res.ok) {
         const data = await res.json();
         return NextResponse.json(data);
@@ -45,7 +45,7 @@ export async function POST(
     if (backendUrl) {
       let res: Response;
       try {
-        res = await fetch(`${backendUrl}/api/v1/posts/${id}/comments`, {
+        res = await fetch(`${backendUrl}/api/v1/posts/${encodeURIComponent(id)}/comments`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
