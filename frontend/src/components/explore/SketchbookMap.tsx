@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import {
   Map as MapLibreMap,
   Marker,
@@ -11,6 +11,7 @@ import {
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useTheme } from "next-themes";
 import { getSketchbookMapStyle, LIGHT_TOKENS, DARK_TOKENS } from "@/lib/explore/mapStyles";
+import { countryLabelZoom, MIN_LABEL_PX, stateZoomByCountry } from "@/lib/explore/labelZoom";
 import { ExplorePost } from "@/lib/explore/mockPosts";
 import { PhotoPeek } from "./PhotoPeek";
 import { InventoryItem } from "./ExploreToolbar";
@@ -100,6 +101,12 @@ export function SketchbookMap({
   // Cached regions and cities data
   const [regionsData, setRegionsData] = useState<RegionGeoFeature[]>([]);
   const [citiesData, setCitiesData] = useState<CityGeoFeature[]>([]);
+  // Region borders only render from 2.8, so state names never appear before that
+  const stateZooms = useMemo(() => {
+    const zooms = stateZoomByCountry(regionsData);
+    for (const code in zooms) zooms[code] = Math.max(2.8, zooms[code]);
+    return zooms;
+  }, [regionsData]);
 
   // Ref tracking selected country for event handlers and map listeners
   const selectedCountryRef = useRef<string | null>(selectedCountry);
@@ -559,7 +566,6 @@ export function SketchbookMap({
   }, [selectedCountry, selectedRegion, inventory, zoomToCountry, zoomToRegion]);
 
   // Requirement 9: Google Maps style Country Names inside areas by zoom level
-  // Disappears when zoomed in and states show up
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
@@ -568,29 +574,12 @@ export function SketchbookMap({
     countryLabelsRef.current.forEach((m) => m.remove());
     countryLabelsRef.current = [];
 
-    // Filter which country names appear based on current zoom
     inventory.forEach((item) => {
-      // Check if this country has subnational states in the dataset
-      const hasStates = regionsData.some((r) => r.country === item.code);
-
-      // When zoomed in into countries and states show up, country name disappears
-      if (hasStates && mapZoom >= 2.8) return;
-      if (selectedCountry === item.code && mapZoom >= 2.8) return;
-      if (mapZoom >= 5.8) return;
-
-      const [[w, s], [e, n]] = item.cameraBounds;
-      const span = Math.max(Math.abs(e - w), Math.abs(n - s));
-
-      let minZoom = 1.4; // Large countries (e.g. US, Canada, Russia, China, Australia, Brazil, India)
-      if (span < 16 && span >= 6) {
-        minZoom = 2.8; // Medium countries (e.g. France, Japan, Germany, Spain, Italy, UK)
-      } else if (span < 6 && span >= 2) {
-        minZoom = 4.2; // Small countries (e.g. Switzerland, Netherlands, Belgium, Taiwan)
-      } else if (span < 2) {
-        minZoom = 5.5; // Microstates & small islands (e.g. Singapore, Monaco, Vatican, Malta)
-      }
-
+      // Shown once the name fits inside the country (small countries at a fixed zoom),
+      // then stays and grows as the user zooms in. No upper zoom cap.
+      const minZoom = countryLabelZoom(item.cameraBounds, item.displayName);
       if (mapZoom >= minZoom) {
+        const fontSize = Math.min(22, Math.round(MIN_LABEL_PX + (mapZoom - minZoom) * 1.6));
         const el = document.createElement("button");
         // Completely fixed position: zero scale, zero translate on hover to prevent moving away
         el.className =
@@ -605,7 +594,7 @@ export function SketchbookMap({
           : "0 1px 2px rgba(255,255,255,0.95), 0 0 3px rgba(255,255,255,0.9)";
 
         el.innerHTML = `
-          <span class="block text-[11px] font-sans font-bold uppercase tracking-wider transition-colors group-hover:text-[#d94e34] dark:group-hover:text-[#f87171]" style="color: ${textColor}; text-shadow: ${textShadow};">
+          <span class="block font-sans font-bold uppercase tracking-wider transition-colors group-hover:text-[#d94e34] dark:group-hover:text-[#f87171]" style="font-size: ${fontSize}px; color: ${textColor}; text-shadow: ${textShadow};">
             ${item.displayName}
           </span>
         `;
@@ -621,14 +610,10 @@ export function SketchbookMap({
         countryLabelsRef.current.push(marker);
       }
     });
-  }, [inventory, mapZoom, onSelectCountry, zoomToCountry, selectedCountry, regionsData, isDark, mapLoaded]);
+  }, [inventory, mapZoom, onSelectCountry, zoomToCountry, isDark, mapLoaded]);
 
-  // DynamicFont size & regional zoom thresholding:
-  // - Text does NOT show up if the state border is not big enough on screen.
-  // - Each country/region has an individualized threshold based on its geographic border size.
-  // - State/Region name has a distinct grey shade from cities.
-  // - On zooming in, the state name does NOT disappear (no upper zoom cap).
-  // - DynamicFont size scales proportionally with zoom above the threshold.
+  // State names: every region of a country appears at the same zoom (see stateZoomByCountry),
+  // starting at the minimum text size and growing as the user zooms in. No upper zoom cap.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
@@ -640,29 +625,10 @@ export function SketchbookMap({
       // If a country is selected, only show regions belonging to that country
       if (selectedCountry && reg.country !== selectedCountry) return;
 
-      const [[w, s], [e, n]] = reg.bounds || [[0, 0], [0, 0]];
-      const lngSpan = Math.abs(e - w);
-      const latSpan = Math.abs(n - s);
-      const centerLat = reg.center ? reg.center[1] : (s + n) / 2;
-      const cosLat = Math.cos((centerLat * Math.PI) / 180);
-      // Equivalent diameter in degrees
-      const geoSpan = Math.max(0.12, Math.sqrt(lngSpan * cosLat * latSpan));
+      const stateZoom = stateZooms[reg.country];
+      if (stateZoom === undefined || mapZoom < stateZoom) return;
 
-      // Individualized threshold: text only appears when state border is large enough on screen
-      // For selected country, ~45px on screen; for world overview, ~60px on screen.
-      const isCurrentCountry = selectedCountry === reg.country;
-      const minRequiredZoom = isCurrentCountry
-        ? Math.min(7.5, Math.max(2.3, Math.log2(62 / geoSpan)))
-        : Math.min(8.2, Math.max(2.8, Math.log2(82 / geoSpan)));
-
-      // Border size check: Do NOT show up if state border is not big enough
-      if (mapZoom < minRequiredZoom) return;
-
-      // On zooming in, state name does NOT disappear (no upper zoom cap)
-
-      // Dynamic font size: scales smoothly as the user zooms in into the region
-      const zoomAbove = Math.max(0, mapZoom - minRequiredZoom);
-      const dynamicFontSize = Math.min(18, Math.max(10, Math.round(10 + zoomAbove * 1.4)));
+      const dynamicFontSize = Math.min(18, Math.round(MIN_LABEL_PX + (mapZoom - stateZoom) * 1.4));
 
       // Short form name like "CA, TX, ID..." or full name if no commonly known short form
       const displayLabel = reg.shortName || reg.name;
@@ -700,7 +666,7 @@ export function SketchbookMap({
       const marker = new Marker({ element: el }).setLngLat(reg.center).addTo(map);
       stateLabelsRef.current.push(marker);
     });
-  }, [regionsData, mapZoom, selectedCountry, onSelectRegion, zoomToRegion, isDark, mapLoaded]);
+  }, [regionsData, stateZooms, mapZoom, selectedCountry, onSelectRegion, zoomToRegion, isDark, mapLoaded]);
 
   // Requirement 10: Names of big and popular cities / hotspots when zoomed in
   useEffect(() => {
@@ -714,9 +680,10 @@ export function SketchbookMap({
     if (mapZoom < 3.8) return;
 
     citiesData.forEach((city) => {
-      // Rank 1: zoom >= 3.8, Rank 2: zoom >= 5.2
+      // Rank 1: zoom >= 3.8, Rank 2: zoom >= 5.2, and never before the country's state names
       if (city.rank === 1 && mapZoom < 3.8) return;
       if (city.rank === 2 && mapZoom < 5.2) return;
+      if (mapZoom < (stateZooms[city.country] ?? 0) + 1) return;
 
       const isBigCity = city.rank === 1;
       const el = document.createElement("button");
@@ -756,7 +723,7 @@ export function SketchbookMap({
 
       cityLabelsRef.current.push(marker);
     });
-  }, [citiesData, mapZoom, selectedCountry, onSelectCountry, onSelectRegion, zoomToRegion, isDark, mapLoaded]);
+  }, [citiesData, stateZooms, mapZoom, selectedCountry, onSelectCountry, onSelectRegion, zoomToRegion, isDark, mapLoaded]);
 
   // Requirements 5, 6, 7:
   // - Requirement 5: Sleek pin with notification icon on top right (no white circle background)

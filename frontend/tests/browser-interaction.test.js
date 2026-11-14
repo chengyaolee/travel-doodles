@@ -326,43 +326,6 @@ describe('Explore Experience & Regional Feed Interactions', () => {
     assert.ok(doodlePinSource.includes('circle cx="16" cy="9"'), 'Must contain spherical pearl head');
   });
 
-  test('DynamicFont size & Regional zoom thresholding logic', () => {
-    const fs = require('fs');
-    const filePath = fs.existsSync('src/components/explore/SketchbookMap.tsx')
-      ? 'src/components/explore/SketchbookMap.tsx'
-      : 'frontend/src/components/explore/SketchbookMap.tsx';
-    const source = fs.readFileSync(filePath, 'utf-8');
-
-    // 1. Text does not show up if state border is not big enough on screen
-    assert.ok(source.includes('minRequiredZoom'), 'Must calculate individualized minRequiredZoom for each region');
-    assert.ok(source.includes('if (mapZoom < minRequiredZoom) return;'), 'Text must not show up when border is smaller than threshold');
-
-    // 2. On zooming in, state name does not disappear (no upper zoom cap like mapZoom > 7.2)
-    assert.ok(!source.includes('mapZoom > 7.2'), 'Must not have an upper zoom cap that hides states when zooming in');
-
-    // 3. DynamicFont size calculation scales proportionally with zoom above threshold
-    assert.ok(source.includes('dynamicFontSize'), 'Must calculate dynamicFontSize based on zoom above threshold');
-    assert.ok(source.includes('style="font-size: ${dynamicFontSize}px;'), 'Must apply dynamic font size to state labels');
-
-    // Mathematical test of threshold formula: large states appear earlier than micro regions
-    const calcMinZoom = (geoSpan, isCurrentCountry = false) => {
-      return isCurrentCountry
-        ? Math.min(7.5, Math.max(2.3, Math.log2(62 / geoSpan)))
-        : Math.min(8.2, Math.max(2.8, Math.log2(82 / geoSpan)));
-    };
-    const texasSpan = 12.0;
-    const delawareSpan = 0.5;
-    assert.ok(calcMinZoom(texasSpan) < calcMinZoom(delawareSpan), 'Large states must have lower required zoom threshold than small states');
-    assert.ok(calcMinZoom(texasSpan) <= 3.2, 'Texas should be visible by zoom 3.2');
-    assert.ok(calcMinZoom(delawareSpan) >= 6.5, 'Delaware should only appear after zoom 6.5 when border is large enough');
-
-    // Dynamic font size scaling test
-    const calcFontSize = (zoom, minZoom) => Math.min(18, Math.max(10, Math.round(10 + Math.max(0, zoom - minZoom) * 1.4)));
-    assert.strictEqual(calcFontSize(3.0, 3.0), 10, 'Font size at threshold must start at 10px');
-    assert.strictEqual(calcFontSize(5.0, 3.0), 13, 'Font size must scale up smoothly with deeper zoom');
-    assert.strictEqual(calcFontSize(12.0, 3.0), 18, 'Font size must be capped at 18px so it remains elegant');
-  });
-
   test('State/Region name has distinctive grey styling from cities', () => {
     const fs = require('fs');
     const filePath = fs.existsSync('src/components/explore/SketchbookMap.tsx')
