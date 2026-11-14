@@ -57,13 +57,17 @@ export function AuthModal() {
       role="dialog"
       aria-modal="true"
       aria-labelledby="auth-modal-title"
+      onClick={(event) => {
+        if (!showLoading && event.target === event.currentTarget) {
+          closeAuthModal();
+        }
+      }}
     >
       <div
         className="relative w-full max-w-sm sm:max-w-md min-h-[390px] bg-[var(--bg-primary)] border-2 border-[var(--ink-primary)] rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col justify-between text-[var(--ink-primary)] overflow-hidden my-8"
         style={{
           boxShadow: "6px 6px 0px 0px var(--ink-primary)",
         }}
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button - hidden while authenticating to prevent aborting mid-handshake */}
         {!showLoading && (
